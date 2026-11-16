@@ -1,6 +1,11 @@
 extends Camera3D
 ## Side camera: follows the target on X/Y only and pans a little with look_up / look_down
 ## while the target stands on the ground.
+##
+## Physics interpolation is on (project setting physics/common/physics_interpolation), so the
+## target is only moved on physics ticks. This camera therefore runs in _process and reads the
+## target's interpolated transform; its own interpolation is switched off so it is not
+## smoothed twice.
 
 @export var target: Node3D
 @export var offset: Vector3 = Vector3(0.0, 2.5, 14.0)
@@ -13,11 +18,12 @@ var _pan: float = 0.0
 
 
 func _ready() -> void:
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if target != null:
 		global_position = _desired()
 
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
 	if target == null:
 		return
 	var want: float = 0.0
@@ -29,4 +35,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _desired() -> Vector3:
-	return Vector3(target.global_position.x, target.global_position.y + _pan, 0.0) + offset
+	var at: Vector3 = target.position
+	if target.is_inside_tree():
+		at = target.get_global_transform_interpolated().origin
+	return Vector3(at.x, at.y + _pan, 0.0) + offset

@@ -166,6 +166,8 @@ func respawn() -> void:
 	if game_state == null:
 		return
 	global_position = game_state.respawn()
+	if is_inside_tree():
+		reset_physics_interpolation() # teleport: do not blend from the death spot
 	velocity = Vector3.ZERO
 	grounded = false
 	_prev_bottom = global_position.y - body_half_height

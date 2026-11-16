@@ -39,7 +39,7 @@ func _process(_delta: float) -> void:
 		"A/D move  Space jump  S drop-through / stomp  Shift roll / slam  W use steamer",
 	]
 	if OS.is_debug_build():
-		lines.append("F1 unlock roll+slam  F2 relock  F3 respawn dummies  F4 -1 heart")
+		lines.append("1 unlock roll+slam  2 relock  3 respawn dummies  4 -1 heart")
 	_label.text = "\n".join(lines)
 
 
