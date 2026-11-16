@@ -7,6 +7,7 @@ signal sauce_changed(sauce: int, max_sauce: int)
 signal sodium_changed(sodium: int, max_sodium: int)
 signal skill_unlocked(skill_id: String)
 signal died
+signal checkpoint_changed(id: String)
 
 const MAX_HEARTS: int = 14
 const START_HEARTS: int = 14
@@ -36,6 +37,9 @@ var skills: Dictionary[String, bool] = DEFAULT_SKILLS.duplicate()
 var inventory_capacity: int = 0
 ## Stable string item ids.
 var items: Array[String] = []
+## Last 찜기 used. Empty id = no checkpoint yet.
+var checkpoint_id: String = ""
+var checkpoint_position: Vector3 = Vector3.ZERO
 
 
 func reset() -> void:
@@ -45,6 +49,8 @@ func reset() -> void:
 	skills = DEFAULT_SKILLS.duplicate()
 	inventory_capacity = 0
 	items = []
+	checkpoint_id = ""
+	checkpoint_position = Vector3.ZERO
 	_emit_all()
 
 
@@ -63,13 +69,37 @@ func take_damage(half_hearts: int) -> void:
 		died.emit()
 
 
+## Does nothing at 0 hearts: a dead 떡 is only brought back by respawn().
 func heal(half_hearts: int) -> void:
-	if half_hearts <= 0:
+	if half_hearts <= 0 or hearts <= 0:
 		return
 	var before: int = hearts
 	hearts = clampi(hearts + half_hearts, 0, MAX_HEARTS)
 	if hearts != before:
 		hearts_changed.emit(hearts, MAX_HEARTS)
+
+
+func set_checkpoint(id: String, at: Vector3) -> void:
+	checkpoint_id = id
+	checkpoint_position = at
+	checkpoint_changed.emit(id)
+
+
+## Using a 찜기: full heal and it becomes the checkpoint. Refused (false) while dead.
+func use_steamer(id: String, at: Vector3) -> bool:
+	if is_dead():
+		return false
+	set_checkpoint(id, at)
+	heal(MAX_HEARTS)
+	return true
+
+
+## Brings a dead 떡 back with full hearts. Returns where to put him (the last checkpoint).
+func respawn() -> Vector3:
+	if hearts != MAX_HEARTS:
+		hearts = MAX_HEARTS
+		hearts_changed.emit(hearts, MAX_HEARTS)
+	return checkpoint_position
 
 
 func add_sauce(n: int) -> void:
@@ -132,6 +162,8 @@ func to_dict() -> Dictionary:
 		"skills": skills.duplicate(),
 		"inventory_capacity": inventory_capacity,
 		"items": items.duplicate(),
+		"checkpoint_id": checkpoint_id,
+		"checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
 	}
 
 
@@ -155,6 +187,18 @@ func from_dict(data: Dictionary) -> void:
 		for item: Variant in saved_items:
 			if item is String:
 				items.append(item)
+
+	var saved_id: Variant = data.get("checkpoint_id")
+	checkpoint_id = saved_id if saved_id is String else ""
+	checkpoint_position = Vector3.ZERO
+	var saved_pos: Variant = data.get("checkpoint_position")
+	if saved_pos is Array and (saved_pos as Array).size() == 3:
+		var p: Array = saved_pos
+		var ok: bool = true
+		for v: Variant in p:
+			ok = ok and (v is float or v is int) and is_finite(float(v))
+		if ok:
+			checkpoint_position = Vector3(float(p[0]), float(p[1]), float(p[2]))
 	_emit_all()
 
 

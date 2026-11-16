@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/tall_rigid_dummy.gd" id="1_gcvfg"]
+[ext_resource type="Resource" path="res://data/enemies/tall_rigid_dummy.tres" id="2_rolfb"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_5r77g"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_jtc2l"]
+size = Vector3(0.6, 1.4, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tj60d"]
+albedo_color = Color(0.82, 0.68, 0.46, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_nttaw"]
+size = Vector3(0.6, 1.4, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y01wj"]
+albedo_color = Color(0.55, 0.36, 0.2, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_8jgws"]
+size = Vector3(0.62, 0.18, 0.52)
+
+[node name="TallRigidDummy" type="CharacterBody3D" unique_id=1745574599]
+script = ExtResource("1_gcvfg")
+def = ExtResource("2_rolfb")
+reaction_table = ExtResource("3_5r77g")
+body_height = 1.4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=768192827]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("BoxShape3D_jtc2l")
+
+[node name="Visual" type="Node3D" parent="." unique_id=641753230]
+
+[node name="Body" type="MeshInstance3D" parent="Visual" unique_id=1591696102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+material_override = SubResource("StandardMaterial3D_tj60d")
+mesh = SubResource("BoxMesh_nttaw")
+
+[node name="Band" type="MeshInstance3D" parent="Visual" unique_id=928796540]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+material_override = SubResource("StandardMaterial3D_y01wj")
+mesh = SubResource("BoxMesh_8jgws")

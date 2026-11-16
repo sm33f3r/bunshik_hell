@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="ReactionTable" format=3]
+
+[ext_resource type="Script" path="res://systems/reaction_table.gd" id="1_yre74"]
+
+[resource]
+script = ExtResource("1_yre74")
+entries = {
+"soft": {
+"landing": {
+"damage": 1,
+"reaction": "damage"
+},
+"roll": {
+"damage": 1,
+"reaction": "damage"
+},
+"slam": {
+"damage": 0,
+"reaction": "kill"
+},
+"stomp": {
+"damage": 0,
+"reaction": "kill"
+}
+},
+"tall_rigid": {
+"landing": {
+"damage": 0,
+"reaction": "bounce_off"
+},
+"roll": {
+"damage": 0,
+"reaction": "knock_over"
+},
+"slam": {
+"damage": 0,
+"reaction": "kill"
+},
+"stomp": {
+"damage": 1,
+"reaction": "damage"
+}
+}
+}

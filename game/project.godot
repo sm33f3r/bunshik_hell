@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Bunshik Hell"
-run/main_scene="res://main.tscn"
+run/main_scene="res://maps/test/test_room.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -137,3 +137,11 @@ aim_down={
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="one_way"
+3d_physics/layer_3="player"
+3d_physics/layer_4="enemy"
+3d_physics/layer_5="interactable"

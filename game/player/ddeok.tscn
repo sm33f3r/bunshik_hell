@@ -1,0 +1,121 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://player/ddeok.gd" id="1_rs83r"]
+[ext_resource type="Resource" path="res://data/movement_tuning.tres" id="2_jmpvn"]
+[ext_resource type="Script" path="res://player/ddeok_visual.gd" id="3_pxrk2"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xq8ls"]
+radius = 0.32
+height = 0.96
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rvx66"]
+radius = 0.35
+height = 1.0
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_dmh7g"]
+radius = 0.3
+height = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aytf6"]
+albedo_color = Color(0.92, 0.38, 0.14, 1)
+roughness = 0.55
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_gaw8d"]
+top_radius = 0.32
+bottom_radius = 0.32
+height = 0.9
+radial_segments = 24
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_71f02"]
+roughness = 0.3
+
+[sub_resource type="SphereMesh" id="SphereMesh_w2knu"]
+radius = 0.075
+height = 0.15
+radial_segments = 16
+rings = 8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hjvo4"]
+albedo_color = Color(0.06, 0.03, 0.03, 1)
+roughness = 0.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_l6p8p"]
+radius = 0.04
+height = 0.08
+radial_segments = 16
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_6t7n7"]
+radius = 0.075
+height = 0.15
+radial_segments = 16
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_oa0sh"]
+radius = 0.04
+height = 0.08
+radial_segments = 16
+rings = 8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_qw6kw"]
+radius = 0.025
+height = 0.14
+
+[node name="Ddeok" type="CharacterBody3D" unique_id=940800061]
+script = ExtResource("1_rs83r")
+tuning = ExtResource("2_jmpvn")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=926335042]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_xq8ls")
+
+[node name="ContactArea" type="Area3D" parent="." unique_id=2068694585]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ContactArea" unique_id=313478448]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_rvx66")
+
+[node name="OneWaySensor" type="Area3D" parent="." unique_id=474693380]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="OneWaySensor" unique_id=1980537947]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_dmh7g")
+
+[node name="FacingPivot" type="Node3D" parent="." unique_id=1479870894]
+
+[node name="Visual" type="Node3D" parent="FacingPivot" unique_id=2062738494]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
+script = ExtResource("3_pxrk2")
+
+[node name="Rig" type="Node3D" parent="FacingPivot/Visual" unique_id=325460502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.32, 0)
+
+[node name="Body" type="MeshInstance3D" parent="FacingPivot/Visual/Rig" unique_id=1722954052]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
+material_override = SubResource("StandardMaterial3D_aytf6")
+mesh = SubResource("CylinderMesh_gaw8d")
+
+[node name="EyeFront" type="MeshInstance3D" parent="FacingPivot/Visual/Rig" unique_id=395399877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, 0.1, 0.3139737)
+material_override = SubResource("StandardMaterial3D_71f02")
+mesh = SubResource("SphereMesh_w2knu")
+
+[node name="Pupil" type="MeshInstance3D" parent="FacingPivot/Visual/Rig/EyeFront" unique_id=1062604154]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, 0, 0.055)
+material_override = SubResource("StandardMaterial3D_hjvo4")
+mesh = SubResource("SphereMesh_l6p8p")
+
+[node name="EyeBack" type="MeshInstance3D" parent="FacingPivot/Visual/Rig" unique_id=267596468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17, 0.1, 0.3139737)
+material_override = SubResource("StandardMaterial3D_71f02")
+mesh = SubResource("SphereMesh_6t7n7")
+
+[node name="Pupil" type="MeshInstance3D" parent="FacingPivot/Visual/Rig/EyeBack" unique_id=1195562756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, 0, 0.055)
+material_override = SubResource("StandardMaterial3D_hjvo4")
+mesh = SubResource("SphereMesh_oa0sh")
+
+[node name="Mouth" type="MeshInstance3D" parent="FacingPivot/Visual/Rig" unique_id=1206572476]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.28, -0.07, 0.3172499)
+material_override = SubResource("StandardMaterial3D_hjvo4")
+mesh = SubResource("CapsuleMesh_qw6kw")

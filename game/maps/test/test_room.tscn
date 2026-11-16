@@ -1,0 +1,299 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://maps/test/test_room.gd" id="1_btsfy"]
+[ext_resource type="Script" path="res://maps/test/one_way_platform.gd" id="2_4iekt"]
+[ext_resource type="PackedScene" path="res://items/steamer.tscn" id="3_g72da"]
+[ext_resource type="Script" path="res://items/steamer.gd" id="4_2dbb2"]
+[ext_resource type="PackedScene" path="res://enemies/tall_rigid_dummy.tscn" id="5_dbn7p"]
+[ext_resource type="Script" path="res://enemies/tall_rigid_dummy.gd" id="6_n1pat"]
+[ext_resource type="Resource" path="res://data/enemies/tall_rigid_dummy.tres" id="7_bh2yx"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="8_t1wvv"]
+[ext_resource type="PackedScene" path="res://enemies/soft_dummy.tscn" id="9_hjhk6"]
+[ext_resource type="Script" path="res://enemies/soft_dummy.gd" id="10_4ffht"]
+[ext_resource type="Resource" path="res://data/enemies/soft_dummy.tres" id="11_0nre5"]
+[ext_resource type="PackedScene" path="res://player/ddeok.tscn" id="12_ipans"]
+[ext_resource type="Script" path="res://player/ddeok.gd" id="13_tg4us"]
+[ext_resource type="Resource" path="res://data/movement_tuning.tres" id="14_agkpu"]
+[ext_resource type="Script" path="res://player/side_camera.gd" id="15_7g082"]
+[ext_resource type="Script" path="res://maps/test/debug_hud.gd" id="16_kawyy"]
+[ext_resource type="Script" path="res://maps/test/debug_keys.gd" id="17_ueo03"]
+
+[sub_resource type="Environment" id="Environment_5321f"]
+background_mode = 1
+background_color = Color(0.62, 0.78, 0.92, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.85, 0.88, 0.95, 1)
+ambient_light_energy = 0.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_xqwgv"]
+size = Vector3(26, 1, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qef73"]
+albedo_color = Color(0.55, 0.57, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_3rnrb"]
+size = Vector3(26, 1, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_eb5jj"]
+size = Vector3(25, 1, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j7u45"]
+albedo_color = Color(0.55, 0.57, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_dwle1"]
+size = Vector3(25, 1, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vdj4f"]
+size = Vector3(1.5, 0.5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qheyi"]
+albedo_color = Color(0.42, 0.5, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_ciw3q"]
+size = Vector3(1.5, 0.5, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bxhq2"]
+size = Vector3(1.5, 1, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3e7a7"]
+albedo_color = Color(0.42, 0.5, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_mlbe2"]
+size = Vector3(1.5, 1, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yyoe7"]
+size = Vector3(1.5, 1.5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x4pw2"]
+albedo_color = Color(0.42, 0.5, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_uoumn"]
+size = Vector3(1.5, 1.5, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gfpek"]
+size = Vector3(2, 0.75, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mvo3o"]
+albedo_color = Color(0.42, 0.5, 0.6, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_mqt5d"]
+size = Vector3(2, 0.75, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yfcob"]
+size = Vector3(10, 1.5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y758e"]
+albedo_color = Color(0.5, 0.45, 0.4, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_cdnqv"]
+size = Vector3(10, 1.5, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_e7iy4"]
+size = Vector3(1, 5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cnd2u"]
+albedo_color = Color(0.3, 0.3, 0.34, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_eoisr"]
+size = Vector3(1, 5, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ebijt"]
+albedo_color = Color(0.74, 0.8, 0.86, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_layj8"]
+size = Vector3(80, 14, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_045hv"]
+size = Vector3(4, 0.2, 3)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2e6sb"]
+albedo_color = Color(0.35, 0.75, 0.4, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_6qs6q"]
+size = Vector3(4, 0.2, 3)
+
+[node name="TestRoom" type="Node3D" unique_id=197968590 node_paths=PackedStringArray("player", "start_steamer")]
+script = ExtResource("1_btsfy")
+player = NodePath("Player")
+start_steamer = NodePath("Steamers/SteamerStart")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=644244017]
+environment = SubResource("Environment_5321f")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2017376616]
+transform = Transform3D(0.90630776, 0.3237444, -0.2716538, 0, 0.64278764, 0.76604444, 0.42261827, -0.69427204, 0.5825634, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Level" type="Node3D" parent="." unique_id=2084485240]
+
+[node name="FloorStart" type="StaticBody3D" parent="Level" unique_id=335408551]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/FloorStart" unique_id=586080567]
+shape = SubResource("BoxShape3D_xqwgv")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/FloorStart" unique_id=1405356342]
+material_override = SubResource("StandardMaterial3D_qef73")
+mesh = SubResource("BoxMesh_3rnrb")
+
+[node name="FloorFar" type="StaticBody3D" parent="Level" unique_id=275161714]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.5, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/FloorFar" unique_id=140818260]
+shape = SubResource("BoxShape3D_eb5jj")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/FloorFar" unique_id=2121261822]
+material_override = SubResource("StandardMaterial3D_j7u45")
+mesh = SubResource("BoxMesh_dwle1")
+
+[node name="Step1" type="StaticBody3D" parent="Level" unique_id=1743846410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.75, 0.25, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Step1" unique_id=1757394905]
+shape = SubResource("BoxShape3D_vdj4f")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Step1" unique_id=1461725024]
+material_override = SubResource("StandardMaterial3D_qheyi")
+mesh = SubResource("BoxMesh_ciw3q")
+
+[node name="Step2" type="StaticBody3D" parent="Level" unique_id=415364639]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.25, 0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Step2" unique_id=443627842]
+shape = SubResource("BoxShape3D_bxhq2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Step2" unique_id=1854758197]
+material_override = SubResource("StandardMaterial3D_3e7a7")
+mesh = SubResource("BoxMesh_mlbe2")
+
+[node name="Step3" type="StaticBody3D" parent="Level" unique_id=1193794085]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.75, 0.75, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Step3" unique_id=1129074305]
+shape = SubResource("BoxShape3D_yyoe7")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Step3" unique_id=1851986340]
+material_override = SubResource("StandardMaterial3D_x4pw2")
+mesh = SubResource("BoxMesh_uoumn")
+
+[node name="LedgeStep" type="StaticBody3D" parent="Level" unique_id=1524661925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 0.375, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/LedgeStep" unique_id=420546894]
+shape = SubResource("BoxShape3D_gfpek")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/LedgeStep" unique_id=1672427308]
+material_override = SubResource("StandardMaterial3D_mvo3o")
+mesh = SubResource("BoxMesh_mqt5d")
+
+[node name="Ledge" type="StaticBody3D" parent="Level" unique_id=1217300922]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0.75, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Ledge" unique_id=1392292108]
+shape = SubResource("BoxShape3D_yfcob")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Ledge" unique_id=1673465135]
+material_override = SubResource("StandardMaterial3D_y758e")
+mesh = SubResource("BoxMesh_cdnqv")
+
+[node name="Wall" type="StaticBody3D" parent="Level" unique_id=1878403114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 2.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Wall" unique_id=553978479]
+shape = SubResource("BoxShape3D_e7iy4")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Wall" unique_id=726801089]
+material_override = SubResource("StandardMaterial3D_cnd2u")
+mesh = SubResource("BoxMesh_eoisr")
+
+[node name="Backdrop" type="MeshInstance3D" parent="Level" unique_id=699033835]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 4, -4)
+material_override = SubResource("StandardMaterial3D_ebijt")
+mesh = SubResource("BoxMesh_layj8")
+
+[node name="OneWayPlatform" type="StaticBody3D" parent="Level" unique_id=1837721541]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1.5, 0)
+script = ExtResource("2_4iekt")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/OneWayPlatform" unique_id=1293803834]
+shape = SubResource("BoxShape3D_045hv")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/OneWayPlatform" unique_id=536742404]
+material_override = SubResource("StandardMaterial3D_2e6sb")
+mesh = SubResource("BoxMesh_6qs6q")
+
+[node name="Steamers" type="Node3D" parent="." unique_id=1311454098]
+
+[node name="SteamerStart" type="Node3D" parent="Steamers" unique_id=1876391967 instance=ExtResource("3_g72da")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0, 0)
+script = ExtResource("4_2dbb2")
+steamer_id = "steamer_start"
+
+[node name="SteamerFar" type="Node3D" parent="Steamers" unique_id=1363945066 instance=ExtResource("3_g72da")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 0, 0)
+script = ExtResource("4_2dbb2")
+steamer_id = "steamer_far"
+spawn_offset = Vector3(-1.6, 0.5, 0)
+
+[node name="Dummies" type="Node3D" parent="." unique_id=401813305]
+
+[node name="TallRigidDummy" type="CharacterBody3D" parent="Dummies" unique_id=1745574599 instance=ExtResource("5_dbn7p")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 0)
+script = ExtResource("6_n1pat")
+def = ExtResource("7_bh2yx")
+reaction_table = ExtResource("8_t1wvv")
+body_height = 1.4
+
+[node name="SoftDummy" type="CharacterBody3D" parent="Dummies" unique_id=1566847925 instance=ExtResource("9_hjhk6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 1.5, 0)
+script = ExtResource("10_4ffht")
+patrol_half_width = 3.5
+def = ExtResource("11_0nre5")
+reaction_table = ExtResource("8_t1wvv")
+body_height = 0.7
+
+[node name="SoftDummyFloor" type="CharacterBody3D" parent="Dummies" unique_id=442300777 instance=ExtResource("9_hjhk6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0, 0)
+script = ExtResource("10_4ffht")
+patrol_half_width = 1.0
+def = ExtResource("11_0nre5")
+reaction_table = ExtResource("8_t1wvv")
+body_height = 0.7
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=940800061 instance=ExtResource("12_ipans")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.4, 0.5, 0)
+script = ExtResource("13_tg4us")
+tuning = ExtResource("14_agkpu")
+
+[node name="SideCamera" type="Camera3D" parent="." unique_id=873285414 node_paths=PackedStringArray("target")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.4, 3, 14)
+fov = 50.0
+script = ExtResource("15_7g082")
+target = NodePath("../Player")
+
+[node name="DebugHud" type="CanvasLayer" parent="." unique_id=1472863826 node_paths=PackedStringArray("player")]
+script = ExtResource("16_kawyy")
+player = NodePath("../Player")
+
+[node name="Text" type="Label" parent="DebugHud" unique_id=17176876]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 16.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+
+[node name="DebugKeys" type="Node" parent="." unique_id=1482631316]
+script = ExtResource("17_ueo03")

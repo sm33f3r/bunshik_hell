@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemyDef" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_def.gd" id="1_gc7gt"]
+
+[resource]
+script = ExtResource("1_gc7gt")
+id = "soft_dummy"
+material = "soft"
+max_hp = 2
+contact_damage_half_hearts = 2

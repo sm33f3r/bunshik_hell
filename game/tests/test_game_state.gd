@@ -131,3 +131,28 @@ func test_from_dict_is_tolerant() -> void:
 	check(not gs.skills.has("made_up"), "unknown skill ignored")
 	check_eq(gs.items.size(), 1, "only string items kept")
 	gs.free()
+
+
+func test_heal_is_refused_at_zero_hearts() -> void:
+	var gs := _new()
+	var log: Array[String] = []
+	gs.hearts_changed.connect(func(_h: int, _m: int) -> void: log.append("hearts"))
+	gs.take_damage(14)
+	check_eq(gs.hearts, 0, "dead")
+	log.clear()
+	gs.heal(1)
+	check_eq(gs.hearts, 0, "heal(1) does nothing when dead")
+	gs.heal(100)
+	check_eq(gs.hearts, 0, "heal(100) does nothing when dead")
+	check(gs.is_dead(), "still dead")
+	check_eq(log.size(), 0, "no hearts_changed signal from a refused heal")
+	gs.free()
+
+
+func test_heal_works_at_one_half_heart() -> void:
+	var gs := _new()
+	gs.take_damage(13)
+	check_eq(gs.hearts, 1, "one half-heart left")
+	gs.heal(2)
+	check_eq(gs.hearts, 3, "alive hearts still heal")
+	gs.free()
