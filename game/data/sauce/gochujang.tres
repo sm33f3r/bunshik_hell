@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SauceType" format=3]
+
+[ext_resource type="Script" path="res://systems/sauce_type.gd" id="1_type"]
+
+[resource]
+script = ExtResource("1_type")
+id = "gochujang"
+display_name = "Gochujang"
+color = Color(0.85, 0.1, 0.08, 1)

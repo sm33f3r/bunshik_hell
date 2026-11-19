@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/stationary_dummy.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/enemies/noodle_dummy.tres" id="2_def"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_table"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(0.8, 0.9, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bowl"]
+albedo_color = Color(0.92, 0.92, 0.9, 1)
+roughness = 0.6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_bowl"]
+top_radius = 0.42
+bottom_radius = 0.28
+height = 0.4
+radial_segments = 20
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_noodle"]
+albedo_color = Color(0.95, 0.8, 0.35, 1)
+roughness = 0.8
+
+[sub_resource type="SphereMesh" id="SphereMesh_noodle"]
+radius = 0.36
+height = 0.7
+radial_segments = 16
+rings = 8
+
+[node name="NoodleDummy" type="CharacterBody3D"]
+script = ExtResource("1_script")
+def = ExtResource("2_def")
+reaction_table = ExtResource("3_table")
+body_height = 0.9
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Bowl" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+material_override = SubResource("StandardMaterial3D_bowl")
+mesh = SubResource("CylinderMesh_bowl")
+
+[node name="Noodles" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.9, 0, 0.58, 0)
+material_override = SubResource("StandardMaterial3D_noodle")
+mesh = SubResource("SphereMesh_noodle")

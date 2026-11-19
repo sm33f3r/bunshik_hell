@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://items/sauce_pool.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/sauce_tuning.tres" id="2_tuning"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pool"]
+size = Vector3(2.5, 0.6, 2.0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pool"]
+albedo_color = Color(0.75, 0.12, 0.08, 1)
+roughness = 0.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pool"]
+top_radius = 1.2
+bottom_radius = 1.2
+height = 0.06
+radial_segments = 24
+
+[node name="SaucePool" type="Area3D"]
+script = ExtResource("1_script")
+tuning = ExtResource("2_tuning")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+shape = SubResource("BoxShape3D_pool")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.8, 0, 0.03, 0)
+material_override = SubResource("StandardMaterial3D_pool")
+mesh = SubResource("CylinderMesh_pool")

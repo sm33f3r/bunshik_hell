@@ -17,6 +17,13 @@
 [ext_resource type="Script" path="res://player/side_camera.gd" id="15_7g082"]
 [ext_resource type="Script" path="res://maps/test/debug_hud.gd" id="16_kawyy"]
 [ext_resource type="Script" path="res://maps/test/debug_keys.gd" id="17_ueo03"]
+[ext_resource type="PackedScene" path="res://enemies/noodle_dummy.tscn" id="18_noodle"]
+[ext_resource type="PackedScene" path="res://enemies/fried_small.tscn" id="19_fsmall"]
+[ext_resource type="PackedScene" path="res://enemies/fried_medium.tscn" id="20_fmed"]
+[ext_resource type="PackedScene" path="res://enemies/fried_large.tscn" id="21_flarge"]
+[ext_resource type="PackedScene" path="res://enemies/tube_dummy.tscn" id="22_tube"]
+[ext_resource type="PackedScene" path="res://items/sauce_pool.tscn" id="23_pool"]
+[ext_resource type="PackedScene" path="res://items/sauce_drip.tscn" id="24_drip"]
 
 [sub_resource type="Environment" id="Environment_5321f"]
 background_mode = 1
@@ -121,6 +128,16 @@ roughness = 0.8
 [sub_resource type="BoxMesh" id="BoxMesh_6qs6q"]
 size = Vector3(4, 0.2, 3)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_saucefloor"]
+size = Vector3(36, 1, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_saucefloor"]
+albedo_color = Color(0.6, 0.55, 0.5, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_saucefloor"]
+size = Vector3(36, 1, 6)
+
 [node name="TestRoom" type="Node3D" unique_id=197968590 node_paths=PackedStringArray("player", "start_steamer")]
 script = ExtResource("1_btsfy")
 player = NodePath("Player")
@@ -144,6 +161,16 @@ shape = SubResource("BoxShape3D_xqwgv")
 [node name="Mesh" type="MeshInstance3D" parent="Level/FloorStart" unique_id=1405356342]
 material_override = SubResource("StandardMaterial3D_qef73")
 mesh = SubResource("BoxMesh_3rnrb")
+
+[node name="FloorSauce" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/FloorSauce"]
+shape = SubResource("BoxShape3D_saucefloor")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/FloorSauce"]
+material_override = SubResource("StandardMaterial3D_saucefloor")
+mesh = SubResource("BoxMesh_saucefloor")
 
 [node name="FloorFar" type="StaticBody3D" parent="Level" unique_id=275161714]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.5, -0.5, 0)
@@ -268,6 +295,35 @@ patrol_half_width = 1.0
 def = ExtResource("11_0nre5")
 reaction_table = ExtResource("8_t1wvv")
 body_height = 0.7
+
+[node name="NoodleDummy" parent="Dummies" instance=ExtResource("18_noodle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39, 0, 0)
+
+[node name="FriedSmall" parent="Dummies" instance=ExtResource("19_fsmall")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0, 0)
+
+[node name="FriedMedium" parent="Dummies" instance=ExtResource("20_fmed")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31, 0, 0)
+
+[node name="FriedLarge" parent="Dummies" instance=ExtResource("21_flarge")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 0, 0)
+
+[node name="TubeDummy" parent="Dummies" instance=ExtResource("22_tube")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 0, 0)
+
+[node name="Sauce" type="Node3D" parent="."]
+
+[node name="Pool" parent="Sauce" instance=ExtResource("23_pool")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.5, 0, 0)
+
+[node name="Drip1" parent="Sauce" instance=ExtResource("24_drip")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5, 0.5, 0)
+
+[node name="Drip2" parent="Sauce" instance=ExtResource("24_drip")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21, 0.5, 0)
+
+[node name="Drip3" parent="Sauce" instance=ExtResource("24_drip")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.5, 0.5, 0)
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=940800061 instance=ExtResource("12_ipans")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.4, 0.5, 0)

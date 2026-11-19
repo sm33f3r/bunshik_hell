@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/stationary_dummy.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/enemies/fried_medium.tres" id="2_def"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_table"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(0.7, 0.8, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fried"]
+albedo_color = Color(0.9, 0.66, 0.2, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_fried"]
+size = Vector3(0.7, 0.8, 0.55)
+
+[node name="FriedMedium" type="CharacterBody3D"]
+script = ExtResource("1_script")
+def = ExtResource("2_def")
+reaction_table = ExtResource("3_table")
+body_height = 0.8
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+material_override = SubResource("StandardMaterial3D_fried")
+mesh = SubResource("BoxMesh_fried")

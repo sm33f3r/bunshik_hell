@@ -5,12 +5,63 @@
 [resource]
 script = ExtResource("1_yre74")
 entries = {
+"fried": {
+"landing": [{
+"damage": 0,
+"reaction": "bounce_off"
+}, {
+"damage": 0,
+"reaction": "deteriorate"
+}],
+"roll": {
+"damage": 0,
+"reaction": "deteriorate"
+},
+"sauce": {
+"damage": 0,
+"reaction": "deteriorate"
+},
+"slam": {
+"damage": 0,
+"reaction": "deteriorate"
+},
+"stomp": {
+"damage": 0,
+"reaction": "deteriorate"
+}
+},
+"noodle": {
+"landing": {
+"damage": 0,
+"reaction": "hurt_player"
+},
+"roll": {
+"damage": 0,
+"reaction": "absorb"
+},
+"sauce": {
+"damage": 0,
+"reaction": "absorb"
+},
+"slam": {
+"damage": 0,
+"reaction": "absorb"
+},
+"stomp": {
+"damage": 0,
+"reaction": "hurt_player"
+}
+},
 "soft": {
 "landing": {
 "damage": 1,
 "reaction": "damage"
 },
 "roll": {
+"damage": 1,
+"reaction": "damage"
+},
+"sauce": {
 "damage": 1,
 "reaction": "damage"
 },
@@ -31,6 +82,32 @@ entries = {
 "roll": {
 "damage": 0,
 "reaction": "knock_over"
+},
+"sauce": {
+"damage": 1,
+"reaction": "damage"
+},
+"slam": {
+"damage": 0,
+"reaction": "kill"
+},
+"stomp": {
+"damage": 1,
+"reaction": "damage"
+}
+},
+"tube": {
+"landing": {
+"damage": 0,
+"reaction": "bounce_off"
+},
+"roll": {
+"damage": 0,
+"reaction": "knock_over"
+},
+"sauce": {
+"damage": 0,
+"reaction": "jam"
 },
 "slam": {
 "damage": 0,

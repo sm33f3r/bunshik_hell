@@ -7,6 +7,10 @@ signal state_changed(old_state: int, new_state: int)
 signal landed(impact_speed: float)
 signal attacked(attack: String, reaction: String)
 signal respawned
+## A sauce attack was fired.
+signal sauce_fired
+## Flick unlocked but not enough sauce. (A locked flick emits nothing, on purpose.)
+signal sauce_refused
 
 enum State { IDLE, SQUIGGLE, JUMP, FALL, STOMP, ROLL, SLAM, HURT, DEAD }
 
@@ -19,23 +23,31 @@ const MovementTuningScript := preload("res://player/movement_tuning.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
 const DdeokVisualScript := preload("res://player/ddeok_visual.gd")
 const ReactionTableScript := preload("res://systems/reaction_table.gd")
+const SauceTuningScript := preload("res://systems/sauce_tuning.gd")
+const SauceFlickScript := preload("res://projectiles/sauce_flick.gd")
 const Layers := preload("res://systems/layers.gd")
 
 const TUNING_PATH: String = "res://data/movement_tuning.tres"
+const SAUCE_TUNING_PATH: String = "res://data/sauce_tuning.tres"
 
 const ACTION_LEFT: StringName = &"move_left"
 const ACTION_RIGHT: StringName = &"move_right"
 const ACTION_DOWN: StringName = &"look_down"
 const ACTION_JUMP: StringName = &"jump"
 const ACTION_ROLL: StringName = &"roll"
+const ACTION_SAUCE: StringName = &"sauce_attack"
+const ACTION_SAUCE_NEXT: StringName = &"sauce_next"
+const ACTION_SAUCE_PREV: StringName = &"sauce_prev"
 
 const SKILL_JUMP: String = "jump"
 const SKILL_LANDING: String = "landing"
 const SKILL_STOMP: String = "stomp"
 const SKILL_ROLL: String = "roll"
 const SKILL_SLAM: String = "slam"
+const SKILL_SAUCE_FLICK: String = "sauce_flick"
 
 @export var tuning: MovementTuningScript
+@export var sauce_tuning: SauceTuningScript
 ## Half the body's height. Matches the capsule radius (he lies on his side).
 @export var body_half_height: float = 0.32
 
@@ -53,6 +65,7 @@ var _invuln_timer: float = 0.0
 var _hurt_timer: float = 0.0
 var _roll_timer: float = 0.0
 var _roll_cooldown: float = 0.0
+var _sauce_cooldown: float = 0.0
 var _roll_dir: float = 1.0
 var _drop_timer: float = 0.0
 var _dead_timer: float = 0.0
@@ -136,6 +149,31 @@ func request_roll() -> bool:
 	return true
 
 
+## Sauce attack button. Needs the "sauce_flick" skill: while locked it does nothing at all
+## (no signal, no feedback). Unlocked but short of sauce: no shot, sauce_refused fires.
+## Otherwise spends the cost and fires a flick straight ahead. Returns whether it fired.
+func request_sauce_attack() -> bool:
+	_ensure_sauce_tuning()
+	if not _can_act() or not _has_skill(SKILL_SAUCE_FLICK) or game_state == null:
+		return false
+	if game_state.sauce < sauce_tuning.flick_cost:
+		sauce_refused.emit()
+		return false
+	if _sauce_cooldown > 0.0:
+		return false
+	if not game_state.spend_sauce(sauce_tuning.flick_cost):
+		return false
+	_sauce_cooldown = sauce_tuning.flick_cooldown_s
+	_spawn_flick()
+	sauce_fired.emit()
+	return true
+
+
+## Seconds until the next flick may fire (0 = ready).
+func sauce_cooldown_left() -> float:
+	return _sauce_cooldown
+
+
 ## Takes contact or hazard damage (half-hearts). False if ignored (invulnerable or dead).
 func hurt(half_hearts: int, source_x: float) -> bool:
 	_ensure_tuning()
@@ -193,6 +231,7 @@ func state_name() -> String:
 func _physics_process(delta: float) -> void:
 	_ensure_tuning()
 	_tick_timers(delta)
+	_handle_sauce_input()
 
 	# Overlaps reflect last frame's move; _prev_bottom is where the feet were before it.
 	var bottom_now: float = global_position.y - body_half_height
@@ -237,8 +276,36 @@ func _tick_timers(delta: float) -> void:
 	_hurt_timer = maxf(_hurt_timer - delta, 0.0)
 	_roll_timer = maxf(_roll_timer - delta, 0.0)
 	_roll_cooldown = maxf(_roll_cooldown - delta, 0.0)
+	_sauce_cooldown = maxf(_sauce_cooldown - delta, 0.0)
 	_drop_timer = maxf(_drop_timer - delta, 0.0)
 	_dead_timer = maxf(_dead_timer - delta, 0.0)
+
+
+# --- Sauce -------------------------------------------------------------------------------
+
+func _handle_sauce_input() -> void:
+	if Input.is_action_just_pressed(ACTION_SAUCE):
+		request_sauce_attack()
+	# Cycling is part of the sauce skill: locked = nothing, same as the attack.
+	if game_state != null and _has_skill(SKILL_SAUCE_FLICK):
+		if Input.is_action_just_pressed(ACTION_SAUCE_NEXT):
+			game_state.cycle_sauce_type(1)
+		if Input.is_action_just_pressed(ACTION_SAUCE_PREV):
+			game_state.cycle_sauce_type(-1)
+
+
+## A flick straight ahead (facing), horizontal, in the 떡's own plane.
+func _spawn_flick() -> void:
+	var parent: Node = get_parent()
+	if not is_inside_tree() or parent == null:
+		return
+	var flick: SauceFlickScript = SauceFlickScript.new()
+	var sauce_type: Variant = game_state.current_sauce_type()
+	if sauce_type != null:
+		flick.color = sauce_type.color
+	flick.launch(Vector2(facing, 0.0), sauce_tuning.flick_speed_mps, sauce_tuning.flick_range_m)
+	parent.add_child(flick)
+	flick.global_position = global_position + Vector3(facing * 0.55, 0.0, 0.0)
 
 
 # --- State steps -------------------------------------------------------------------------
@@ -409,7 +476,7 @@ func _hit_enemy(enemy: EnemyBaseScript, attack: String) -> void:
 	var result: Dictionary = enemy.receive_attack(attack, dir if dir != 0.0 else facing)
 	var reaction: String = result["reaction"]
 	attacked.emit(attack, reaction)
-	if reaction == ReactionTableScript.REACTION_HURT_PLAYER:
+	if (result["reactions"] as Array).has(ReactionTableScript.REACTION_HURT_PLAYER):
 		hurt(enemy.contact_damage(), enemy.global_position.x)
 	elif attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP:
 		velocity.y = tuning.bounce_velocity
@@ -430,6 +497,8 @@ func _slam_impact() -> void:
 				var result: Dictionary = enemy.receive_attack(
 					ReactionTableScript.ATTACK_SLAM, dir if dir != 0.0 else facing)
 				attacked.emit(ReactionTableScript.ATTACK_SLAM, result["reaction"])
+				if (result["reactions"] as Array).has(ReactionTableScript.REACTION_HURT_PLAYER):
+					hurt(enemy.contact_damage(), enemy.global_position.x)
 	_set_state(State.IDLE if grounded else State.FALL)
 
 
@@ -461,3 +530,8 @@ func _set_state(new_state: State) -> void:
 func _ensure_tuning() -> void:
 	if tuning == null:
 		tuning = load(TUNING_PATH) as MovementTuningScript
+
+
+func _ensure_sauce_tuning() -> void:
+	if sauce_tuning == null:
+		sauce_tuning = load(SAUCE_TUNING_PATH) as SauceTuningScript

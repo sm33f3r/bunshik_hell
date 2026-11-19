@@ -8,6 +8,13 @@ signal sodium_changed(sodium: int, max_sodium: int)
 signal skill_unlocked(skill_id: String)
 signal died
 signal checkpoint_changed(id: String)
+signal sauce_type_changed(id: String)
+
+const SauceTypeListScript := preload("res://systems/sauce_type_list.gd")
+const SauceTypeScript := preload("res://systems/sauce_type.gd")
+
+const SAUCE_TYPES_PATH: String = "res://data/sauce_types.tres"
+const DEFAULT_SAUCE_TYPE: String = "gochujang"
 
 const MAX_HEARTS: int = 14
 const START_HEARTS: int = 14
@@ -40,6 +47,10 @@ var items: Array[String] = []
 ## Last 찜기 used. Empty id = no checkpoint yet.
 var checkpoint_id: String = ""
 var checkpoint_position: Vector3 = Vector3.ZERO
+## Id of the selected sauce type (see data/sauce_types.tres).
+var sauce_type_id: String = DEFAULT_SAUCE_TYPE
+## Ids of enemy defs defeated at least once. Drives "unlock on first defeat".
+var defeated_enemies: Array[String] = []
 
 
 func reset() -> void:
@@ -51,6 +62,8 @@ func reset() -> void:
 	items = []
 	checkpoint_id = ""
 	checkpoint_position = Vector3.ZERO
+	sauce_type_id = DEFAULT_SAUCE_TYPE
+	defeated_enemies = []
 	_emit_all()
 
 
@@ -121,6 +134,43 @@ func spend_sauce(n: int) -> bool:
 	return true
 
 
+## Ids of every sauce type, in cycle order.
+func sauce_type_ids() -> Array[String]:
+	var list: SauceTypeListScript = load(SAUCE_TYPES_PATH) as SauceTypeListScript
+	return list.ids() if list != null else ([] as Array[String])
+
+
+## The selected type's data, or null if the id is unknown.
+func current_sauce_type() -> SauceTypeScript:
+	var list: SauceTypeListScript = load(SAUCE_TYPES_PATH) as SauceTypeListScript
+	return list.find(sauce_type_id) if list != null else null
+
+
+## step +1 = next, -1 = previous; wraps. With one type (or an unknown id) nothing changes.
+func cycle_sauce_type(step: int) -> void:
+	var ids: Array[String] = sauce_type_ids()
+	if ids.size() < 2:
+		return
+	var index: int = ids.find(sauce_type_id)
+	if index < 0:
+		index = 0
+	var next_id: String = ids[posmod(index + step, ids.size())]
+	if next_id != sauce_type_id:
+		sauce_type_id = next_id
+		sauce_type_changed.emit(sauce_type_id)
+
+
+## Call when an enemy dies. The FIRST defeat of this enemy id unlocks `unlock_skill_id`
+## (if not empty); later defeats do nothing. Returns true only on that first defeat.
+func register_defeat(enemy_id: String, unlock_skill_id: String = "") -> bool:
+	if enemy_id == "" or defeated_enemies.has(enemy_id):
+		return false
+	defeated_enemies.append(enemy_id)
+	if unlock_skill_id != "":
+		unlock_skill(unlock_skill_id)
+	return true
+
+
 func add_sodium(n: int) -> void:
 	if n <= 0:
 		return
@@ -164,6 +214,8 @@ func to_dict() -> Dictionary:
 		"items": items.duplicate(),
 		"checkpoint_id": checkpoint_id,
 		"checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
+		"sauce_type": sauce_type_id,
+		"defeated_enemies": defeated_enemies.duplicate(),
 	}
 
 
@@ -199,6 +251,18 @@ func from_dict(data: Dictionary) -> void:
 			ok = ok and (v is float or v is int) and is_finite(float(v))
 		if ok:
 			checkpoint_position = Vector3(float(p[0]), float(p[1]), float(p[2]))
+
+	# Added after save_version 1 shipped: older saves simply lack these keys.
+	sauce_type_id = DEFAULT_SAUCE_TYPE
+	var saved_type: Variant = data.get("sauce_type")
+	if saved_type is String and sauce_type_ids().has(saved_type):
+		sauce_type_id = saved_type
+	defeated_enemies = []
+	var saved_defeats: Variant = data.get("defeated_enemies")
+	if saved_defeats is Array:
+		for enemy_id: Variant in saved_defeats:
+			if enemy_id is String and enemy_id != "" and not defeated_enemies.has(enemy_id):
+				defeated_enemies.append(enemy_id)
 	_emit_all()
 
 

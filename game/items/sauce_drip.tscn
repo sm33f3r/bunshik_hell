@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://items/sauce_drip.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/sauce_tuning.tres" id="2_tuning"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_drip"]
+radius = 0.35
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_drip"]
+albedo_color = Color(0.6, 0.05, 0.05, 1)
+roughness = 0.2
+
+[sub_resource type="SphereMesh" id="SphereMesh_drip"]
+radius = 0.14
+height = 0.3
+radial_segments = 12
+rings = 6
+
+[node name="SauceDrip" type="Area3D"]
+script = ExtResource("1_script")
+tuning = ExtResource("2_tuning")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_drip")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+material_override = SubResource("StandardMaterial3D_drip")
+mesh = SubResource("SphereMesh_drip")

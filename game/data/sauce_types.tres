@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SauceTypeList" format=3]
+
+[ext_resource type="Script" path="res://systems/sauce_type_list.gd" id="1_list"]
+[ext_resource type="Script" path="res://systems/sauce_type.gd" id="2_type"]
+[ext_resource type="Resource" path="res://data/sauce/gochujang.tres" id="3_goch"]
+
+[resource]
+script = ExtResource("1_list")
+types = Array[ExtResource("2_type")]([ExtResource("3_goch")])

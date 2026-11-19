@@ -33,7 +33,7 @@ func open_room() -> void:
 
 
 func after_each() -> void:
-	for action: String in ["move_left", "move_right", "jump", "look_up", "look_down", "roll"]:
+	for action: String in ["move_left", "move_right", "jump", "look_up", "look_down", "roll", "sauce_attack", "sauce_next", "sauce_prev"]:
 		Input.action_release(action)
 	if room != null:
 		room.queue_free()
@@ -111,3 +111,18 @@ func key_event(physical: Key) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 	await frames(2)
+
+
+## A dummy from the room's Dummies node by name (e.g. "FriedSmall").
+func dummy(node_name: String) -> Node3D:
+	return room.get_node("Dummies/" + node_name) as Node3D
+
+
+## Sauce flicks currently flying in the room.
+func flicks() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for child: Node in room.get_children():
+		var script: Script = child.get_script() as Script
+		if script != null and script.resource_path == "res://projectiles/sauce_flick.gd":
+			out.append(child as Node3D)
+	return out
