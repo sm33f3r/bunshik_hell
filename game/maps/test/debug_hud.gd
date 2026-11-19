@@ -4,6 +4,7 @@ extends CanvasLayer
 const GameStateScript := preload("res://systems/game_state.gd")
 const DdeokScript := preload("res://player/ddeok.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
+const ItemCatalogScript := preload("res://systems/item_catalog.gd")
 
 ## How long the "no sauce" cue stays on the sauce readout (seconds).
 const REFUSED_CUE_TIME: float = 0.5
@@ -47,6 +48,8 @@ func _process(delta: float) -> void:
 		"Hearts: %s / %s  (%d / %d half-hearts)" % [
 			format_hearts(_game_state.hearts), format_hearts(_game_state.MAX_HEARTS),
 			_game_state.hearts, _game_state.MAX_HEARTS],
+		_coat_line(),
+		_container_line(),
 		sauce_line,
 		"Sauce type: %s    Flick: %s    Cooldown: %.2f s" % [
 			_game_state.sauce_type_id, "unlocked" if flick_unlocked else "locked", cooldown],
@@ -58,9 +61,28 @@ func _process(delta: float) -> void:
 		"",
 		"A/D move  Space jump  S drop-through / stomp  Shift roll / slam  W use steamer  Mouse1 / X sauce",
 	]
+	if _game_state.popup_open():
+		lines.insert(0, tr("POPUP: Your %s is full - use %s now or drop it? (see the popup)") % [
+			_game_state.container_name(), _game_state.popup_item_id])
 	if OS.is_debug_build():
-		lines.append("1 unlock roll+slam  2 relock  3 respawn dummies  4 -1 heart  5 unlock flick  6 defeat noodle dummy")
+		lines.append("1 unlock roll+slam  2 relock + clear inventory  3 respawn dummies, items, oil  4 -1 heart  5 unlock flick  6 defeat noodle dummy  7 give container")
 	_label.text = "\n".join(lines)
+
+
+func _coat_line() -> String:
+	return "Coat: " + ("ON (blocks the next hit's damage)" if _game_state.coat else "off")
+
+
+## "Container: Starter container 2/3 [콩고물, 꿀]" or "Container: none".
+func _container_line() -> String:
+	if not _game_state.has_container():
+		return "Container: none (carried items cannot be picked up)"
+	var names: Array[String] = []
+	for id: String in _game_state.items:
+		var def: Variant = ItemCatalogScript.health_item(id)
+		names.append(def.display_name if def != null else id)
+	return "Container: %s %d/%d [%s]" % [_game_state.container_name(),
+		_game_state.items.size(), _game_state.inventory_capacity, ", ".join(names)]
 
 
 ## "Fried: FriedSmall=fresh FriedMedium=broken ..." for every enemy made of fried food.

@@ -3,13 +3,13 @@ extends "res://tests/base_test.gd"
 const ACTIONS: Array[String] = [
 	"move_left", "move_right", "look_up", "look_down", "jump", "roll",
 	"sauce_attack", "special", "sauce_next", "sauce_prev", "heal",
-	"inventory", "pause", "aim_left", "aim_right", "aim_up", "aim_down",
+	"inventory", "drop_item", "pause", "aim_left", "aim_right", "aim_up", "aim_down",
 ]
 ## aim_* are joypad-only for now.
 const KEYBOARD_MOUSE_ACTIONS: Array[String] = [
 	"move_left", "move_right", "look_up", "look_down", "jump", "roll",
 	"sauce_attack", "special", "sauce_next", "sauce_prev", "heal",
-	"inventory", "pause",
+	"inventory", "drop_item", "pause",
 ]
 
 
@@ -40,3 +40,25 @@ func test_keyboard_or_mouse_bindings() -> void:
 func test_no_stomp_or_slam_actions() -> void:
 	check(not InputMap.has_action("stomp"), "stomp must not be an action")
 	check(not InputMap.has_action("slam"), "slam must not be an action")
+
+
+func _joy_buttons(action: String) -> Array[int]:
+	var out: Array[int] = []
+	for event: InputEvent in InputMap.action_get_events(action):
+		var b: InputEventJoypadButton = event as InputEventJoypadButton
+		if b != null:
+			out.append(b.button_index)
+	return out
+
+
+func test_dualsense_inventory_is_on_the_touchpad_not_create() -> void:
+	var buttons: Array[int] = _joy_buttons("inventory")
+	check(JOY_BUTTON_TOUCHPAD in buttons, "inventory is on the touchpad button")
+	check(JOY_BUTTON_BACK not in buttons, "no longer on Back / Create")
+	check(JOY_BUTTON_BACK not in _joy_buttons("drop_item") and JOY_BUTTON_TOUCHPAD not in _joy_buttons("pause"), "no clashes")
+	var keys: Array[int] = []
+	for event: InputEvent in InputMap.action_get_events("inventory"):
+		var k: InputEventKey = event as InputEventKey
+		if k != null:
+			keys.append(k.physical_keycode)
+	check(KEY_TAB in keys, "keyboard stays Tab")

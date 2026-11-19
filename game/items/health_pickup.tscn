@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://items/health_pickup.gd" id="1_script"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_pick"]
+radius = 0.3
+
+[sub_resource type="SphereMesh" id="SphereMesh_pick"]
+radius = 0.18
+height = 0.36
+radial_segments = 16
+rings = 8
+
+[node name="HealthPickup" type="Area3D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_pick")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_pick")
+
+[node name="Name" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+billboard = 1
+text = "?"
+font_size = 48
+pixel_size = 0.006
+outline_size = 8

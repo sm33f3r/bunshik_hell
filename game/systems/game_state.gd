@@ -9,7 +9,20 @@ signal skill_unlocked(skill_id: String)
 signal died
 signal checkpoint_changed(id: String)
 signal sauce_type_changed(id: String)
+## Container, items or popup contents changed.
+signal inventory_changed
+signal coat_changed(on: bool)
+## The "container is full" popup opened for this item id / closed again.
+signal popup_opened(item_id: String)
+signal popup_closed
+## An item left the inventory and should appear on the ground at the 떡's feet.
+signal item_dropped(item_id: String)
 
+enum Pickup { PICKED, NO_CONTAINER, FULL, UNKNOWN }
+
+const ItemCatalogScript := preload("res://systems/item_catalog.gd")
+const HealthItemDefScript := preload("res://items/health_item_def.gd")
+const ContainerDefScript := preload("res://items/container_def.gd")
 const SauceTypeListScript := preload("res://systems/sauce_type_list.gd")
 const SauceTypeScript := preload("res://systems/sauce_type.gd")
 
@@ -40,10 +53,16 @@ var hearts: int = START_HEARTS
 var sauce: int = START_SAUCE
 var sodium: int = START_SODIUM
 var skills: Dictionary[String, bool] = DEFAULT_SKILLS.duplicate()
-## No container yet, so capacity is 0. Placeholder only; no UI.
+## Id of the held container (empty = none: carried items cannot be picked up).
+var container_id: String = ""
+## Slots of the held container; 0 with no container.
 var inventory_capacity: int = 0
-## Stable string item ids.
+## Stable string item ids, in pickup order (oldest first). One item per slot.
 var items: Array[String] = []
+## Coat (from 콩고물): blocks the damage of the next hit only.
+var coat: bool = false
+## Item id the "full" popup is asking about; empty = no popup open.
+var popup_item_id: String = ""
 ## Last 찜기 used. Empty id = no checkpoint yet.
 var checkpoint_id: String = ""
 var checkpoint_position: Vector3 = Vector3.ZERO
@@ -52,14 +71,19 @@ var sauce_type_id: String = DEFAULT_SAUCE_TYPE
 ## Ids of enemy defs defeated at least once. Drives "unlock on first defeat".
 var defeated_enemies: Array[String] = []
 
+var _popup_on_used: Callable
+
 
 func reset() -> void:
 	hearts = START_HEARTS
 	sauce = START_SAUCE
 	sodium = START_SODIUM
 	skills = DEFAULT_SKILLS.duplicate()
+	container_id = ""
 	inventory_capacity = 0
 	items = []
+	coat = false
+	close_popup()
 	checkpoint_id = ""
 	checkpoint_position = Vector3.ZERO
 	sauce_type_id = DEFAULT_SAUCE_TYPE
@@ -90,6 +114,220 @@ func heal(half_hearts: int) -> void:
 	hearts = clampi(hearts + half_hearts, 0, MAX_HEARTS)
 	if hearts != before:
 		hearts_changed.emit(hearts, MAX_HEARTS)
+
+
+## A hit that the coat may absorb. Returns true if the coat blocked the damage (the coat is
+## used up). Knockback and invulnerability are the caller's business, not decided here.
+func take_hit(half_hearts: int) -> bool:
+	if half_hearts > 0 and coat:
+		_set_coat(false)
+		return true
+	take_damage(half_hearts)
+	return false
+
+
+func can_heal() -> bool:
+	return hearts > 0 and hearts < MAX_HEARTS
+
+
+## Sesame oil (and anything that only heals if hurt): heals and returns true only if the
+## 떡 is hurt, so an unhurt 떡 does not use it up.
+func heal_if_hurt(half_hearts: int) -> bool:
+	if not can_heal():
+		return false
+	heal(half_hearts)
+	return true
+
+
+# --- Container, items, popup -----------------------------------------------------------
+
+func has_container() -> bool:
+	return container_id != ""
+
+
+func container_name() -> String:
+	var def: ContainerDefScript = ItemCatalogScript.container(container_id)
+	return def.display_name if def != null else ""
+
+
+func is_full() -> bool:
+	return items.size() >= inventory_capacity
+
+
+## Equips a container if none is held. Returns false (the pickup stays on the ground) if one
+## is already held or the id is unknown.
+func try_equip_container(id: String) -> bool:
+	if has_container():
+		return false
+	var def: ContainerDefScript = ItemCatalogScript.container(id)
+	if def == null:
+		return false
+	container_id = id
+	inventory_capacity = maxi(def.capacity, 0)
+	inventory_changed.emit()
+	return true
+
+
+## Debug: no container, no items, no coat.
+func clear_inventory() -> void:
+	container_id = ""
+	inventory_capacity = 0
+	items = []
+	close_popup()
+	_set_coat(false)
+	inventory_changed.emit()
+
+
+## Carried health items NEVER heal on touch. PICKED: it is in the inventory now.
+## NO_CONTAINER: nowhere to put it. FULL: no room (the caller opens the popup).
+func try_pickup_item(id: String) -> Pickup:
+	if ItemCatalogScript.health_item(id) == null:
+		return Pickup.UNKNOWN
+	if not has_container():
+		return Pickup.NO_CONTAINER
+	if is_full():
+		return Pickup.FULL
+	items.append(id)
+	inventory_changed.emit()
+	return Pickup.PICKED
+
+
+## True if using this item would change nothing: hearts full AND it gives no coat (or a
+## coat is already on), or the 떡 is dead.
+func would_do_nothing(id: String) -> bool:
+	var def: HealthItemDefScript = ItemCatalogScript.health_item(id)
+	if def == null or hearts <= 0:
+		return true
+	var heals: bool = hearts < MAX_HEARTS and def.heal_half_hearts > 0
+	var gives_coat: bool = def.grants_coat and not coat
+	return not heals and not gives_coat
+
+
+## Heals and sets the coat. A coat that is already on does not stack.
+func apply_item(id: String) -> bool:
+	var def: HealthItemDefScript = ItemCatalogScript.health_item(id)
+	if def == null:
+		return false
+	heal(def.heal_half_hearts)
+	if def.grants_coat:
+		_set_coat(true)
+	return true
+
+
+## Inventory screen: use the item in this slot. Refused (false, nothing used) if it would do
+## nothing. Unlike the heal button this works at full hearts, so a 콩고물 can give its coat.
+func use_item_at(index: int) -> bool:
+	if index < 0 or index >= items.size() or would_do_nothing(items[index]):
+		return false
+	var id: String = items[index]
+	items.remove_at(index)
+	apply_item(id)
+	inventory_changed.emit()
+	return true
+
+
+## Inventory screen: drop the item in this slot. Returns its id ("" if the slot is empty).
+func drop_item_at(index: int) -> String:
+	if index < 0 or index >= items.size():
+		return ""
+	var id: String = items[index]
+	items.remove_at(index)
+	inventory_changed.emit()
+	item_dropped.emit(id)
+	return id
+
+
+## Slot indices in the order the heal button would use them: least healing first; ties:
+## no coat before coat; then the oldest pickup. Unknown ids are left out.
+func heal_order() -> Array[int]:
+	var order: Array[int] = []
+	for i: int in items.size():
+		if ItemCatalogScript.health_item(items[i]) != null:
+			order.append(i)
+	order.sort_custom(func(a: int, b: int) -> bool:
+		var da: HealthItemDefScript = ItemCatalogScript.health_item(items[a])
+		var db: HealthItemDefScript = ItemCatalogScript.health_item(items[b])
+		if da.heal_half_hearts != db.heal_half_hearts:
+			return da.heal_half_hearts < db.heal_half_hearts
+		if da.grants_coat != db.grants_coat:
+			return not da.grants_coat
+		return a < b)
+	return order
+
+
+## The heal button. `preferred` is the Settings default: an item id wins when held (oldest
+## first); "lowest" or an item that is not held means the normal order. At full hearts (or
+## dead) it does nothing and uses nothing up. Returns the used item id ("" if none).
+func heal_button(preferred: String = "lowest") -> String:
+	if not can_heal():
+		return ""
+	var order: Array[int] = heal_order()
+	if order.is_empty():
+		return ""
+	var pick: int = order[0]
+	if preferred != "lowest":
+		for i: int in items.size():
+			if items[i] == preferred and order.has(i):
+				pick = i
+				break
+	var id: String = items[pick]
+	items.remove_at(pick)
+	apply_item(id)
+	inventory_changed.emit()
+	return id
+
+
+func popup_open() -> bool:
+	return popup_item_id != ""
+
+
+## Opens the "your container is full" popup for an item. `on_used` runs if the player picks
+## "use it now" (the pickup removes itself then). False if a popup is already open.
+func open_popup(item_id: String, on_used: Callable = Callable()) -> bool:
+	if popup_open() or ItemCatalogScript.health_item(item_id) == null:
+		return false
+	popup_item_id = item_id
+	_popup_on_used = on_used
+	popup_opened.emit(item_id)
+	return true
+
+
+## "Use it now" (use = true) or "drop it" (leave it on the ground). Using is refused, and the
+## popup stays open, if it would do nothing. Closing the popup any other way = drop it.
+func resolve_popup(use: bool) -> bool:
+	if not popup_open():
+		return false
+	if use:
+		if would_do_nothing(popup_item_id):
+			return false
+		apply_item(popup_item_id)
+		var done: Callable = _popup_on_used
+		close_popup()
+		if done.is_valid():
+			done.call()
+		return true
+	close_popup()
+	return true
+
+
+func close_popup() -> void:
+	if not popup_open():
+		return
+	popup_item_id = ""
+	_popup_on_used = Callable()
+	popup_closed.emit()
+
+
+func _set_coat(on: bool) -> void:
+	if coat != on:
+		coat = on
+		coat_changed.emit(coat)
+
+
+## 13 half-hearts -> "6.5", 14 -> "7".
+static func format_hearts(half_hearts: int) -> String:
+	var whole: int = half_hearts / 2
+	return "%d.5" % whole if half_hearts % 2 == 1 else "%d" % whole
 
 
 func set_checkpoint(id: String, at: Vector3) -> void:
@@ -212,6 +450,8 @@ func to_dict() -> Dictionary:
 		"skills": skills.duplicate(),
 		"inventory_capacity": inventory_capacity,
 		"items": items.duplicate(),
+		"container_id": container_id,
+		"coat": coat,
 		"checkpoint_id": checkpoint_id,
 		"checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
 		"sauce_type": sauce_type_id,
@@ -225,6 +465,14 @@ func from_dict(data: Dictionary) -> void:
 	sauce = clampi(_to_int(data.get("sauce"), START_SAUCE), 0, MAX_SAUCE)
 	sodium = clampi(_to_int(data.get("sodium"), START_SODIUM), 0, MAX_SODIUM)
 	inventory_capacity = maxi(_to_int(data.get("inventory_capacity"), 0), 0)
+	# Added after save_version 1 shipped (additive): older saves lack these keys.
+	container_id = ""
+	var saved_container: Variant = data.get("container_id")
+	if saved_container is String and ItemCatalogScript.is_container(saved_container):
+		container_id = saved_container
+		inventory_capacity = maxi(ItemCatalogScript.container(container_id).capacity, 0)
+	coat = data.get("coat") is bool and data["coat"]
+	close_popup()
 
 	skills = DEFAULT_SKILLS.duplicate()
 	var saved_skills: Variant = data.get("skills")
@@ -267,6 +515,8 @@ func from_dict(data: Dictionary) -> void:
 
 
 func _emit_all() -> void:
+	inventory_changed.emit()
+	coat_changed.emit(coat)
 	hearts_changed.emit(hearts, MAX_HEARTS)
 	sauce_changed.emit(sauce, MAX_SAUCE)
 	sodium_changed.emit(sodium, MAX_SODIUM)

@@ -22,12 +22,15 @@ var _phase: float = 0.0
 var _squash: float = 0.0
 var _spin: float = 0.0
 var _body_material: StandardMaterial3D
+var _body_mesh: MeshInstance3D
+var _coat_material: StandardMaterial3D
 var _rig: Node3D
 
 
 func _ready() -> void:
 	_rig = get_node_or_null("Rig") as Node3D
 	var body: MeshInstance3D = get_node_or_null("Rig/Body") as MeshInstance3D
+	_body_mesh = body
 	if body != null and body.material_override is StandardMaterial3D:
 		_body_material = (body.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
 		body.material_override = _body_material
@@ -93,3 +96,20 @@ func set_flash(on: bool) -> void:
 	_body_material.emission_enabled = on
 	_body_material.emission = Color.WHITE
 	_body_material.emission_energy_multiplier = 1.5
+
+
+## Gray-box coat (from 콩고물): a sandy translucent shell over the body while it is on.
+func set_coat(on: bool) -> void:
+	if _body_mesh == null:
+		return
+	if not on:
+		_body_mesh.material_overlay = null
+		return
+	if _coat_material == null:
+		_coat_material = StandardMaterial3D.new()
+		_coat_material.albedo_color = Color(0.95, 0.85, 0.5, 0.55)
+		_coat_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_coat_material.emission_enabled = true
+		_coat_material.emission = Color(0.9, 0.7, 0.2)
+		_coat_material.emission_energy_multiplier = 0.4
+	_body_mesh.material_overlay = _coat_material

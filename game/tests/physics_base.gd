@@ -33,8 +33,9 @@ func open_room() -> void:
 
 
 func after_each() -> void:
-	for action: String in ["move_left", "move_right", "jump", "look_up", "look_down", "roll", "sauce_attack", "sauce_next", "sauce_prev"]:
+	for action: String in ["move_left", "move_right", "jump", "look_up", "look_down", "roll", "sauce_attack", "sauce_next", "sauce_prev", "heal", "inventory", "drop_item", "ui_accept", "ui_cancel"]:
 		Input.action_release(action)
+	tree.paused = false # a test may end with the inventory screen or a popup open
 	if room != null:
 		room.queue_free()
 		await tree.process_frame

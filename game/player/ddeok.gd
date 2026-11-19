@@ -26,6 +26,11 @@ const ReactionTableScript := preload("res://systems/reaction_table.gd")
 const SauceTuningScript := preload("res://systems/sauce_tuning.gd")
 const SauceFlickScript := preload("res://projectiles/sauce_flick.gd")
 const Layers := preload("res://systems/layers.gd")
+const SettingsScript := preload("res://systems/settings.gd")
+const HealthPickupScene: PackedScene = preload("res://items/health_pickup.tscn")
+
+## A dropped item cannot be picked up again for this long (seconds).
+const DROP_REPICK_DELAY_S: float = 1.0
 
 const TUNING_PATH: String = "res://data/movement_tuning.tres"
 const SAUCE_TUNING_PATH: String = "res://data/sauce_tuning.tres"
@@ -38,6 +43,7 @@ const ACTION_ROLL: StringName = &"roll"
 const ACTION_SAUCE: StringName = &"sauce_attack"
 const ACTION_SAUCE_NEXT: StringName = &"sauce_next"
 const ACTION_SAUCE_PREV: StringName = &"sauce_prev"
+const ACTION_HEAL: StringName = &"heal"
 
 const SKILL_JUMP: String = "jump"
 const SKILL_LANDING: String = "landing"
@@ -53,6 +59,8 @@ const SKILL_SAUCE_FLICK: String = "sauce_flick"
 
 ## Injected by tests; falls back to the GameState autoload in _ready().
 var game_state: GameStateScript
+## Injected by tests; falls back to the Settings autoload (the heal-default item).
+var settings: SettingsScript
 var state: State = State.IDLE
 ## +1 faces right, -1 faces left.
 var facing: float = 1.0
@@ -108,8 +116,15 @@ func _ready() -> void:
 		game_state = get_node_or_null("/root/GameState") as GameStateScript
 	if game_state != null and not game_state.died.is_connected(_on_died):
 		game_state.died.connect(_on_died)
+	if settings == null:
+		settings = get_node_or_null("/root/Settings") as SettingsScript
+	if game_state != null and not game_state.item_dropped.is_connected(_on_item_dropped):
+		game_state.item_dropped.connect(_on_item_dropped)
 	if _visual != null:
 		landed.connect(_visual.on_landed)
+		if game_state != null:
+			game_state.coat_changed.connect(_visual.set_coat)
+			_visual.set_coat(game_state.coat)
 
 
 # --- Requests (also what the tests drive; they return whether anything started) ----------
@@ -174,12 +189,22 @@ func sauce_cooldown_left() -> float:
 	return _sauce_cooldown
 
 
+## Heal button: uses the least-healing carried item first (or the Settings default item
+## when held). At full hearts it does nothing. Returns whether an item was used.
+func request_heal() -> bool:
+	if game_state == null or state == State.DEAD:
+		return false
+	var preferred: String = settings.heal_default if settings != null else "lowest"
+	return game_state.heal_button(preferred) != ""
+
+
 ## Takes contact or hazard damage (half-hearts). False if ignored (invulnerable or dead).
+## A coat blocks the damage of this hit; knockback and invulnerability still happen.
 func hurt(half_hearts: int, source_x: float) -> bool:
 	_ensure_tuning()
 	if game_state == null or state == State.DEAD or _invuln_timer > 0.0:
 		return false
-	game_state.take_damage(half_hearts)
+	game_state.take_hit(half_hearts)
 	if state == State.DEAD:
 		return true # the died signal got there first
 	_invuln_timer = tuning.i_frame_time
@@ -232,6 +257,8 @@ func _physics_process(delta: float) -> void:
 	_ensure_tuning()
 	_tick_timers(delta)
 	_handle_sauce_input()
+	if Input.is_action_just_pressed(ACTION_HEAL):
+		request_heal()
 
 	# Overlaps reflect last frame's move; _prev_bottom is where the feet were before it.
 	var bottom_now: float = global_position.y - body_half_height
@@ -279,6 +306,22 @@ func _tick_timers(delta: float) -> void:
 	_sauce_cooldown = maxf(_sauce_cooldown - delta, 0.0)
 	_drop_timer = maxf(_drop_timer - delta, 0.0)
 	_dead_timer = maxf(_dead_timer - delta, 0.0)
+
+
+# --- Dropped items -----------------------------------------------------------------------
+
+## An item dropped from the inventory appears at the 떡's feet, and cannot be re-picked up
+## for DROP_REPICK_DELAY_S.
+func _on_item_dropped(item_id: String) -> void:
+	var parent: Node = get_parent()
+	if not is_inside_tree() or parent == null:
+		return
+	var pickup: Node3D = HealthPickupScene.instantiate() as Node3D
+	pickup.set("item_id", item_id)
+	pickup.set("pickup_delay", DROP_REPICK_DELAY_S)
+	pickup.set("dropped", true)
+	parent.add_child(pickup)
+	pickup.global_position = global_position + Vector3(0.0, 0.3 - body_half_height, 0.0)
 
 
 # --- Sauce -------------------------------------------------------------------------------

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SesameOilTuning" format=3]
+
+[ext_resource type="Script" path="res://items/sesame_oil_tuning.gd" id="1_tun"]
+
+[resource]
+script = ExtResource("1_tun")
+heal_half_hearts = 1
+gravity = 14.0
+max_fall_speed = 14.0
+radius = 0.3
+max_fall_time_s = 12.0
+color = Color(0.85, 0.65, 0.1, 0.9)

@@ -49,7 +49,7 @@ func test_the_debug_keys_are_not_in_the_input_map() -> void:
 			if k == null:
 				continue
 			var code: Key = k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode
-			check(code not in [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_F1, KEY_F2, KEY_F3, KEY_F4],
+			check(code not in [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_F1, KEY_F2, KEY_F3, KEY_F4],
 				"%s must not be bound to a debug key" % action)
 
 
