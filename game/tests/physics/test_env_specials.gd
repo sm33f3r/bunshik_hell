@@ -300,22 +300,22 @@ func test_each_object_is_single_use_and_key_3_resets_it() -> void:
 
 # --- 나트륨 pickups and drops ---------------------------------------------------------------
 
-func test_walking_into_the_three_natrium_pickups_gives_three() -> void:
+func test_walking_into_the_four_natrium_pickups_gives_four() -> void:
 	await open_room()
 	await _quiet()
 	dummy("FriedSmall").set_physics_process(false)
 	teleport(-22.9, 0.33)
 	await frames(10)
 	Input.action_press("move_left")
-	await until(func() -> bool: return player.global_position.x < -25.8, 200)
+	await until(func() -> bool: return player.global_position.x < -26.6, 240)
 	Input.action_release("move_left")
-	check_eq(gs.sodium, 3, "three pickups, +1 each: " + describe())
+	check_eq(gs.sodium, 4, "four pickups, +1 each: " + describe())
 	check_eq(room.get_tree().get_nodes_in_group("natrium_pickups").filter(
-		func(n: Node) -> bool: return n.get("consumed")).size(), 3, "all three taken")
+		func(n: Node) -> bool: return n.get("consumed")).size(), 4, "all four taken")
 	await key_event(KEY_3)
 	await frames(3)
 	check_eq(room.get_tree().get_nodes_in_group("natrium_pickups").filter(
-		func(n: Node) -> bool: return not n.get("consumed")).size(), 3, "key 3 puts them back")
+		func(n: Node) -> bool: return not n.get("consumed")).size(), 4, "key 3 puts them back")
 
 
 func test_the_hud_shows_natrium_pinned_and_swell_timers() -> void:

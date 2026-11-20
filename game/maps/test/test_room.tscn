@@ -541,6 +541,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.3, 0.35, 0)
 [node name="NatriumC" parent="Specials" instance=ExtResource("31_nat")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.1, 0.35, 0)
 
+[node name="NatriumD" parent="Specials" instance=ExtResource("31_nat")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.9, 0.35, 0)
+
 [node name="WaterBottle1" parent="Specials" instance=ExtResource("30_uobj")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62, 0, 0)
 def = ExtResource("32_wb")

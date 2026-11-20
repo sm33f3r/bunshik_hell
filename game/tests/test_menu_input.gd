@@ -1,6 +1,6 @@
 extends "res://tests/base_test.gd"
-## F1: in the popup and the inventory screen, the east button (JOY_BUTTON_B, the circle on a
-## DualSense) confirms and the south button (JOY_BUTTON_A, the cross) cancels. Keyboard stays.
+## F1 (swapped in 2c-fix): in the popup and the inventory screen, the south button (JOY_BUTTON_A,
+## the cross on a DualSense) confirms and the east button (JOY_BUTTON_B, the circle) cancels. Keyboard stays.
 ## And the press that closes a menu must not act in the game that unpauses.
 
 const InventoryUiScript := preload("res://ui/inventory_ui.gd")
@@ -33,16 +33,17 @@ func _pad(button: JoyButton) -> InputEventJoypadButton:
 	return e
 
 
-func test_east_button_confirms_and_south_button_cancels() -> void:
+func test_south_button_confirms_and_east_button_cancels() -> void:
+	check_eq(JOY_BUTTON_A, 0, "JOY_BUTTON_A is the south button (index 0) in 4.7.2")
 	check_eq(JOY_BUTTON_B, 1, "JOY_BUTTON_B is the east button (index 1) in 4.7.2")
-	check(JOY_BUTTON_B in _joy_buttons("ui_accept"), "ui_accept has the east button")
-	check(JOY_BUTTON_A not in _joy_buttons("ui_accept"), "ui_accept no longer has the south button")
-	check(JOY_BUTTON_A in _joy_buttons("ui_cancel"), "ui_cancel has the south button")
-	check(JOY_BUTTON_B not in _joy_buttons("ui_cancel"), "ui_cancel no longer has the east button")
-	check(_pad(JOY_BUTTON_B).is_action("ui_accept"), "a circle press is ui_accept")
-	check(_pad(JOY_BUTTON_A).is_action("ui_cancel"), "a cross press is ui_cancel")
-	check(not _pad(JOY_BUTTON_A).is_action("ui_accept"), "a cross press is not ui_accept")
-	check(not _pad(JOY_BUTTON_B).is_action("ui_cancel"), "a circle press is not ui_cancel")
+	check(JOY_BUTTON_A in _joy_buttons("ui_accept"), "ui_accept has the south button (cross)")
+	check(JOY_BUTTON_B not in _joy_buttons("ui_accept"), "ui_accept no longer has the east button")
+	check(JOY_BUTTON_B in _joy_buttons("ui_cancel"), "ui_cancel has the east button (circle)")
+	check(JOY_BUTTON_A not in _joy_buttons("ui_cancel"), "ui_cancel no longer has the south button")
+	check(_pad(JOY_BUTTON_A).is_action("ui_accept"), "a cross press is ui_accept")
+	check(_pad(JOY_BUTTON_B).is_action("ui_cancel"), "a circle press is ui_cancel")
+	check(not _pad(JOY_BUTTON_B).is_action("ui_accept"), "a circle press is not ui_accept")
+	check(not _pad(JOY_BUTTON_A).is_action("ui_cancel"), "a cross press is not ui_cancel")
 
 
 func test_the_keyboard_confirm_and_cancel_stay() -> void:

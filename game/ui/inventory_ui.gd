@@ -2,8 +2,8 @@ extends CanvasLayer
 ## Gray-box inventory screen and the "container is full" popup. Runs while the game is
 ## paused (process_mode ALWAYS) and pauses the tree while either is open.
 ## Input is polled, not event-driven, so scripted tests can drive it with Input.action_press().
-##   Confirm / cancel are the ui_accept / ui_cancel actions (project.godot): Enter or Space / ○
-##   (JOY_BUTTON_B, the east button) confirms; Esc / ✕ (JOY_BUTTON_A, the south button) cancels.
+##   Confirm / cancel are the ui_accept / ui_cancel actions (project.godot): Enter or Space / ✕
+##   (JOY_BUTTON_A, the south button) confirms; Esc / ○ (JOY_BUTTON_B, the east button) cancels.
 ##   Inventory screen: `inventory` opens/closes. W/S, arrows, d-pad, stick move; confirm uses the
 ##   selected item; `drop_item` (□) drops it; cancel closes.
 ##   Popup: left/right or up/down chooses; confirm applies the chosen option (use it now / drop it);
