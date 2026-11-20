@@ -4,7 +4,8 @@ extends Node
 ## Number row: 1 unlock roll + slam, 2 relock them and the flick, 3 respawn all dummies,
 ## 4 take 1 heart, 5 unlock the sauce flick, 6 defeat the noodle (라면) dummy,
 ## 7 give the starter container. 2 also clears the container, items and coat; 3 also
-## respawns item pickups and 참기름 smudges.
+## respawns item pickups, 나트륨 pickups, usable objects and 참기름 smudges, and removes
+## dropped loot and water sheets. 6 defeats every 라면 dummy.
 ## Matched by physical key position so it works on any keyboard layout.
 
 const GameStateScript := preload("res://systems/game_state.gd")
@@ -42,6 +43,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_tree().call_group("enemies", "reset")
 			get_tree().call_group("item_pickups", "reset")
 			get_tree().call_group("oil_smudges", "reset")
+			get_tree().call_group("natrium_pickups", "reset")
+			get_tree().call_group("usable_objects", "reset")
+			get_tree().call_group("dropped_loot", "queue_free")
+			get_tree().call_group("water_sheets", "queue_free")
 		KEY_4:
 			_game_state.take_damage(2)
 		KEY_5:

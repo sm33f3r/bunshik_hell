@@ -218,10 +218,10 @@ func test_the_hud_shows_coat_container_and_contents() -> void:
 
 func test_the_test_room_oil_sources_drip_every_3_to_6_seconds() -> void:
 	await open_room()
-	var sources: Array[Node] = []
-	for shelf: Node in room.get_node("OilObjects").get_children():
-		sources.append(shelf.get_node("OilSource"))
-	check_eq(sources.size(), 2, "two sources")
+	var sources: Array[Node] = [
+		room.get_node("OilObjects/BottleFloor"), room.get_node("OilObjects/BottleShelf"),
+		room.get_node("OilObjects/OilBrush")]
+	check_eq(sources.size(), 3, "three sources")
 	for s: Node in sources:
 		check(s.get("drip_min_s") == 3.0 and s.get("drip_max_s") == 6.0, "test interval 3-6 s")
 	var defaults: Node = (load("res://items/sesame_oil_source.gd") as GDScript).new()
@@ -233,10 +233,10 @@ func test_an_oil_drop_falls_from_its_source_and_heals_the_ddeok_standing_under_i
 	await open_room()
 	await _stand(-6.2)
 	gs.call("take_damage", 4)
-	var source: Node = room.get_node("OilObjects/ShelfA/OilSource")
+	var source: Node = room.get_node("OilObjects/OilBrush")
 	var drop: Node3D = source.call("drip") as Node3D
 	check(drop != null, "a drop spawned")
-	check(drop.global_position.y > 2.0, "it starts up at the shelf")
+	check(drop.global_position.y > 1.5, "it starts up at the brush tip")
 	var healed: bool = await until(func() -> bool: return gs.hearts == 11, 120)
 	check(healed, "the drop fell onto him and healed ½ heart: hearts=%d %s" % [gs.hearts, describe()])
 	check(not is_instance_valid(drop) or drop.get("gone"), "and was used up")
@@ -244,8 +244,8 @@ func test_an_oil_drop_falls_from_its_source_and_heals_the_ddeok_standing_under_i
 
 func test_an_oil_drop_that_lands_becomes_a_puddle_that_soaks_away() -> void:
 	await open_room()
-	await _stand(-8.0) # not under the shelf
-	var source: Node = room.get_node("OilObjects/ShelfA/OilSource")
+	await _stand(-9.0) # not under the brush
+	var source: Node = room.get_node("OilObjects/OilBrush")
 	source.set("puddle_lifetime_s", 1.0)
 	var drop: Node3D = source.call("drip") as Node3D
 	var landed: bool = await until(func() -> bool: return is_instance_valid(drop) and drop.get("landed"), 120)

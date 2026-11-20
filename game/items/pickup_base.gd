@@ -22,7 +22,7 @@ var _popup_suppressed: bool = false
 func _ready() -> void:
 	collision_layer = 0
 	collision_mask = Layers.PLAYER
-	add_to_group("item_pickups")
+	add_to_group(pickup_group())
 	if game_state == null:
 		game_state = get_node_or_null("/root/GameState") as GameStateScript
 	if game_state != null:
@@ -38,6 +38,11 @@ func _physics_process(delta: float) -> void:
 			try_collect()
 			return
 	_popup_suppressed = false
+
+
+## The group debug key 3 resets. Subclasses with their own tests of "how many items" use another.
+func pickup_group() -> StringName:
+	return &"item_pickups"
 
 
 ## When a popup closes, every pickup he is standing on stays quiet until he steps off, so

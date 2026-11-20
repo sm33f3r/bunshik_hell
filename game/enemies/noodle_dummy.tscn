@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://enemies/stationary_dummy.gd" id="1_script"]
+[ext_resource type="Script" path="res://enemies/noodle_dummy.gd" id="1_script"]
 [ext_resource type="Resource" path="res://data/enemies/noodle_dummy.tres" id="2_def"]
 [ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_table"]
 

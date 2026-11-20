@@ -10,6 +10,9 @@ const ATTACK_STOMP: String = "stomp"
 const ATTACK_ROLL: String = "roll"
 const ATTACK_SLAM: String = "slam"
 const ATTACK_SAUCE: String = "sauce"
+## From a usable environment object (see EnvSpecialDef).
+const ATTACK_WATER: String = "water"
+const ATTACK_HEAVY_OBJECT: String = "heavy_object"
 
 const REACTION_DAMAGE: String = "damage"
 const REACTION_KILL: String = "kill"
@@ -22,6 +25,10 @@ const REACTION_ABSORB: String = "absorb"
 const REACTION_DETERIORATE: String = "deteriorate"
 ## Permanently disables the enemy's ranged attack.
 const REACTION_JAM: String = "jam"
+## Water on a noodle: it grows, slows to a stop over swell_time_s, then dies.
+const REACTION_SWELL: String = "swell"
+## Held in place for the pin time of the object that landed on it. Contact still hurts.
+const REACTION_PIN: String = "pin"
 
 ## material -> attack -> {"reaction": String, "damage": int} or an Array of those
 @export var entries: Dictionary = {}

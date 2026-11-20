@@ -2,6 +2,8 @@ class_name EnemyDef
 extends Resource
 ## Data for one kind of enemy. Behaviour differences beyond this live in a small script.
 
+const DropEntryScript := preload("res://systems/drop_entry.gd")
+
 @export var id: String = ""
 ## Key into the reaction table (e.g. "soft", "tall_rigid").
 @export var material: String = ""
@@ -12,3 +14,14 @@ extends Resource
 @export var hits_per_stage: int = 1
 ## Skill id unlocked the first time an enemy with this def id is defeated. Empty = none.
 @export var unlocks_skill_on_first_defeat: StringName = &""
+## Seconds a "swell" (water on a noodle) takes: the enemy grows and slows to a stop, then dies.
+@export var swell_time_s: float = 2.0
+## Creeping enemies (0 = stands still): speed in m/s, and how close the 떡 must be (metres,
+## in the game plane) before it starts to creep toward him.
+@export var creep_speed_mps: float = 0.0
+@export var creep_range_m: float = 6.0
+## What it may leave behind when it dies (see DropEntry). Empty = nothing.
+@export var drops: Array[DropEntryScript] = []
+## Bad-luck protection: after this many kills in a row (of this enemy type) with no drop,
+## the next kill always drops.
+@export var drop_guarantee_after: int = 4

@@ -127,7 +127,7 @@ func test_flick_on_the_noodle_dummy_does_no_damage_and_flashes() -> void:
 	dummy("TubeDummy").set_physics_process(false) # keep its pellets out of this test
 	gs.call("unlock_skill", "sauce_flick")
 	var noodle: Node3D = dummy("NoodleDummy")
-	teleport(-37.0, 0.33)
+	teleport(noodle.global_position.x + 2.0, 0.33)
 	player.set("facing", -1.0)
 	await frames(10)
 	var hp_before: int = noodle.get("hp")

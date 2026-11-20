@@ -31,6 +31,12 @@
 [ext_resource type="Script" path="res://items/sesame_oil_source.gd" id="28_source"]
 [ext_resource type="PackedScene" path="res://ui/inventory_ui.tscn" id="29_ui"]
 
+[ext_resource type="PackedScene" path="res://items/usable_object.tscn" id="30_uobj"]
+[ext_resource type="PackedScene" path="res://items/natrium_pickup.tscn" id="31_nat"]
+[ext_resource type="Resource" path="res://data/env_specials/water_bottle.tres" id="32_wb"]
+[ext_resource type="Resource" path="res://data/env_specials/pot_small.tres" id="33_ps"]
+[ext_resource type="Resource" path="res://data/env_specials/pot_medium.tres" id="34_pm"]
+
 [sub_resource type="Environment" id="Environment_5321f"]
 background_mode = 1
 background_color = Color(0.62, 0.78, 0.92, 1)
@@ -150,6 +156,44 @@ size = Vector3(1.6, 0.2, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shelf"]
 albedo_color = Color(0.45, 0.3, 0.2, 1)
 roughness = 0.9
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_shelfbody"]
+size = Vector3(1.6, 0.2, 2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold"]
+albedo_color = Color(0.85, 0.65, 0.1, 1)
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_bottle"]
+size = Vector3(0.4, 0.7, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_brush"]
+albedo_color = Color(0.35, 0.22, 0.1, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_brush"]
+size = Vector3(0.14, 0.7, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hook"]
+size = Vector3(0.5, 0.06, 0.06)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floorwest"]
+size = Vector3(52, 1, 6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floorwest"]
+size = Vector3(52, 1, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tabletop"]
+size = Vector3(4, 0.1, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tabletop"]
+size = Vector3(4, 0.1, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tableleg"]
+size = Vector3(0.2, 0.9, 1.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tableleg"]
+size = Vector3(0.2, 0.9, 1.6)
 
 [node name="TestRoom" type="Node3D" unique_id=197968590 node_paths=PackedStringArray("player", "start_steamer")]
 script = ExtResource("1_btsfy")
@@ -271,6 +315,52 @@ shape = SubResource("BoxShape3D_045hv")
 material_override = SubResource("StandardMaterial3D_2e6sb")
 mesh = SubResource("BoxMesh_6qs6q")
 
+[node name="FloorWest" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/FloorWest"]
+shape = SubResource("BoxShape3D_floorwest")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/FloorWest"]
+material_override = SubResource("StandardMaterial3D_saucefloor")
+mesh = SubResource("BoxMesh_floorwest")
+
+[node name="PotLedge" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.2, 1.7, 0)
+script = ExtResource("2_4iekt")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/PotLedge"]
+shape = SubResource("BoxShape3D_045hv")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/PotLedge"]
+material_override = SubResource("StandardMaterial3D_2e6sb")
+mesh = SubResource("BoxMesh_6qs6q")
+
+[node name="Table" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.3, 0.95, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Table"]
+shape = SubResource("BoxShape3D_tabletop")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/Table"]
+material_override = SubResource("StandardMaterial3D_shelf")
+mesh = SubResource("BoxMesh_tabletop")
+
+[node name="TableLegWest" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -77.2, 0.45, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/TableLegWest"]
+shape = SubResource("BoxShape3D_tableleg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Level/TableLegWest"]
+material_override = SubResource("StandardMaterial3D_shelf")
+mesh = SubResource("BoxMesh_tableleg")
+
+[node name="TableLegEast" type="MeshInstance3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.4, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_shelf")
+mesh = SubResource("BoxMesh_tableleg")
+
 [node name="Steamers" type="Node3D" parent="." unique_id=1311454098]
 
 [node name="SteamerStart" type="Node3D" parent="Steamers" unique_id=1876391967 instance=ExtResource("3_g72da")]
@@ -310,7 +400,10 @@ reaction_table = ExtResource("8_t1wvv")
 body_height = 0.7
 
 [node name="NoodleDummy" parent="Dummies" instance=ExtResource("18_noodle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66, 0, 0)
+
+[node name="NoodleTable" parent="Dummies" instance=ExtResource("18_noodle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81, 0, 0)
 
 [node name="FriedSmall" parent="Dummies" instance=ExtResource("19_fsmall")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0, 0)
@@ -370,27 +463,61 @@ item_id = "ggul"
 
 [node name="OilObjects" type="Node3D" parent="."]
 
-[node name="ShelfA" type="MeshInstance3D" parent="OilObjects"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 2.6, 0)
-material_override = SubResource("StandardMaterial3D_shelf")
-mesh = SubResource("BoxMesh_shelf")
-
-[node name="OilSource" type="Node3D" parent="OilObjects/ShelfA"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+[node name="BottleFloor" type="StaticBody3D" parent="OilObjects"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.5, 0, 0)
 script = ExtResource("28_source")
+standable = true
+object_size = Vector3(0.4, 0.7, 0.4)
+drip_offset = Vector3(0.5, 0.55, 0)
 drip_min_s = 3.0
 drip_max_s = 6.0
 
-[node name="ShelfB" type="MeshInstance3D" parent="OilObjects"]
+[node name="Mesh" type="MeshInstance3D" parent="OilObjects/BottleFloor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+material_override = SubResource("StandardMaterial3D_gold")
+mesh = SubResource("BoxMesh_bottle")
+
+[node name="Shelf" type="StaticBody3D" parent="OilObjects"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8, 3.0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="OilObjects/Shelf"]
+shape = SubResource("BoxShape3D_shelfbody")
+
+[node name="Mesh" type="MeshInstance3D" parent="OilObjects/Shelf"]
 material_override = SubResource("StandardMaterial3D_shelf")
 mesh = SubResource("BoxMesh_shelf")
 
-[node name="OilSource" type="Node3D" parent="OilObjects/ShelfB"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+[node name="BottleShelf" type="StaticBody3D" parent="OilObjects"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.3, 3.1, 0)
 script = ExtResource("28_source")
+standable = true
+object_size = Vector3(0.4, 0.7, 0.4)
+drip_offset = Vector3(-0.5, 0.55, 0)
 drip_min_s = 3.0
 drip_max_s = 6.0
+
+[node name="Mesh" type="MeshInstance3D" parent="OilObjects/BottleShelf"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+material_override = SubResource("StandardMaterial3D_gold")
+mesh = SubResource("BoxMesh_bottle")
+
+[node name="OilBrush" type="StaticBody3D" parent="OilObjects"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 2.4, 0)
+script = ExtResource("28_source")
+standable = false
+drip_offset = Vector3(0, -0.75, 0)
+drip_min_s = 3.0
+drip_max_s = 6.0
+
+[node name="Mesh" type="MeshInstance3D" parent="OilObjects/OilBrush"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
+material_override = SubResource("StandardMaterial3D_brush")
+mesh = SubResource("BoxMesh_brush")
+
+[node name="Hook" type="MeshInstance3D" parent="OilObjects/OilBrush"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+material_override = SubResource("StandardMaterial3D_shelf")
+mesh = SubResource("BoxMesh_hook")
 
 [node name="OilSmudges" type="Node3D" parent="."]
 
@@ -402,6 +529,33 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.25, 1.02, 0)
 
 [node name="SmudgeLedge" parent="OilSmudges" instance=ExtResource("27_smudge")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.0, 1.52, 0)
+
+[node name="Specials" type="Node3D" parent="."]
+
+[node name="NatriumA" parent="Specials" instance=ExtResource("31_nat")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.5, 0.35, 0)
+
+[node name="NatriumB" parent="Specials" instance=ExtResource("31_nat")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.3, 0.35, 0)
+
+[node name="NatriumC" parent="Specials" instance=ExtResource("31_nat")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.1, 0.35, 0)
+
+[node name="WaterBottle1" parent="Specials" instance=ExtResource("30_uobj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62, 0, 0)
+def = ExtResource("32_wb")
+
+[node name="WaterBottle2" parent="Specials" instance=ExtResource("30_uobj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.6, 0, 0)
+def = ExtResource("32_wb")
+
+[node name="PotTable" parent="Specials" instance=ExtResource("30_uobj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76.8, 1, 0)
+def = ExtResource("33_ps")
+
+[node name="PotLedge" parent="Specials" instance=ExtResource("30_uobj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.8, 1.8, 0)
+def = ExtResource("34_pm")
 
 [node name="InventoryUi" parent="." instance=ExtResource("29_ui")]
 

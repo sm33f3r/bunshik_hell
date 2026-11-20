@@ -6,6 +6,8 @@ extends CharacterBody3D
 
 signal hurt(hp: int)
 signal died
+## The death rolled these drops: Array of {"kind": String, "amount": int} (may be empty).
+signal drops_rolled(drops: Array)
 
 const EnemyDefScript := preload("res://enemies/enemy_def.gd")
 const ReactionTableScript := preload("res://systems/reaction_table.gd")
@@ -28,6 +30,19 @@ const STAGE_TINTS: Array[Color] = [
 ]
 const JAM_TINT: Color = Color(0.1, 0.1, 0.12, 0.55)
 const SLURP_TINT: Color = Color(1.0, 0.95, 0.4, 0.85)
+## Gray-box: a pinned enemy is tinted blue-gray and squashed; a swelling one is tinted watery.
+const PIN_TINT: Color = Color(0.2, 0.3, 0.65, 0.6)
+const SWELL_TINT: Color = Color(0.35, 0.65, 1.0, 0.4)
+const PIN_SQUASH: float = 0.7
+## How much bigger a swelling enemy gets by the end of the swell (1.0 = +100%).
+const SWELL_GROWTH: float = 0.6
+## What a drop kind spawns. Fixed list: ids from data can never become file paths.
+const DROP_SCENES: Dictionary[String, String] = {
+	"natrium": "res://items/natrium_pickup.tscn",
+	"sauce_drip": "res://items/sauce_drip.tscn",
+}
+## Height above the feet where a drop appears.
+const DROP_HEIGHT: float = 0.35
 ## Visual sag per stage (scale.y shrinks, scale.x grows a little).
 const SAG_PER_STAGE: float = 0.1
 
@@ -51,6 +66,13 @@ var alive: bool = true
 var stage: int = 0
 ## True once a "jam" hit landed: the ranged attack stays off until reset().
 var jammed: bool = false
+## Seconds of pin left (0 = free). Pinned: no movement, no ranged attack; contact still hurts.
+var pin_left: float = 0.0
+## True while swelling (water on a noodle). swell_left counts down to death.
+var swelling: bool = false
+var swell_left: float = 0.0
+## The drops of the last death (also emitted as drops_rolled).
+var last_drops: Array[Dictionary] = []
 
 var _stage_hits: int = 0
 var _spawn_transform: Transform3D
@@ -86,7 +108,22 @@ func setup() -> void:
 	stage = 0
 	_stage_hits = 0
 	jammed = false
+	pin_left = 0.0
+	swelling = false
+	swell_left = 0.0
+	last_drops = []
 	_refresh_visual()
+
+
+func is_pinned() -> bool:
+	return alive and pin_left > 0.0
+
+
+## 1.0 at full speed, falling to 0.0 as the swell runs out. Movement scripts multiply by it.
+func speed_factor() -> float:
+	if not swelling or def == null:
+		return 1.0
+	return clampf(swell_left / maxf(def.swell_time_s, 0.01), 0.0, 1.0)
 
 
 func stage_name() -> String:
@@ -101,15 +138,18 @@ func top_y() -> float:
 	return global_position.y + body_height
 
 
+## Works without a scene tree too (tests): then the local position stands in for the global one.
 func center_xy() -> Vector2:
-	return Vector2(global_position.x, global_position.y + body_height * 0.5)
+	var p: Vector3 = global_position if is_inside_tree() else position
+	return Vector2(p.x, p.y + body_height * 0.5)
 
 
 ## Looks the hit up in the reaction table and applies every reaction of the cell in order.
 ## Returns {"reaction": String (the first), "reactions": Array[String], "damage": int
 ## (of the first), "killed": bool}. hurt_player and bounce_off have no effect on the enemy:
-## the caller (the 떡) acts on them.
-func receive_attack(attack: String, hit_dir: float = 1.0) -> Dictionary:
+## the caller (the 떡) acts on them. `params` carries what the attack brings along:
+## "pin_s" (seconds) for a heavy object.
+func receive_attack(attack: String, hit_dir: float = 1.0, params: Dictionary = {}) -> Dictionary:
 	if not alive or def == null or reaction_table == null:
 		return {"reaction": ReactionTableScript.REACTION_ABSORB, "reactions": [ReactionTableScript.REACTION_ABSORB],
 			"damage": 0, "killed": false}
@@ -119,7 +159,7 @@ func receive_attack(attack: String, hit_dir: float = 1.0) -> Dictionary:
 		var reaction: String = result["reaction"]
 		names.append(reaction)
 		if alive:
-			_apply_reaction(reaction, result["damage"], hit_dir)
+			_apply_reaction(reaction, result["damage"], hit_dir, params)
 	return {"reaction": names[0], "reactions": names, "damage": cell[0]["damage"], "killed": not alive}
 
 
@@ -130,8 +170,12 @@ func debug_defeat() -> void:
 		_die(false, 1.0)
 
 
-func _apply_reaction(reaction: String, damage: int, hit_dir: float) -> void:
+func _apply_reaction(reaction: String, damage: int, hit_dir: float, params: Dictionary = {}) -> void:
 	match reaction:
+		ReactionTableScript.REACTION_SWELL:
+			_start_swell()
+		ReactionTableScript.REACTION_PIN:
+			_start_pin(float(params.get("pin_s", 0.0)))
 		ReactionTableScript.REACTION_DAMAGE:
 			hp = maxi(hp - damage, 0)
 			if hp == 0:
@@ -168,6 +212,41 @@ func _deteriorate(hit_dir: float) -> void:
 		hurt.emit(hp)
 
 
+## Holds the enemy in place for `seconds`. A second pin keeps the longer of the two.
+func _start_pin(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	pin_left = maxf(pin_left, seconds)
+	velocity.x = 0.0
+	_refresh_visual()
+
+
+## Water on a noodle. Already swelling: nothing changes (the timer does not restart).
+## A pinned enemy still swells.
+func _start_swell() -> void:
+	if swelling:
+		return
+	swelling = true
+	swell_left = maxf(def.swell_time_s, 0.01)
+	_refresh_visual()
+
+
+## One physics tick of the pin and swell timers. Public so tests can drive it without a scene.
+func tick_status(delta: float) -> void:
+	if not alive:
+		return
+	if pin_left > 0.0:
+		pin_left = maxf(pin_left - delta, 0.0)
+		if pin_left == 0.0:
+			_refresh_visual()
+	if swelling:
+		swell_left = maxf(swell_left - delta, 0.0)
+		_refresh_visual()
+		if swell_left == 0.0:
+			hp = 0
+			_die(false, 1.0)
+
+
 ## Brings a dead or damaged enemy back to its spawn state (debug F3, tests).
 func reset() -> void:
 	if _tween != null and _tween.is_valid():
@@ -190,12 +269,26 @@ func reset() -> void:
 func _physics_process(delta: float) -> void:
 	if not alive:
 		return
-	_ai(delta)
+	run_ai(delta)
+	if not alive:
+		return
 	velocity.y = maxf(velocity.y - gravity * delta, -max_fall_speed)
 	velocity.z = 0.0
 	move_and_slide()
 	if not is_equal_approx(position.z, _lock_z):
 		position.z = _lock_z
+
+
+## The behaviour half of a physics tick (public so tests can run it without a scene): status
+## timers first, then the AI. A pinned enemy does not move and does not shoot: the AI does not run.
+func run_ai(delta: float) -> void:
+	tick_status(delta)
+	if not alive:
+		return
+	if pin_left > 0.0:
+		velocity.x = 0.0
+	else:
+		_ai(delta)
 
 
 ## Override for behaviour. Set velocity.x here.
@@ -215,8 +308,12 @@ func _die(tip_over: bool, hit_dir: float) -> void:
 	alive = false
 	hp = 0
 	velocity = Vector3.ZERO
+	pin_left = 0.0
+	swelling = false
+	swell_left = 0.0
 	if game_state != null and def != null:
 		game_state.register_defeat(def.id, String(def.unlocks_skill_on_first_defeat))
+		_roll_and_spawn_drops()
 	died.emit()
 	if not is_inside_tree():
 		return
@@ -231,6 +328,29 @@ func _die(tip_over: bool, hit_dir: float) -> void:
 	else:
 		_tween.tween_property(_visual, "scale", Vector3(1.3, 0.1, 1.3), vanish_time)
 	_tween.tween_callback(_finish_death)
+
+
+## Rolls the drop table (the GameState owns the roller, so the bad-luck count is per enemy
+## type, not per enemy) and drops the result where the enemy died.
+func _roll_and_spawn_drops() -> void:
+	last_drops = game_state.drops.roll(def)
+	if is_inside_tree() and get_parent() != null:
+		for drop: Dictionary in last_drops:
+			_spawn_drop(drop["kind"], drop["amount"])
+	drops_rolled.emit(last_drops)
+
+
+func _spawn_drop(kind: String, amount: int) -> void:
+	if not DROP_SCENES.has(kind):
+		return
+	var scene: PackedScene = load(DROP_SCENES[kind]) as PackedScene
+	var node: Node3D = scene.instantiate() as Node3D
+	if kind == "natrium":
+		node.set("amount", amount)
+	node.set("dropped", true)
+	node.add_to_group("dropped_loot")
+	get_parent().add_child(node)
+	node.global_position = global_position + Vector3(0.0, DROP_HEIGHT, 0.0)
 
 
 func _finish_death() -> void:
@@ -260,6 +380,10 @@ func _assign_overlay(node: Node) -> void:
 
 ## The resting tint: the stage colour, or the jam colour for a jammed fresh enemy.
 func _rest_tint() -> Color:
+	if pin_left > 0.0:
+		return PIN_TINT
+	if swelling:
+		return SWELL_TINT
 	if stage > 0:
 		return STAGE_TINTS[clampi(stage, 0, STAGE_SOGGY)]
 	return JAM_TINT if jammed else STAGE_TINTS[0]
@@ -272,7 +396,12 @@ func _refresh_visual() -> void:
 	if _flash_tween != null and _flash_tween.is_valid():
 		_flash_tween.kill()
 	_overlay.albedo_color = _rest_tint()
-	_visual.scale = Vector3(1.0 + SAG_PER_STAGE * 0.5 * stage, 1.0 - SAG_PER_STAGE * stage, 1.0)
+	var sag: Vector3 = Vector3(1.0 + SAG_PER_STAGE * 0.5 * stage, 1.0 - SAG_PER_STAGE * stage, 1.0)
+	if pin_left > 0.0:
+		sag.y *= PIN_SQUASH
+	if swelling:
+		sag *= 1.0 + SWELL_GROWTH * (1.0 - speed_factor())
+	_visual.scale = sag
 
 
 ## A short yellow flash: the enemy slurped the hit up.

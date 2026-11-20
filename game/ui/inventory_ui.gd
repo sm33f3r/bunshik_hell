@@ -2,12 +2,17 @@ extends CanvasLayer
 ## Gray-box inventory screen and the "container is full" popup. Runs while the game is
 ## paused (process_mode ALWAYS) and pauses the tree while either is open.
 ## Input is polled, not event-driven, so scripted tests can drive it with Input.action_press().
-##   Inventory screen: `inventory` opens/closes. W/S, arrows, d-pad, stick move; confirm
-##   (Enter / Space / A) uses; `drop_item` drops; Esc / B closes.
-##   Popup: left/right or up/down chooses; confirm picks; `drop_item`, Esc / B = drop it.
+##   Confirm / cancel are the ui_accept / ui_cancel actions (project.godot): Enter or Space / ○
+##   (JOY_BUTTON_B, the east button) confirms; Esc / ✕ (JOY_BUTTON_A, the south button) cancels.
+##   Inventory screen: `inventory` opens/closes. W/S, arrows, d-pad, stick move; confirm uses the
+##   selected item; `drop_item` (□) drops it; cancel closes.
+##   Popup: left/right or up/down chooses; confirm applies the chosen option (use it now / drop it);
+##   `drop_item` or cancel = drop it and close.
+##   Whatever closes a menu, the closing press must not reach the game: see GameplayInputScript (systems/gameplay_input.gd).
 
 const GameStateScript := preload("res://systems/game_state.gd")
 const ItemCatalogScript := preload("res://systems/item_catalog.gd")
+const GameplayInputScript := preload("res://systems/gameplay_input.gd")
 
 ## Input is ignored for this many frames after something opens, so the press that caused it
 ## (a jump into an item, the inventory key itself) cannot also answer it.
@@ -86,6 +91,7 @@ func open_screen() -> void:
 func close_screen() -> void:
 	screen_open = false
 	_guard = OPEN_GUARD_FRAMES
+	GameplayInputScript.swallow()
 	_set_paused(false)
 	_refresh()
 
@@ -145,6 +151,7 @@ func _on_popup_opened(item_id: String) -> void:
 
 func _on_popup_closed() -> void:
 	_guard = OPEN_GUARD_FRAMES
+	GameplayInputScript.swallow()
 	_set_paused(false)
 	_refresh()
 

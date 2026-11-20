@@ -25,6 +25,7 @@ const HealthItemDefScript := preload("res://items/health_item_def.gd")
 const ContainerDefScript := preload("res://items/container_def.gd")
 const SauceTypeListScript := preload("res://systems/sauce_type_list.gd")
 const SauceTypeScript := preload("res://systems/sauce_type.gd")
+const DropRollerScript := preload("res://systems/drop_roller.gd")
 
 const SAUCE_TYPES_PATH: String = "res://data/sauce_types.tres"
 const DEFAULT_SAUCE_TYPE: String = "gochujang"
@@ -70,6 +71,8 @@ var checkpoint_position: Vector3 = Vector3.ZERO
 var sauce_type_id: String = DEFAULT_SAUCE_TYPE
 ## Ids of enemy defs defeated at least once. Drives "unlock on first defeat".
 var defeated_enemies: Array[String] = []
+## Rolls enemy drops and counts the bad-luck streak per enemy type. Not saved.
+var drops: DropRollerScript = DropRollerScript.new()
 
 var _popup_on_used: Callable
 
@@ -88,6 +91,7 @@ func reset() -> void:
 	checkpoint_position = Vector3.ZERO
 	sauce_type_id = DEFAULT_SAUCE_TYPE
 	defeated_enemies = []
+	drops.reset()
 	_emit_all()
 
 

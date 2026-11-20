@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EnvSpecialDef" format=3]
+
+[ext_resource type="Script" path="res://systems/env_special_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = "pot_large"
+display_name = "Large pot"
+kind = "heavy_object"
+natrium_cost = 1
+size = "large"
+pin_small_s = 3.0
+pin_medium_s = 6.0
+pin_large_s = 10.0
+reach_m = 3.0
+tint = Color(0.22, 0.22, 0.26, 1)

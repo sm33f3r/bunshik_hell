@@ -11,6 +11,10 @@ signal respawned
 signal sauce_fired
 ## Flick unlocked but not enough sauce. (A locked flick emits nothing, on purpose.)
 signal sauce_refused
+## An environment object was set off (the special action).
+signal special_used(object: Node3D)
+## `special` pressed on a target with too little 나트륨.
+signal special_refused
 
 enum State { IDLE, SQUIGGLE, JUMP, FALL, STOMP, ROLL, SLAM, HURT, DEAD }
 
@@ -28,6 +32,8 @@ const SauceFlickScript := preload("res://projectiles/sauce_flick.gd")
 const Layers := preload("res://systems/layers.gd")
 const SettingsScript := preload("res://systems/settings.gd")
 const HealthPickupScene: PackedScene = preload("res://items/health_pickup.tscn")
+const UsableObjectScript := preload("res://items/usable_object.gd")
+const GameplayInputScript := preload("res://systems/gameplay_input.gd")
 
 ## A dropped item cannot be picked up again for this long (seconds).
 const DROP_REPICK_DELAY_S: float = 1.0
@@ -44,6 +50,7 @@ const ACTION_SAUCE: StringName = &"sauce_attack"
 const ACTION_SAUCE_NEXT: StringName = &"sauce_next"
 const ACTION_SAUCE_PREV: StringName = &"sauce_prev"
 const ACTION_HEAL: StringName = &"heal"
+const ACTION_SPECIAL: StringName = &"special"
 
 const SKILL_JUMP: String = "jump"
 const SKILL_LANDING: String = "landing"
@@ -66,6 +73,10 @@ var state: State = State.IDLE
 var facing: float = 1.0
 ## Updated after every move; tests may set it directly.
 var grounded: bool = false
+## The usable object the special action would set off right now (null = none in range), and
+## how many were in range. The nearest one wins.
+var special_target: UsableObjectScript = null
+var special_candidates: int = 0
 
 var _coyote_timer: float = 0.0
 var _buffer_timer: float = 0.0
@@ -184,6 +195,49 @@ func request_sauce_attack() -> bool:
 	return true
 
 
+## Environment special (right mouse / Y). Sets off the nearest usable object in range, spending its
+## 나트륨. Too little 나트륨: nothing happens and special_refused fires. Returns whether it went off.
+func request_special() -> bool:
+	if not _can_act() or game_state == null:
+		return false
+	_update_special_target()
+	if special_target == null:
+		return false
+	var target: UsableObjectScript = special_target
+	if not target.try_use(game_state, facing):
+		if game_state.sodium < target.cost():
+			special_refused.emit()
+		return false
+	special_used.emit(target)
+	_update_special_target()
+	return true
+
+
+## Finds the nearest usable object in range and highlights it: bright if he can pay for it, dim
+## if not. Everything else is un-highlighted.
+func _update_special_target() -> void:
+	var best: UsableObjectScript = null
+	var best_distance: float = INF
+	var count: int = 0
+	if is_inside_tree():
+		for node: Node in get_tree().get_nodes_in_group("usable_objects"):
+			var obj: UsableObjectScript = node as UsableObjectScript
+			if obj == null or not obj.in_range_of(global_position):
+				continue
+			count += 1
+			var d: float = obj.distance_to(global_position)
+			if d < best_distance:
+				best_distance = d
+				best = obj
+	special_candidates = count
+	if special_target != best and is_instance_valid(special_target):
+		special_target.set_highlight(UsableObjectScript.Highlight.NONE)
+	special_target = best
+	if best != null and game_state != null:
+		best.set_highlight(UsableObjectScript.Highlight.BRIGHT 
+			if game_state.sodium >= best.cost() else UsableObjectScript.Highlight.DIM)
+
+
 ## Seconds until the next flick may fire (0 = ready).
 func sauce_cooldown_left() -> float:
 	return _sauce_cooldown
@@ -257,7 +311,10 @@ func _physics_process(delta: float) -> void:
 	_ensure_tuning()
 	_tick_timers(delta)
 	_handle_sauce_input()
-	if Input.is_action_just_pressed(ACTION_HEAL):
+	_update_special_target()
+	if GameplayInputScript.just_pressed(ACTION_SPECIAL):
+		request_special()
+	if GameplayInputScript.just_pressed(ACTION_HEAL):
 		request_heal()
 
 	# Overlaps reflect last frame's move; _prev_bottom is where the feet were before it.
@@ -327,13 +384,13 @@ func _on_item_dropped(item_id: String) -> void:
 # --- Sauce -------------------------------------------------------------------------------
 
 func _handle_sauce_input() -> void:
-	if Input.is_action_just_pressed(ACTION_SAUCE):
+	if GameplayInputScript.just_pressed(ACTION_SAUCE):
 		request_sauce_attack()
 	# Cycling is part of the sauce skill: locked = nothing, same as the attack.
 	if game_state != null and _has_skill(SKILL_SAUCE_FLICK):
-		if Input.is_action_just_pressed(ACTION_SAUCE_NEXT):
+		if GameplayInputScript.just_pressed(ACTION_SAUCE_NEXT):
 			game_state.cycle_sauce_type(1)
-		if Input.is_action_just_pressed(ACTION_SAUCE_PREV):
+		if GameplayInputScript.just_pressed(ACTION_SAUCE_PREV):
 			game_state.cycle_sauce_type(-1)
 
 
@@ -367,19 +424,19 @@ func _step_free(delta: float, input_x: float) -> void:
 	velocity.x = move_toward(velocity.x, input_x * tuning.max_speed, accel * delta)
 	_apply_gravity(delta)
 
-	if Input.is_action_just_pressed(ACTION_JUMP):
+	if GameplayInputScript.just_pressed(ACTION_JUMP):
 		_buffer_timer = tuning.buffer_time
 	if _buffer_timer > 0.0 and (grounded or _coyote_timer > 0.0) and _has_skill(SKILL_JUMP):
 		_start_jump()
 	if Input.is_action_just_released(ACTION_JUMP) and velocity.y > 0.0 and state == State.JUMP:
 		velocity.y *= tuning.short_hop_cut
 
-	if Input.is_action_just_pressed(ACTION_DOWN):
+	if GameplayInputScript.just_pressed(ACTION_DOWN):
 		if not grounded:
 			request_stomp()
 		elif _on_one_way:
 			_start_drop_through()
-	if Input.is_action_just_pressed(ACTION_ROLL):
+	if GameplayInputScript.just_pressed(ACTION_ROLL):
 		request_roll()
 
 	if state == State.STOMP or state == State.SLAM or state == State.ROLL:
