@@ -3,7 +3,7 @@ extends Node
 ## Not in the input map on purpose.
 ## Number row: 1 unlock roll + slam, 2 relock them and the flick, 3 respawn all dummies,
 ## 4 take 1 heart, 5 unlock the sauce flick, 6 defeat the noodle (라면) dummy,
-## 7 give the starter container. 2 also clears the container, items and coat; 3 also
+## 7 give the starter container, 8 finish the Map 1 prologue (Map 1 only). 2 also clears the container, items and coat; 3 also
 ## respawns item pickups, 나트륨 pickups, usable objects and 참기름 smudges, and removes
 ## dropped loot and water sheets. 6 defeats every 라면 dummy.
 ## Matched by physical key position so it works on any keyboard layout.
@@ -53,6 +53,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_game_state.unlock_skill("sauce_flick")
 		KEY_7:
 			_game_state.try_equip_container(STARTER_CONTAINER_ID)
+		KEY_8:
+			# Map 1 only: finish the prologue instantly. Nothing happens in the test room.
+			get_tree().call_group("prologue_map", "debug_finish")
 		KEY_6:
 			for node: Node in get_tree().get_nodes_in_group("enemies"):
 				var enemy: EnemyBaseScript = node as EnemyBaseScript

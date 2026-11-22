@@ -73,6 +73,9 @@ var sauce_type_id: String = DEFAULT_SAUCE_TYPE
 var defeated_enemies: Array[String] = []
 ## Rolls enemy drops and counts the bad-luck streak per enemy type. Not saved.
 var drops: DropRollerScript = DropRollerScript.new()
+## Map 1 prologue: the opening cutscene was shown (it never replays), and the prologue is done.
+var prologue_intro_seen: bool = false
+var prologue_complete: bool = false
 
 var _popup_on_used: Callable
 
@@ -92,6 +95,8 @@ func reset() -> void:
 	sauce_type_id = DEFAULT_SAUCE_TYPE
 	defeated_enemies = []
 	drops.reset()
+	prologue_intro_seen = false
+	prologue_complete = false
 	_emit_all()
 
 
@@ -460,6 +465,8 @@ func to_dict() -> Dictionary:
 		"checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
 		"sauce_type": sauce_type_id,
 		"defeated_enemies": defeated_enemies.duplicate(),
+		"prologue_intro_seen": prologue_intro_seen,
+		"prologue_complete": prologue_complete,
 	}
 
 
@@ -515,6 +522,9 @@ func from_dict(data: Dictionary) -> void:
 		for enemy_id: Variant in saved_defeats:
 			if enemy_id is String and enemy_id != "" and not defeated_enemies.has(enemy_id):
 				defeated_enemies.append(enemy_id)
+	# Added after save_version 1 shipped: older saves simply lack these keys.
+	prologue_intro_seen = data.get("prologue_intro_seen") is bool and data["prologue_intro_seen"]
+	prologue_complete = data.get("prologue_complete") is bool and data["prologue_complete"]
 	_emit_all()
 
 

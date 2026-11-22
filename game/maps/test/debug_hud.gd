@@ -78,6 +78,10 @@ func _process(delta: float) -> void:
 	if _game_state.popup_open():
 		lines.insert(0, tr("POPUP: Your %s is full - use %s now or drop it? (see the popup)") % [
 			_game_state.container_name(), _game_state.popup_item_id])
+	for node: Node in get_tree().get_nodes_in_group("prologue_map"):
+		if node.has_method("debug_lines"):
+			lines.append("")
+			lines.append_array(node.call("debug_lines"))
 	if OS.is_debug_build():
 		lines.append("1 unlock roll+slam  2 relock + clear inventory  3 respawn dummies, items, oil, objects  4 -1 heart  5 unlock flick  6 defeat noodle dummy  7 give container")
 	_label.text = "\n".join(lines)

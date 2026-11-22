@@ -1,0 +1,133 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://prologue/prologue_lines.gd" id="1_h16hu"]
+[ext_resource type="Script" path="res://prologue/stab_pattern.gd" id="2_bd7j8"]
+[ext_resource type="Script" path="res://prologue/prologue_data.gd" id="3_0c46x"]
+[ext_resource type="Script" path="res://prologue/cutscene_shot.gd" id="4_0onst"]
+[ext_resource type="Script" path="res://prologue/anger_stage.gd" id="5_yxbls"]
+
+[sub_resource type="Resource" id="Resource_1eegf"]
+script = ExtResource("1_h16hu")
+opening = "오~~~ 맛있겠다~~~~~"
+stage_1_enter = "아이구 소스 너무 많아"
+stage_1_later = "이 떡볶이 왜 이렇게 미끄럽지?"
+stage_2_enter = "야! 왜 그래!!"
+stage_3_enter = "야 씨발 배고파!"
+mandu_break = "아 그래"
+final_stab = "씨~~~~~~발 년아!"
+
+[sub_resource type="Resource" id="Resource_88mg3"]
+script = ExtResource("2_bd7j8")
+id = "single_small"
+weights = PackedFloat32Array(40, 30, 20, 12)
+
+[sub_resource type="Resource" id="Resource_s06ea"]
+script = ExtResource("2_bd7j8")
+id = "single_big"
+kind = "big"
+weights = PackedFloat32Array(5, 12, 20, 28)
+
+[sub_resource type="Resource" id="Resource_v1n2e"]
+script = ExtResource("2_bd7j8")
+id = "burst"
+kind = "burst"
+weights = PackedFloat32Array(5, 12, 20, 28)
+count_min = 2
+count_max = 5
+
+[sub_resource type="Resource" id="Resource_07ma1"]
+script = ExtResource("2_bd7j8")
+id = "hover_strike"
+kind = "hover"
+weights = PackedFloat32Array(15, 14, 12, 10)
+hover_min_s = 0.5
+hover_max_s = 1.5
+
+[sub_resource type="Resource" id="Resource_veepr"]
+script = ExtResource("2_bd7j8")
+id = "fake_out"
+kind = "fake"
+weights = PackedFloat32Array(15, 14, 12, 10)
+
+[sub_resource type="Resource" id="Resource_12hlj"]
+script = ExtResource("2_bd7j8")
+id = "slow_drag"
+kind = "drag"
+weights = PackedFloat32Array(3, 8, 14, 20)
+
+[sub_resource type="Resource" id="Resource_7do4k"]
+script = ExtResource("2_bd7j8")
+id = "mandu_break"
+kind = "mandu"
+weights = PackedFloat32Array(25, 15, 8, 3)
+pause_min_s = 1.5
+pause_max_s = 2.5
+
+[sub_resource type="Resource" id="Resource_ooc0e"]
+script = ExtResource("4_0onst")
+label = "kitchen_pass_through"
+from_pos = Vector3(-27, 2.8, 9)
+to_pos = Vector3(-21, 2.8, 9)
+look_from = Vector3(-26, 2.4, -3.5)
+look_to = Vector3(-22, 2.4, -3.5)
+duration_s = 2.2
+
+[sub_resource type="Resource" id="Resource_torso"]
+script = ExtResource("4_0onst")
+label = "menu_wall"
+from_pos = Vector3(-17, 3, 8)
+to_pos = Vector3(-9, 3, 8)
+look_from = Vector3(-16, 3.2, -3.6)
+look_to = Vector3(-9, 3.2, -3.6)
+duration_s = 2.4
+
+[sub_resource type="Resource" id="Resource_uo8bp"]
+script = ExtResource("4_0onst")
+label = "other_tables"
+from_pos = Vector3(-9, 2, 6.5)
+to_pos = Vector3(-2, 2.2, 6.5)
+look_from = Vector3(-8, 1, -2)
+look_to = Vector3(-1, 1, -2)
+duration_s = 2.2
+
+[sub_resource type="Resource" id="Resource_vxc8k"]
+script = ExtResource("4_0onst")
+label = "her_table_and_cup"
+from_pos = Vector3(-1.5, 2.6, 8)
+to_pos = Vector3(3.4, 2, 5.2)
+look_from = Vector3(1, 1.6, 0)
+look_to = Vector3(3.2, 1.7, 0)
+duration_s = 2.5
+
+[sub_resource type="Resource" id="Resource_qopnv"]
+script = ExtResource("5_yxbls")
+telegraph_s = 1.1
+gap_min_s = 1.2
+gap_max_s = 2.0
+
+[sub_resource type="Resource" id="Resource_tkodw"]
+script = ExtResource("5_yxbls")
+first_stab = 8
+telegraph_s = 0.9
+gap_min_s = 0.9
+
+[sub_resource type="Resource" id="Resource_f0y57"]
+script = ExtResource("5_yxbls")
+first_stab = 16
+telegraph_s = 0.7
+gap_min_s = 0.6
+gap_max_s = 1.1
+
+[sub_resource type="Resource" id="Resource_lnnh4"]
+script = ExtResource("5_yxbls")
+first_stab = 24
+telegraph_s = 0.55
+gap_min_s = 0.4
+gap_max_s = 0.8
+
+[resource]
+script = ExtResource("3_0c46x")
+shots = Array[ExtResource("4_0onst")]([SubResource("Resource_ooc0e"), SubResource("Resource_torso"), SubResource("Resource_uo8bp"), SubResource("Resource_vxc8k")])
+stages = Array[ExtResource("5_yxbls")]([SubResource("Resource_qopnv"), SubResource("Resource_tkodw"), SubResource("Resource_f0y57"), SubResource("Resource_lnnh4")])
+patterns = Array[ExtResource("2_bd7j8")]([SubResource("Resource_88mg3"), SubResource("Resource_s06ea"), SubResource("Resource_v1n2e"), SubResource("Resource_07ma1"), SubResource("Resource_veepr"), SubResource("Resource_12hlj"), SubResource("Resource_7do4k")])
+lines = SubResource("Resource_1eegf")

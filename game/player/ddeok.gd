@@ -69,6 +69,8 @@ var game_state: GameStateScript
 ## Injected by tests; falls back to the Settings autoload (the heal-default item).
 var settings: SettingsScript
 var state: State = State.IDLE
+## See set_controlled().
+var controlled: bool = false
 ## +1 faces right, -1 faces left.
 var facing: float = 1.0
 ## Updated after every move; tests may set it directly.
@@ -297,6 +299,21 @@ func respawn() -> void:
 	respawned.emit()
 
 
+## While true a scripted sequence owns him: no input, no physics, no gravity (timers still run).
+## Whoever sets it moves global_position itself. Releasing him lets him fall.
+func set_controlled(on: bool) -> void:
+	if controlled == on:
+		return
+	controlled = on
+	velocity = Vector3.ZERO
+	if not on:
+		grounded = false
+		_coyote_timer = 0.0
+		_buffer_timer = 0.0
+		_prev_bottom = global_position.y - body_half_height
+		_set_state(State.FALL)
+
+
 func is_invulnerable() -> bool:
 	return _invuln_timer > 0.0
 
@@ -310,6 +327,9 @@ func state_name() -> String:
 func _physics_process(delta: float) -> void:
 	_ensure_tuning()
 	_tick_timers(delta)
+	if controlled:
+		velocity = Vector3.ZERO # a scripted sequence moves him (the prologue's pick)
+		return
 	_handle_sauce_input()
 	_update_special_target()
 	if GameplayInputScript.just_pressed(ACTION_SPECIAL):
