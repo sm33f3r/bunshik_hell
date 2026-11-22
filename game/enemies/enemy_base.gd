@@ -40,6 +40,7 @@ const SWELL_GROWTH: float = 0.6
 const DROP_SCENES: Dictionary[String, String] = {
 	"natrium": "res://items/natrium_pickup.tscn",
 	"sauce_drip": "res://items/sauce_drip.tscn",
+	"sesame_oil": "res://items/sesame_oil_drop.tscn",
 }
 ## Height above the feet where a drop appears.
 const DROP_HEIGHT: float = 0.35
@@ -73,6 +74,9 @@ var swelling: bool = false
 var swell_left: float = 0.0
 ## The drops of the last death (also emitted as drops_rolled).
 var last_drops: Array[Dictionary] = []
+## Who the latest attack came from: false for hits that are not the 떡's (her pick). Only the
+## 떡's kills count toward an every-Nth-kill drop. A swell keeps the credit of the water.
+var credit_ddeok: bool = true
 
 var _stage_hits: int = 0
 var _spawn_transform: Transform3D
@@ -112,6 +116,7 @@ func setup() -> void:
 	swelling = false
 	swell_left = 0.0
 	last_drops = []
+	credit_ddeok = true
 	_refresh_visual()
 
 
@@ -148,8 +153,11 @@ func center_xy() -> Vector2:
 ## Returns {"reaction": String (the first), "reactions": Array[String], "damage": int
 ## (of the first), "killed": bool}. hurt_player and bounce_off have no effect on the enemy:
 ## the caller (the 떡) acts on them. `params` carries what the attack brings along:
-## "pin_s" (seconds) for a heavy object.
+## "pin_s" (seconds) for a heavy object; "by_ddeok" (false = not the 떡's doing, so the kill
+## does not count toward periodic drops).
 func receive_attack(attack: String, hit_dir: float = 1.0, params: Dictionary = {}) -> Dictionary:
+	if alive:
+		credit_ddeok = bool(params.get("by_ddeok", true))
 	if not alive or def == null or reaction_table == null:
 		return {"reaction": ReactionTableScript.REACTION_ABSORB, "reactions": [ReactionTableScript.REACTION_ABSORB],
 			"damage": 0, "killed": false}
@@ -334,6 +342,8 @@ func _die(tip_over: bool, hit_dir: float) -> void:
 ## type, not per enemy) and drops the result where the enemy died.
 func _roll_and_spawn_drops() -> void:
 	last_drops = game_state.drops.roll(def)
+	if credit_ddeok:
+		last_drops.append_array(game_state.periodic_drop(def))
 	if is_inside_tree() and get_parent() != null:
 		for drop: Dictionary in last_drops:
 			_spawn_drop(drop["kind"], drop["amount"])

@@ -20,4 +20,6 @@ walk_speed_mps = 1.2
 hop_range_m = 4.0
 hop_velocity_mps = 6.5
 hop_cooldown_s = 1.6
+every_nth_kill = 3
+every_nth_drop = "sesame_oil"
 drops = Array[ExtResource("2_drop")]([SubResource("Resource_drop")])

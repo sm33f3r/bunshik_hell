@@ -395,7 +395,7 @@ func _stab_hits_mandu() -> void:
 		return
 	for mandu: EnemyBaseScript in live_mandu():
 		if absf(mandu.global_position.x - s.tip_x) < s.half_width + data.mandu_half_width_m:
-			mandu.receive_attack(ReactionTableScript.ATTACK_HEAVY_OBJECT, 1.0)
+			mandu.receive_attack(ReactionTableScript.ATTACK_HEAVY_OBJECT, 1.0, {"by_ddeok": false})
 
 
 # --- Debug ------------------------------------------------------------------------------------

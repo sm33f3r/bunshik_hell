@@ -32,3 +32,7 @@ const DropEntryScript := preload("res://systems/drop_entry.gd")
 ## Bad-luck protection: after this many kills in a row (of this enemy type) with no drop,
 ## the next kill always drops.
 @export var drop_guarantee_after: int = 4
+## Guaranteed periodic drop: every Nth kill BY THE 떡 of this enemy type also drops
+## `every_nth_drop` (a DropEntry kind) where it died. 0 = off. Independent of `drops`.
+@export var every_nth_kill: int = 0
+@export var every_nth_drop: String = ""

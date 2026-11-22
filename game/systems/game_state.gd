@@ -26,6 +26,7 @@ const ContainerDefScript := preload("res://items/container_def.gd")
 const SauceTypeListScript := preload("res://systems/sauce_type_list.gd")
 const SauceTypeScript := preload("res://systems/sauce_type.gd")
 const DropRollerScript := preload("res://systems/drop_roller.gd")
+const EnemyDefScript := preload("res://enemies/enemy_def.gd")
 
 const SAUCE_TYPES_PATH: String = "res://data/sauce_types.tres"
 const DEFAULT_SAUCE_TYPE: String = "gochujang"
@@ -73,6 +74,9 @@ var sauce_type_id: String = DEFAULT_SAUCE_TYPE
 var defeated_enemies: Array[String] = []
 ## Rolls enemy drops and counts the bad-luck streak per enemy type. Not saved.
 var drops: DropRollerScript = DropRollerScript.new()
+## Kills BY THE 떡 per enemy type (def id). Drives every-Nth-kill drops. Survives his death and
+## the prologue restart; cleared by reset() (new game). Not saved.
+var kill_counts: Dictionary[String, int] = {}
 ## Map 1 prologue: the opening cutscene was shown (it never replays), and the prologue is done.
 var prologue_intro_seen: bool = false
 var prologue_complete: bool = false
@@ -95,9 +99,24 @@ func reset() -> void:
 	sauce_type_id = DEFAULT_SAUCE_TYPE
 	defeated_enemies = []
 	drops.reset()
+	kill_counts.clear()
 	prologue_intro_seen = false
 	prologue_complete = false
 	_emit_all()
+
+
+## One kill BY THE 떡 of this enemy type. Returns the drops it earns from the every-Nth-kill
+## rule ([{"kind", "amount"}] or empty). Uses no randomness. Kills that are not his are not
+## passed in here.
+func periodic_drop(def: EnemyDefScript) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if def == null or def.id == "":
+		return out
+	var count: int = kill_counts.get(def.id, 0) + 1
+	kill_counts[def.id] = count
+	if def.every_nth_kill > 0 and def.every_nth_drop != "" and count % def.every_nth_kill == 0:
+		out.append({"kind": def.every_nth_drop, "amount": 1})
+	return out
 
 
 func is_dead() -> bool:

@@ -4,6 +4,7 @@ extends Resource
 
 const KIND_NATRIUM: String = "natrium"
 const KIND_SAUCE_DRIP: String = "sauce_drip"
+const KIND_SESAME_OIL: String = "sesame_oil"
 
 ## KIND_NATRIUM or KIND_SAUCE_DRIP.
 @export var kind: String = KIND_NATRIUM

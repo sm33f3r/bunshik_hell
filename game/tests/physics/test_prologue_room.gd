@@ -469,6 +469,35 @@ func test_a_live_mandu_dies_to_a_stomp_and_costs_him_nothing() -> void:
 	check_eq((map.call("live_mandu") as Array).size(), 2, "two left on her counter")
 
 
+func test_stomping_three_mandu_drops_oil_on_the_third_and_it_heals_half_a_heart() -> void:
+	await open_map(true, true)
+	await stand_on_counter()
+	hold_stabs_back()
+	(map.get("_mandu_respawn") as RefCounted).set("count", 0)
+	gs.take_damage(4)
+	for n: int in 3:
+		var live: Array = map.call("live_mandu")
+		var mandu: Node3D = live[0]
+		mandu.set_physics_process(false)
+		mandu.global_position = Vector3(_free_x() + 0.5, _top() + 0.05, 0.0)
+		teleport(_free_x() + 0.5, _top() + 3.0)
+		await frames(2)
+		await tap("look_down")
+		check(await until(func() -> bool: return not mandu.get("alive"), 90), "stomp %d killed a 만두" % (n + 1))
+		var kinds: Array[String] = []
+		for dropped: Dictionary in mandu.get("last_drops"):
+			kinds.append(dropped["kind"])
+		check_eq(kinds.has("sesame_oil"), n == 2, "oil after stomp %d only if it is the 3rd" % (n + 1))
+		if n < 2:
+			await frames(5)
+	# The drop falls where the 만두 died, right under him: a hurt 떡 touching it heals ½ heart.
+	var hearts_before: int = 14 - 4
+	check(await until(func() -> bool: return gs.hearts > hearts_before, 120), "walking into the oil healed him")
+	check_eq(gs.hearts, hearts_before + 1, "exactly half a heart")
+	await frames(10)
+	check_eq(gs.hearts, hearts_before + 1, "and the drop was used up (no second heal)")
+
+
 func test_touching_a_live_mandu_from_the_side_costs_a_heart() -> void:
 	await open_map(true, true)
 	await stand_on_counter()

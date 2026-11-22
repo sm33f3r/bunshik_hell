@@ -132,3 +132,90 @@ func test_no_live_mandu_means_no_mandu_breaks() -> void:
 func test_her_plate_starts_with_three_live_mandu() -> void:
 	var data: DataScript = load("res://data/prologue/prologue.tres") as DataScript
 	check_eq(data.plate_mandu_count, 3, "three on the plate")
+
+
+# --- Task 3a-oil: every 3rd 만두 the 떡 kills drops 참기름 ----------------------------------
+
+func _killed_mandu(gs: GameStateScript, attack: String = ReactionTableScript.ATTACK_STOMP, params: Dictionary = {}) -> EnemyBaseScript:
+	var mandu: EnemyBaseScript = _mandu()
+	mandu.game_state = gs
+	mandu.def = load("res://data/enemies/mandu.tres") as EnemyDefScript
+	mandu.setup()
+	mandu.receive_attack(attack, 1.0, params)
+	return mandu
+
+
+func _kinds(mandu: EnemyBaseScript) -> Array[String]:
+	var out: Array[String] = []
+	for drop: Dictionary in mandu.last_drops:
+		out.append(drop["kind"])
+	return out
+
+
+func _oil_count(mandu: EnemyBaseScript) -> int:
+	return _kinds(mandu).count("sesame_oil")
+
+
+func test_the_mandu_data_says_every_3rd_kill_drops_sesame_oil() -> void:
+	var def: EnemyDefScript = load("res://data/enemies/mandu.tres") as EnemyDefScript
+	check_eq(def.every_nth_kill, 3, "every 3rd kill")
+	check_eq(def.every_nth_drop, "sesame_oil", "drops 참기름")
+	check(ResourceLoader.exists("res://items/sesame_oil_drop.tscn"), "the drop scene exists")
+	check(EnemyBaseScript.DROP_SCENES.has("sesame_oil"), "enemies can spawn it")
+	var other: EnemyDefScript = load("res://data/enemies/soft_dummy.tres") as EnemyDefScript
+	check_eq(other.every_nth_kill, 0, "off for other enemies")
+
+
+func test_kills_1_and_2_drop_no_oil_and_3_and_6_do() -> void:
+	var gs: GameStateScript = GameStateScript.new()
+	_nodes.append(gs)
+	gs.drops.rng.seed = 11
+	var oil: Array[int] = []
+	for i: int in 6:
+		oil.append(_oil_count(_killed_mandu(gs)))
+	check_eq(oil, [0, 0, 1, 0, 0, 1] as Array[int], "oil on kills 3 and 6 only")
+	check_eq(gs.kill_counts.get("mandu", 0), 6, "six kills counted")
+
+
+func test_her_eating_a_mandu_does_not_count() -> void:
+	var gs: GameStateScript = GameStateScript.new()
+	_nodes.append(gs)
+	_killed_mandu(gs)
+	_killed_mandu(gs)
+	var eaten: EnemyBaseScript = _killed_mandu(gs, ReactionTableScript.ATTACK_HEAVY_OBJECT, {"by_ddeok": false})
+	check(not eaten.alive, "the pick killed it")
+	check_eq(_oil_count(eaten), 0, "no oil from her kill")
+	check_eq(gs.kill_counts.get("mandu", 0), 2, "and it was not counted")
+	check_eq(_oil_count(_killed_mandu(gs)), 1, "his next kill is the 3rd")
+
+
+func test_the_counter_survives_his_death_and_resets_on_a_new_game() -> void:
+	var gs: GameStateScript = GameStateScript.new()
+	_nodes.append(gs)
+	_killed_mandu(gs)
+	_killed_mandu(gs)
+	gs.take_damage(GameStateScript.MAX_HEARTS) # he dies
+	gs.respawn()
+	check_eq(gs.kill_counts.get("mandu", 0), 2, "dying keeps the count")
+	check_eq(_oil_count(_killed_mandu(gs)), 1, "so the next kill is still the 3rd")
+	_killed_mandu(gs)
+	gs.reset() # new game
+	check(gs.kill_counts.is_empty(), "a new game clears it")
+	check_eq(_oil_count(_killed_mandu(gs)), 0, "kill 1 again")
+	check(not gs.to_dict().has("kill_counts"), "and it is not saved")
+
+
+func test_the_sauce_drip_roll_is_unaffected_by_the_counter() -> void:
+	var with_counter: GameStateScript = GameStateScript.new()
+	var plain: GameStateScript = GameStateScript.new()
+	_nodes.append(with_counter)
+	_nodes.append(plain)
+	with_counter.drops.rng.seed = 5
+	plain.drops.rng.seed = 5
+	var def: EnemyDefScript = load("res://data/enemies/mandu.tres") as EnemyDefScript
+	for i: int in 12:
+		var a: Array[Dictionary] = with_counter.drops.roll(def)
+		with_counter.periodic_drop(def)
+		var b: Array[Dictionary] = plain.drops.roll(def)
+		check_eq(a, b, "same roll on kill %d" % (i + 1))
+	check_eq(with_counter.drops.dry_kills("mandu"), plain.drops.dry_kills("mandu"), "same bad-luck count")
