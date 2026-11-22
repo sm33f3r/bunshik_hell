@@ -20,6 +20,13 @@ const DropEntryScript := preload("res://systems/drop_entry.gd")
 ## in the game plane) before it starts to creep toward him.
 @export var creep_speed_mps: float = 0.0
 @export var creep_range_m: float = 6.0
+## Walkers (0 = stands still): walking speed in m/s.
+@export var walk_speed_mps: float = 0.0
+## Hoppers: how close the 떡 must be (metres) before it hops, the hop's launch speed (m/s) and
+## the rest between hops (seconds). hop_range_m 0 = never hops.
+@export var hop_range_m: float = 0.0
+@export var hop_velocity_mps: float = 0.0
+@export var hop_cooldown_s: float = 1.5
 ## What it may leave behind when it dies (see DropEntry). Empty = nothing.
 @export var drops: Array[DropEntryScript] = []
 ## Bad-luck protection: after this many kills in a row (of this enemy type) with no drop,

@@ -42,7 +42,7 @@ func _ready() -> void:
 	_subtitle_box.add_child(_subtitle)
 
 	_meter_root = Control.new()
-	_meter_root.position = Vector2(660.0, 700.0)
+	_meter_root.position = Vector2(1230.0, 330.0)
 	_meter_root.size = Vector2(600.0, 110.0)
 	_meter_root.visible = false
 	add_child(_meter_root)

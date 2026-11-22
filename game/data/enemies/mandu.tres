@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyDef" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_def.gd" id="1_def"]
+[ext_resource type="Script" path="res://systems/drop_entry.gd" id="2_drop"]
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("2_drop")
+kind = "sauce_drip"
+amount = 1
+chance = 0.25
+
+[resource]
+script = ExtResource("1_def")
+id = "mandu"
+material = "soft"
+max_hp = 1
+contact_damage_half_hearts = 2
+hits_per_stage = 1
+walk_speed_mps = 1.2
+hop_range_m = 4.0
+hop_velocity_mps = 6.5
+hop_cooldown_s = 1.6
+drops = Array[ExtResource("2_drop")]([SubResource("Resource_drop")])

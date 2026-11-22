@@ -4,7 +4,7 @@ extends RefCounted
 ## what the director says is happening. Tests drive it directly with a fresh GameState.
 ##
 ## Flow: INTRO (first run only) -> PICK (wiggle off the opening pick) -> PRE_STAB -> STAB
-##   (patterns until the 30th stab) -> EXIT_OPEN -> COMPLETE.
+##   (patterns until the 30th stab) -> EXIT_OPEN (she yanks her forearm away) -> COMPLETE.
 ## A big stab lifts him: STAB -> LIFT (wiggle again) -> STAB. Failing either wiggle: EATEN ->
 ## PICK again (count 0, full hearts, no cutscene). Dying: DEAD -> (respawned) -> PICK again.
 
@@ -51,6 +51,8 @@ signal freed
 signal lifted(stab: Stab)
 signal eaten
 signal exit_opened
+## A 만두 break landed on a live 만두 at this x: she eats it.
+signal mandu_eaten(x: float)
 signal completed
 ## The sequence (re)started at the 맛있겠다 moment.
 signal restarted
@@ -75,6 +77,8 @@ class Stab extends RefCounted:
 	var burst_follow: bool = false
 	## Seconds she pauses after this stab (the 만두 break).
 	var pause_s: float = 0.0
+	## A 만두 break that really spears a live 만두 (it may have walked away by the time it lands).
+	var mandu_hit: bool = false
 	var drag_from: float = 0.0
 	var drag_to: float = 0.0
 	var drag_s: float = 1.0
@@ -93,7 +97,9 @@ var state: State = State.NOT_STARTED
 var count: int = 0
 var stage: int = 0
 var exit_open: bool = false
-var plate_mandu: int = 0
+## Where the live 만두 are along the counter (x). The scene refreshes it every tick; a 만두 break
+## needs one, and aims at one. Empty = no more 만두 breaks.
+var mandu_xs: Array[float] = []
 ## The 떡's position, set by the scene every tick (x along the counter, y of his feet).
 var player_x: float = 0.0
 var player_bottom_y: float = 0.0
@@ -102,6 +108,8 @@ var stab: Stab = null
 var pattern_id: String = ""
 ## x the pick was stabbed into during a lift.
 var lift_x: float = 0.0
+## x of the pick when he was eaten (the cup on the opening pick, lift_x after a lift).
+var eaten_x: float = 0.0
 
 var intro_t: float = 0.0
 var eaten_t: float = 0.0
@@ -188,7 +196,8 @@ func camera_pose() -> Dictionary:
 		start += data.shots[i].duration_s
 	var shot: CutsceneShotScript = data.shots[index]
 	var u: float = clampf((intro_t - start) / maxf(shot.duration_s, 0.001), 0.0, 1.0)
-	return {"pos": shot.from_pos.lerp(shot.to_pos, u), "look": shot.look_from.lerp(shot.look_to, u)}
+	return {"pos": data.shot_from(shot).lerp(data.shot_to(shot), u),
+		"look": data.shot_look_from(shot).lerp(data.shot_look_to(shot), u)}
 
 
 ## Skip button. Only does anything during the cutscene.
@@ -218,7 +227,6 @@ func _start_pick() -> void:
 	_queue.clear()
 	_forced = null
 	_gap_left = 0.0
-	plate_mandu = data.plate_mandu_count
 	lines_shown.clear()
 	telegraph_log.clear()
 	_wiggle_reset(data.required_alternations, data.window_s)
@@ -270,6 +278,7 @@ func _wiggle_success() -> void:
 
 
 func _eaten() -> void:
+	eaten_x = lift_x if state == State.LIFT else data.cup_x
 	stab = null
 	_queue.clear()
 	eaten_t = 0.0
@@ -305,6 +314,10 @@ func step(delta: float) -> void:
 				_set_state(State.STAB)
 		State.STAB:
 			_step_stab(delta)
+		State.EXIT_OPEN:
+			# The 30th stab finishes its retract after the way opened.
+			if stab != null:
+				_advance_stab(delta)
 
 
 ## 0..1 progress of the eaten beat (the chomp, the blackout from the top, the game-over text).
@@ -363,13 +376,13 @@ func _show_line(key: String) -> void:
 # --- Patterns --------------------------------------------------------------------------------
 
 ## Patterns that may play now: they have odds in this stage, fit before the finale (`remaining`
-## = counted stabs still allowed before the 30th), and a 만두 break needs a 만두 left on the plate.
+## = counted stabs still allowed before the 30th), and a 만두 break needs a live 만두.
 func eligible_patterns(for_stage: int, remaining: int) -> Array[StabPatternScript]:
 	var out: Array[StabPatternScript] = []
 	for p: StabPatternScript in data.patterns:
 		if p.weight_for(for_stage) <= 0.0 or p.min_stabs() > remaining:
 			continue
-		if p.kind == "mandu" and plate_mandu <= 0:
+		if p.kind == "mandu" and mandu_xs.is_empty():
 			continue
 		out.append(p)
 	return out
@@ -495,8 +508,7 @@ func _make_stab(spec: Dictionary) -> Stab:
 	s.aim_offset = rng.randf_range(-data.aim_jitter_m, data.aim_jitter_m)
 	match s.kind:
 		KIND_MANDU:
-			s.target_x = data.plate_x
-			s.locked = true
+			s.target_x = _pick_mandu_target()
 		KIND_FINAL:
 			s.target_x = data.final_x
 			s.locked = true
@@ -515,7 +527,27 @@ func _make_stab(spec: Dictionary) -> Stab:
 	return s
 
 
+## x of the live 만두 closest to `x` (or `x` itself if there is none).
+func _nearest_mandu(x: float) -> float:
+	var best: float = x
+	var best_distance: float = INF
+	for mx: float in mandu_xs:
+		if absf(mx - x) < best_distance:
+			best_distance = absf(mx - x)
+			best = mx
+	return best
+
+
+## A 만두 break aims at a random live 만두 and follows it until the shadow locks.
+func _pick_mandu_target() -> float:
+	if mandu_xs.is_empty():
+		return data.plate_x
+	return mandu_xs[rng.randi_range(0, mandu_xs.size() - 1)]
+
+
 func _aim(s: Stab) -> float:
+	if s.kind == KIND_MANDU:
+		return _nearest_mandu(s.target_x)
 	return clampf(player_x + s.aim_offset, data.section_min_x, data.section_max_x)
 
 
@@ -573,12 +605,17 @@ func _impact(s: Stab) -> void:
 		KIND_FINAL:
 			_update_stage()
 			exit_open = true
+			_enter_phase(s, Phase.HOLD, data.hold_s)
 			_set_state(State.EXIT_OPEN)
 			exit_opened.emit()
 			return
 		KIND_MANDU:
-			plate_mandu -= 1
-			_show_line("mandu_break")
+			s.mandu_hit = _mandu_in_column(s)
+			if s.mandu_hit:
+				_show_line("mandu_break")
+				mandu_eaten.emit(s.target_x)
+			else:
+				s.pause_s = 0.0 # nothing on the pick, so no chewing pause
 			_enter_phase(s, Phase.HOLD, data.hold_s)
 		KIND_DRAG:
 			_try_hit_column(s)
@@ -598,6 +635,14 @@ func _impact(s: Stab) -> void:
 			if state == State.STAB:
 				_enter_phase(s, Phase.HOLD, data.hold_s)
 	_update_stage()
+
+
+## True if any live 만두 is inside the stab's column (so the pick spears it).
+func _mandu_in_column(s: Stab) -> bool:
+	for mx: float in mandu_xs:
+		if absf(mx - s.target_x) < s.half_width + data.mandu_half_width_m:
+			return true
+	return false
 
 
 func _in_column(s: Stab) -> bool:
@@ -674,6 +719,15 @@ func debug_finish() -> void:
 		_set_state(State.EXIT_OPEN)
 		exit_opened.emit()
 	reach_next_table()
+
+
+## Pause menu "Restart": back to the 맛있겠다 moment (count 0, full hearts). Nothing to restart once
+## the prologue is complete (the checkpoint is on the next table then).
+func restart() -> bool:
+	if state == State.NOT_STARTED or state == State.COMPLETE:
+		return false
+	_start_pick()
+	return true
 
 
 ## Tests and the debug HUD: skip the wiggle.

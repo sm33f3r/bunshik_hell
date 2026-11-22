@@ -1,12 +1,17 @@
 extends Node
 ## Autoload "Settings": user settings in user://settings.json, separate from saves.
 
+const ItemCatalogScript := preload("res://systems/item_catalog.gd")
+
 ## Off-chain only for now. Flip when a real ChainBridge exists.
 const ON_CHAIN_AVAILABLE := false
 const MAX_FILE_BYTES: int = 65_536
 
 var settings_path: String = "user://settings.json"
 var heal_default: String = "lowest"
+var fullscreen: bool = false
+## Master volume, 0.0 (silent) to 1.0 (full).
+var master_volume: float = 1.0
 var on_chain: bool = false
 var last_error: String = ""
 
@@ -27,8 +32,48 @@ func set_heal_default(value: String) -> bool:
 	return true
 
 
+## The heal-default choices in menu order: "lowest" first, then each health item.
+func heal_default_choices() -> Array[String]:
+	var out: Array[String] = ["lowest"]
+	var ids: Array = ItemCatalogScript.HEALTH_ITEM_PATHS.keys()
+	ids.sort()
+	for id: Variant in ids:
+		out.append(String(id))
+	return out
+
+
+## Moves heal_default to the next (+1) or previous (-1) choice, wrapping around.
+func cycle_heal_default(step: int) -> void:
+	var choices: Array[String] = heal_default_choices()
+	var index: int = choices.find(heal_default)
+	if index < 0:
+		index = 0
+	set_heal_default(choices[posmod(index + step, choices.size())])
+
+
+func set_fullscreen(value: bool) -> void:
+	fullscreen = value
+
+
+func set_master_volume(value: float) -> void:
+	master_volume = clampf(value, 0.0, 1.0)
+
+
+## Pushes fullscreen and volume to the window and the audio bus. Not called by the setters, so
+## tests (and a settings file read at start-up) can change values without touching the system.
+func apply_to_system() -> void:
+	var mode: DisplayServer.WindowMode = DisplayServer.WINDOW_MODE_WINDOWED
+	if fullscreen:
+		mode = DisplayServer.WINDOW_MODE_FULLSCREEN
+	DisplayServer.window_set_mode(mode)
+	var bus: int = AudioServer.get_bus_index("Master")
+	if bus >= 0:
+		AudioServer.set_bus_volume_db(bus, -80.0 if master_volume <= 0.0 else linear_to_db(master_volume))
+
+
 func to_dict() -> Dictionary:
-	return {"heal_default": heal_default, "on_chain": on_chain}
+	return {"heal_default": heal_default, "on_chain": on_chain, "fullscreen": fullscreen,
+		"master_volume": master_volume}
 
 
 func save_settings() -> bool:
@@ -54,6 +99,10 @@ func load_settings() -> bool:
 	var data: Dictionary = json.data
 	if data.get("heal_default") is String:
 		set_heal_default(data["heal_default"])
+	if data.get("fullscreen") is bool:
+		set_fullscreen(data["fullscreen"])
+	if data.get("master_volume") is float or data.get("master_volume") is int:
+		set_master_volume(float(data["master_volume"]))
 	if data.get("on_chain") is bool:
 		set_on_chain(data["on_chain"])
 	return true
@@ -61,3 +110,4 @@ func load_settings() -> bool:
 
 func _ready() -> void:
 	load_settings()
+	apply_to_system()

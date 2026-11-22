@@ -66,38 +66,37 @@ pause_max_s = 2.5
 [sub_resource type="Resource" id="Resource_ooc0e"]
 script = ExtResource("4_0onst")
 label = "kitchen_pass_through"
-from_pos = Vector3(-27, 2.8, 9)
-to_pos = Vector3(-21, 2.8, 9)
-look_from = Vector3(-26, 2.4, -3.5)
-look_to = Vector3(-22, 2.4, -3.5)
+from_pos = Vector3(-720, 120, 300)
+to_pos = Vector3(-560, 125, 300)
+look_from = Vector3(-640, 110, -45)
+look_to = Vector3(-580, 110, -45)
 duration_s = 2.2
 
 [sub_resource type="Resource" id="Resource_torso"]
 script = ExtResource("4_0onst")
 label = "menu_wall"
-from_pos = Vector3(-17, 3, 8)
-to_pos = Vector3(-9, 3, 8)
-look_from = Vector3(-16, 3.2, -3.6)
-look_to = Vector3(-9, 3.2, -3.6)
+from_pos = Vector3(-520, 140, 260)
+to_pos = Vector3(-330, 140, 260)
+look_from = Vector3(-460, 130, -45)
+look_to = Vector3(-330, 130, -45)
 duration_s = 2.4
 
 [sub_resource type="Resource" id="Resource_uo8bp"]
 script = ExtResource("4_0onst")
 label = "other_tables"
-from_pos = Vector3(-9, 2, 6.5)
-to_pos = Vector3(-2, 2.2, 6.5)
-look_from = Vector3(-8, 1, -2)
-look_to = Vector3(-1, 1, -2)
+from_pos = Vector3(-320, 95, 240)
+to_pos = Vector3(-120, 100, 240)
+look_from = Vector3(-300, 70, -10)
+look_to = Vector3(-120, 70, -10)
 duration_s = 2.2
 
 [sub_resource type="Resource" id="Resource_vxc8k"]
 script = ExtResource("4_0onst")
 label = "her_table_and_cup"
-from_pos = Vector3(-1.5, 2.6, 8)
-to_pos = Vector3(3.4, 2, 5.2)
-look_from = Vector3(1, 1.6, 0)
-look_to = Vector3(3.2, 1.7, 0)
+from_pos = Vector3(-80, 100, 170)
+look_from = Vector3(-10, 90, 0)
 duration_s = 2.5
+end_on_pick_camera = true
 
 [sub_resource type="Resource" id="Resource_qopnv"]
 script = ExtResource("5_yxbls")

@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/mandu.gd" id="1_mandu"]
+[ext_resource type="Resource" path="res://data/enemies/mandu.tres" id="2_def"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_table"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_mandu"]
+size = Vector3(0.87, 0.61, 0.78)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+albedo_color = Color(0.96, 0.92, 0.82, 1)
+roughness = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_body"]
+radius = 0.435
+height = 0.61
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_seam"]
+albedo_color = Color(0.85, 0.78, 0.62, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_seam"]
+size = Vector3(0.48, 0.06, 0.48)
+
+[node name="Mandu" type="CharacterBody3D"]
+script = ExtResource("1_mandu")
+def = ExtResource("2_def")
+reaction_table = ExtResource("3_table")
+body_height = 0.61
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.305, 0)
+shape = SubResource("BoxShape3D_mandu")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.305, 0)
+material_override = SubResource("StandardMaterial3D_body")
+mesh = SubResource("SphereMesh_body")
+
+[node name="Seam" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 0)
+material_override = SubResource("StandardMaterial3D_seam")
+mesh = SubResource("BoxMesh_seam")

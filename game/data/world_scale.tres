@@ -1,0 +1,7 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://systems/world_scale.gd" id="1_ws"]
+
+[resource]
+script = ExtResource("1_ws")
+real_ddeok_length_cm = 5.5

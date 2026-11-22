@@ -1,7 +1,8 @@
 extends Node3D
-## Map 1 (lunch 분식집), gray box. For now only the prologue lives here (Task 3a): the opening
-## cutscene, the pick and the wiggle, the 30 stabs at the window counter, and the exit to the
-## next table. All the rules are in PrologueDirector; this node moves things and draws them.
+## Map 1 (lunch 분식집), gray box, at real scale. For now only the prologue lives here: the opening
+## cutscene, the pick and the wiggle, the 30 stabs at the window counter, and the exit to the next
+## table. All the rules are in PrologueDirector; this node moves things and draws them. The set
+## (counter, props, her forearm, the next table) is built by PrologueSet from the real-size table.
 
 const GameStateScript := preload("res://systems/game_state.gd")
 const DdeokScript := preload("res://player/ddeok.gd")
@@ -9,28 +10,22 @@ const DirectorScript := preload("res://prologue/prologue_director.gd")
 const PrologueDataScript := preload("res://prologue/prologue_data.gd")
 const ActorScript := preload("res://prologue/prologue_actor.gd")
 const UiScript := preload("res://prologue/prologue_ui.gd")
+const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const GameplayInputScript := preload("res://systems/gameplay_input.gd")
+const ReactionTableScript := preload("res://systems/reaction_table.gd")
+const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
+const MANDU_SCENE: PackedScene = preload("res://enemies/mandu.tscn")
 
 ## Physics ticks at the start during which the skip button is ignored.
 const SKIP_GUARD_TICKS: int = 8
-## The 떡's centre sits this far above the pick tip while he is speared.
-const SPEAR_OFFSET: float = 0.3
-## He slides off the pick this far to the side.
-const SLIDE_OFF_X: float = 0.6
 const SQUIRM_ANGLE: float = 0.5
 const SQUIRM_DECAY: float = 3.5
 const SHAKE_AMOUNT: float = 0.35
-## Below this height the 떡 has fallen out of the world.
-@export var kill_y: float = -12.0
 
 @export var player: DdeokScript
 @export var camera: Camera3D
-## Invisible walls: StaticBody3D children, each with a CollisionShape3D.
-@export var walls: Node3D
-## The pick the 30th stab leaves in the counter (a StaticBody3D with a CollisionShape3D).
-@export var stuck_pick: StaticBody3D
-## The 만두 props on her plate (MeshInstance3D children).
-@export var plate: Node3D
+## The real-size set, built from data when the map starts.
+@export var set_node: PrologueSetScript
 @export var data: PrologueDataScript
 
 var director: DirectorScript
@@ -43,6 +38,7 @@ var _squirm: float = 0.0
 var _squirm_phase: float = 0.0
 var _facing_pivot: Node3D
 var _was_controlled: bool = false
+var _mandu: Array[EnemyBaseScript] = []
 
 
 func _ready() -> void:
@@ -53,6 +49,14 @@ func _ready() -> void:
 	if data == null:
 		data = load(DirectorScript.DATA_PATH) as PrologueDataScript
 	_facing_pivot = player.get_node_or_null("FacingPivot") as Node3D
+	if set_node != null:
+		set_node.build(data)
+	player.global_position = data.start_spawn
+	player.reset_physics_interpolation()
+	if camera != null:
+		camera.near = data.camera_near
+		camera.far = data.camera_far
+		camera.set("offset", data.stab_camera_offset)
 
 	director = DirectorScript.new(data, game_state)
 	director.apply_damage = Callable(self, "_hurt_player")
@@ -61,11 +65,15 @@ func _ready() -> void:
 	director.completed.connect(_on_completed)
 	director.wiggle_pressed.connect(_on_wiggle_pressed)
 	player.respawned.connect(director.on_player_respawned)
+	var pause_menu: Node = get_node_or_null("PauseMenu")
+	if pause_menu != null and pause_menu.has_signal("restart_requested"):
+		pause_menu.connect("restart_requested", _on_restart_requested)
 
 	actor = ActorScript.new()
 	actor.name = "PrologueActor"
-	actor.counter_y = data.counter_top_y
 	add_child(actor)
+	actor.build(data)
+	actor.body_half_height = player.body_half_height
 	ui = UiScript.new()
 	ui.name = "PrologueUi"
 	add_child(ui)
@@ -78,9 +86,10 @@ func _ready() -> void:
 		player.global_position = game_state.checkpoint_position
 		player.reset_physics_interpolation()
 		return
+	if _mandu.is_empty():
+		_respawn_mandu() # in the cutscene they are already on her plate
 	_sync_control()
 	_pin_player()
-	_refresh_plate()
 
 
 func _physics_process(delta: float) -> void:
@@ -90,14 +99,14 @@ func _physics_process(delta: float) -> void:
 	_read_inputs()
 	director.player_x = player.global_position.x
 	director.player_bottom_y = player.global_position.y - player.body_half_height
+	director.mandu_xs = _live_mandu_xs()
 	director.step(delta)
 	_sync_control()
 	actor.apply(director)
 	_pin_player()
-	_refresh_plate()
+	_stab_hits_mandu()
 	_check_next_table()
-	if player.global_position.y < kill_y:
-		player.kill()
+	_catch_fall()
 
 
 func _process(delta: float) -> void:
@@ -121,8 +130,8 @@ func _process(delta: float) -> void:
 func _read_inputs() -> void:
 	match director.state:
 		DirectorScript.State.INTRO:
-			if _ticks > SKIP_GUARD_TICKS and (Input.is_action_just_pressed("jump") \
-					or Input.is_action_just_pressed("ui_accept")):
+			if _ticks > SKIP_GUARD_TICKS and (GameplayInputScript.just_pressed(&"jump") \
+					or GameplayInputScript.just_pressed(&"ui_accept")):
 				director.skip_intro()
 		DirectorScript.State.PICK, DirectorScript.State.LIFT:
 			if GameplayInputScript.just_pressed(&"move_left"):
@@ -157,7 +166,7 @@ func _sync_control() -> void:
 	# Released: he slides off the pick and drops.
 	_was_controlled = false
 	var from: Vector3 = actor.tip_position
-	var release_x: float = clampf(from.x + SLIDE_OFF_X, data.section_min_x + 0.3, data.section_max_x - 0.3)
+	var release_x: float = clampf(from.x + data.slide_off_m, data.section_min_x + 0.3, data.section_max_x - 0.3)
 	if director.state == DirectorScript.State.DEAD:
 		release_x = player.global_position.x
 	else:
@@ -167,18 +176,19 @@ func _sync_control() -> void:
 	_set_squirm_pose(0.0)
 
 
-## While speared, he rides the pick tip.
+## While speared, he rides the pick tip: the tip stays INSIDE his body, never out of its far side.
 func _pin_player() -> void:
 	if not _was_controlled:
 		return
 	var tip: Vector3 = actor.tip_position
-	player.global_position = Vector3(tip.x, tip.y + SPEAR_OFFSET, 0.0)
+	player.global_position = Vector3(tip.x, tip.y + actor.spear_centre_above_tip(), 0.0)
 
 
 func _on_restarted() -> void:
 	_set_world_open(false)
 	actor.reset_visual()
 	_squirm = 0.0
+	_respawn_mandu()
 	if player.state == DdeokScript.State.DEAD:
 		player.respawn()
 	_was_controlled = false
@@ -189,7 +199,7 @@ func _on_restarted() -> void:
 	ui.set_blackout(0.0)
 	if camera != null:
 		camera.set("target", null)
-		camera.global_position = Vector3(data.cup_x, data.pick_camera_pos.y, data.pick_camera_pos.z)
+		camera.global_position = data.pick_camera_pos
 		camera.basis = Basis.IDENTITY
 		camera.h_offset = 0.0
 		camera.v_offset = 0.0
@@ -234,8 +244,13 @@ func _update_camera(delta: float) -> void:
 			camera.look_at(pose["look"], Vector3.UP)
 		DirectorScript.State.PICK, DirectorScript.State.EATEN, DirectorScript.State.LIFT:
 			camera.set("target", null)
-			var focus_x: float = director.lift_x if director.state == DirectorScript.State.LIFT else data.cup_x
-			var aim: Vector3 = Vector3(focus_x, data.pick_camera_pos.y, data.pick_camera_pos.z)
+			var focus_x: float = data.cup_x
+			if director.state == DirectorScript.State.LIFT:
+				focus_x = director.lift_x
+			elif director.state == DirectorScript.State.EATEN:
+				focus_x = director.eaten_x
+			var pick_cam: Vector3 = data.pick_camera_pos
+			var aim: Vector3 = Vector3(focus_x, pick_cam.y, pick_cam.z)
 			camera.global_position = camera.global_position.lerp(aim, blend)
 			camera.basis = camera.basis.slerp(Basis.IDENTITY, blend)
 			_shake(delta)
@@ -254,15 +269,9 @@ func _shake(_delta: float) -> void:
 	camera.v_offset = randf_range(-amount, amount)
 
 
-# --- World: walls, the stuck pick, the next table ---------------------------------------------------
+# --- World: the forearm, the next table, falling ----------------------------------------------------
 
 func _on_exit_opened() -> void:
-	actor.hide_for_exit()
-	# Do not let the pick appear inside him.
-	if absf(player.global_position.x - data.final_x) < 1.0 and player.global_position.y < data.pick_top_y:
-		player.global_position.x = data.final_x - 1.0
-		player.velocity.x = 0.0
-		player.reset_physics_interpolation()
 	_set_world_open(true)
 
 
@@ -270,43 +279,12 @@ func _on_completed() -> void:
 	ui.set_dev_note(true)
 
 
-## true: the walls are down and the stuck pick stands in the counter. false: the opposite.
+## true: she has yanked her forearm away and the way on is open. false: it lies across the counter.
 func _set_world_open(open: bool) -> void:
-	if walls != null:
-		for wall: Node in walls.get_children():
-			for child: Node in wall.get_children():
-				var shape: CollisionShape3D = child as CollisionShape3D
-				if shape != null:
-					shape.set_deferred("disabled", open)
-	if stuck_pick != null:
-		stuck_pick.visible = open
-		for child: Node in stuck_pick.get_children():
-			var shape: CollisionShape3D = child as CollisionShape3D
-			if shape != null:
-				shape.set_deferred("disabled", not open)
+	if set_node != null:
+		set_node.set_exit_open(open)
 	if not open and ui != null:
 		ui.set_dev_note(false)
-
-
-## Test hook: only the walls down, no pick (to prove the gap is too wide without it).
-func debug_drop_walls_only() -> void:
-	if walls != null:
-		for wall: Node in walls.get_children():
-			for child: Node in wall.get_children():
-				var shape: CollisionShape3D = child as CollisionShape3D
-				if shape != null:
-					shape.disabled = true
-
-
-func _refresh_plate() -> void:
-	if plate == null or director == null:
-		return
-	var index: int = 0
-	for child: Node in plate.get_children():
-		var item: Node3D = child as Node3D
-		if item != null and item.name.begins_with("Mandu"):
-			item.visible = index < director.plate_mandu
-			index += 1
 
 
 func _check_next_table() -> void:
@@ -319,6 +297,83 @@ func _check_next_table() -> void:
 		director.reach_next_table()
 
 
+## The floor is a long way below the counter: a fall is not death, he is put back (no damage).
+func _catch_fall() -> void:
+	if player.controlled or player.global_position.y >= data.fall_catch_y:
+		return
+	if director.state == DirectorScript.State.COMPLETE:
+		player.global_position = game_state.checkpoint_position
+	else:
+		player.global_position = Vector3(data.fall_return_x, data.counter_top_y + 0.6, 0.0)
+	player.velocity = Vector3.ZERO
+	player.reset_physics_interpolation()
+
+
+# --- Pause menu "Restart" ---------------------------------------------------------------------------
+
+## From the last checkpoint: in the prologue that is the 맛있겠다 moment; after it, the next table.
+func _on_restart_requested() -> void:
+	if director == null:
+		return
+	if director.state == DirectorScript.State.COMPLETE:
+		game_state.respawn()
+		player.respawn()
+		return
+	director.restart()
+
+
+# --- Live 만두 ---------------------------------------------------------------------------------------
+
+## Her plate starts with live 만두 again (on every restart).
+func _respawn_mandu() -> void:
+	for mandu: EnemyBaseScript in _mandu:
+		if is_instance_valid(mandu):
+			mandu.queue_free()
+	_mandu.clear()
+	if set_node == null:
+		return
+	var width: float = data.dims().mandu_width_cm * data.m_per_cm()
+	var points: Array[Vector3] = set_node.plate_spawn_points(data.plate_mandu_count)
+	for i: int in points.size():
+		var node: EnemyBaseScript = MANDU_SCENE.instantiate() as EnemyBaseScript
+		node.set("width_m", width)
+		node.set("height_fraction", data.dims().mandu_height_fraction)
+		node.name = "Mandu%d" % (i + 1)
+		add_child(node)
+		node.global_position = points[i]
+		node.set("start_dir", -1.0 if i % 2 == 1 else 1.0)
+		_mandu.append(node)
+
+
+func live_mandu() -> Array[EnemyBaseScript]:
+	var out: Array[EnemyBaseScript] = []
+	for mandu: EnemyBaseScript in _mandu:
+		if is_instance_valid(mandu) and mandu.alive:
+			out.append(mandu)
+	return out
+
+
+func _live_mandu_xs() -> Array[float]:
+	var xs: Array[float] = []
+	for mandu: EnemyBaseScript in live_mandu():
+		xs.append(mandu.global_position.x)
+	return xs
+
+
+## The pick spears any 만두 that is in its column once it lands (and while it drags).
+func _stab_hits_mandu() -> void:
+	var s: DirectorScript.Stab = director.stab
+	if s == null:
+		return
+	if not (s.hazard or s.kind == DirectorScript.KIND_MANDU or s.kind == DirectorScript.KIND_FINAL):
+		return
+	if s.phase != DirectorScript.Phase.HOLD and s.phase != DirectorScript.Phase.DRAG:
+		return
+	for mandu: EnemyBaseScript in live_mandu():
+		if absf(mandu.global_position.x - s.tip_x) < s.half_width + data.mandu_half_width_m:
+			mandu.receive_attack(ReactionTableScript.ATTACK_HEAVY_OBJECT, 1.0)
+
+
 # --- Debug ------------------------------------------------------------------------------------
 
 ## Debug key 8: finish the prologue instantly (land on the next table).
@@ -328,7 +383,6 @@ func debug_finish() -> void:
 	director.debug_finish()
 	_sync_control()
 	_set_world_open(true)
-	actor.hide_for_exit()
 	player.set_controlled(false)
 	_was_controlled = false
 	_set_squirm_pose(0.0)

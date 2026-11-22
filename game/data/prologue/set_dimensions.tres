@@ -1,0 +1,6 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://prologue/set_dimensions.gd" id="1_sd"]
+
+[resource]
+script = ExtResource("1_sd")

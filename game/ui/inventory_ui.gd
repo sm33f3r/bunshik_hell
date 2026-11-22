@@ -73,7 +73,7 @@ func _process(_delta: float) -> void:
 		_process_popup()
 	elif screen_open:
 		_process_screen()
-	elif Input.is_action_just_pressed("inventory") and not game_state.is_dead():
+	elif Input.is_action_just_pressed("inventory") and not game_state.is_dead() and not _tree_paused():
 		open_screen()
 
 
@@ -186,6 +186,11 @@ func _pressed_up() -> bool:
 
 func _pressed_down() -> bool:
 	return Input.is_action_just_pressed("look_down") or Input.is_action_just_pressed("ui_down")
+
+
+## Another menu (the pause menu) already owns the game: do not open on top of it.
+func _tree_paused() -> bool:
+	return is_inside_tree() and get_tree().paused
 
 
 func _set_paused(on: bool) -> void:

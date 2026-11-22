@@ -156,8 +156,15 @@ func test_the_cutscene_plays_on_the_first_run_and_ends_on_her_cup() -> void:
 	var total: float = d.intro_total()
 	check(total >= 8.0 and total <= 10.0, "about 8 to 10 s in total (%.1f)" % total)
 	check_eq(d.data.shots[shots - 1].label, "her_table_and_cup", "the last shot is her table and cup")
-	var look: Vector3 = d.data.shots[shots - 1].look_to
+	var look: Vector3 = d.data.shot_look_to(d.data.shots[shots - 1])
 	check(absf(look.x - d.data.cup_x) < 0.5, "and it ends looking at the cup")
+	var first: Vector3 = d.data.shot_from(d.data.shots[0])
+	check(first.distance_to(d.data.pick_camera_pos) > 60.0, "it starts wide, far across the shop (%.0f m away)" % first.distance_to(d.data.pick_camera_pos))
+	d.intro_t = total - 0.001
+	var end_pose: Dictionary = d.camera_pose()
+	check((end_pose["pos"] as Vector3).distance_to(d.data.pick_camera_pos) < 0.05, "and ends exactly where the pick camera sits: CLOSE on her table")
+	check((end_pose["pos"] as Vector3).distance_to(Vector3(d.data.cup_x, d.data.cup_top_y, 0.0)) < 12.0, "close enough that the cup fills the shot")
+	d.intro_t = 0.0
 	var pose: Dictionary = d.camera_pose()
 	check(pose["pos"] is Vector3 and pose["look"] is Vector3, "the director gives the camera pose")
 	run(d, total - 0.5)
@@ -316,10 +323,12 @@ func test_fake_outs_and_mandu_breaks_do_not_count() -> void:
 	check_eq(landed.size(), 0, "a fake-out never lands")
 	check_eq(d.count, 0, "a fake-out does not count")
 	check_eq(d.gs.hearts, 14, "and does not hurt")
-	var before: int = d.plate_mandu
+	d.mandu_xs = [7.0] as Array[float]
+	var eaten: Array[float] = []
+	d.mandu_eaten.connect(func(x: float) -> void: eaten.append(x))
 	play(d, "mandu_break")
 	check_eq(d.count, 0, "a 만두 break does not count")
-	check_eq(d.plate_mandu, before - 1, "but she eats a 만두")
+	check_eq(eaten.size(), 1, "but she eats a live 만두")
 	check_eq(d.gs.hearts, 14, "and it does not hurt")
 	check(telegraphs.has("fake") and telegraphs.has("mandu"), "both were telegraphed")
 	_done(d)
@@ -501,7 +510,7 @@ func test_a_burst_follow_up_is_quicker_but_never_below_the_minimum() -> void:
 
 func test_pattern_odds_follow_the_weights_in_every_stage() -> void:
 	var d: DirectorScript = _make(99)
-	d.plate_mandu = 99
+	d.mandu_xs = [4.0] as Array[float]
 	var freq: Array[Dictionary] = []
 	for stage: int in 4:
 		var counts: Dictionary = {}
@@ -528,13 +537,13 @@ func test_pattern_odds_follow_the_weights_in_every_stage() -> void:
 
 func test_patterns_that_do_not_fit_are_never_picked() -> void:
 	var d: DirectorScript = _make(5)
-	d.plate_mandu = 99
+	d.mandu_xs = [4.0] as Array[float]
 	for i: int in 2000:
 		var p: Variant = d.pick_pattern(3, 1)
 		check(p.kind != "burst", "a burst needs 2 stabs: not with 1 left")
-	d.plate_mandu = 0
+	d.mandu_xs = [] as Array[float]
 	for i: int in 2000:
-		check(d.pick_pattern(0, 29).kind != "mandu", "no 만두 left on the plate: no break")
+		check(d.pick_pattern(0, 29).kind != "mandu", "no live 만두 left: no break")
 	_done(d)
 
 
@@ -581,6 +590,7 @@ func test_each_line_appears_at_its_trigger() -> void:
 	check(shown.has("stage_3_enter"), "entering stage 3")
 	check_eq(d.line_text, "야 씨발 배고파!", "stage 3 text")
 	var before: int = shown.count("mandu_break")
+	d.mandu_xs = [d.data.plate_x] as Array[float]
 	play(d, "mandu_break")
 	check_eq(shown.count("mandu_break"), before + 1, "every 만두 break")
 	play(d, "mandu_break")
