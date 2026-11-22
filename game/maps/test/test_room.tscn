@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://player/ddeok.gd" id="13_tg4us"]
 [ext_resource type="Resource" path="res://data/movement_tuning.tres" id="14_agkpu"]
 [ext_resource type="Script" path="res://player/side_camera.gd" id="15_7g082"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="hud_icons"]
 [ext_resource type="Script" path="res://maps/test/debug_hud.gd" id="16_kawyy"]
 [ext_resource type="Script" path="res://maps/test/debug_keys.gd" id="17_ueo03"]
 [ext_resource type="PackedScene" path="res://enemies/noodle_dummy.tscn" id="18_noodle"]
@@ -579,9 +580,9 @@ player = NodePath("../Player")
 
 [node name="Text" type="Label" parent="DebugHud" unique_id=17176876]
 offset_left = 16.0
-offset_top = 12.0
+offset_top = 140.0
 offset_right = 16.0
-offset_bottom = 12.0
+offset_bottom = 140.0
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
@@ -590,3 +591,6 @@ theme_override_constants/shadow_offset_y = 2
 
 [node name="DebugKeys" type="Node" parent="." unique_id=1482631316]
 script = ExtResource("17_ueo03")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("hud_icons")

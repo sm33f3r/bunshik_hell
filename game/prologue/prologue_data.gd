@@ -72,6 +72,20 @@ const DIMENSIONS_PATH: String = "res://data/prologue/set_dimensions.tres"
 @export_group("Subtitles")
 @export var line_duration_s: float = 3.0
 
+@export_group("Reactions")
+## What she says after an attempted stab (a burst gets one, after the burst). One at random, never
+## the same twice in a row. Her own words: do not "fix" them.
+@export var reactions: PackedStringArray = PackedStringArray()
+## Seconds after the stab (or burst) is over before the reaction shows.
+@export var reaction_delay_s: float = 0.35
+## How long a reaction stays on screen.
+@export var reaction_duration_s: float = 1.6
+
+@export_group("Mandu respawn")
+## When the last live 만두 is gone, this many appear on her plate after the delay.
+@export var mandu_respawn_count: int = 2
+@export var mandu_respawn_delay_s: float = 1.5
+
 @export_group("Spear")
 ## How deep the pick goes into him, measured from his top. Never more than his thickness minus
 ## the margin, so no part of the pick shows out of the other side.

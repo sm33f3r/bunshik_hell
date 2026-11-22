@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://player/ddeok.gd" id="5_qb52t"]
 [ext_resource type="Resource" path="res://data/movement_tuning.tres" id="6_jihqj"]
 [ext_resource type="Script" path="res://player/side_camera.gd" id="7_xvyr1"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="hud_icons"]
 [ext_resource type="Script" path="res://maps/test/debug_hud.gd" id="8_6nfk6"]
 [ext_resource type="Script" path="res://maps/test/debug_keys.gd" id="9_rqhau"]
 [ext_resource type="Script" path="res://prologue/prologue_set.gd" id="10_set"]
@@ -62,12 +63,13 @@ script = ExtResource("7_xvyr1")
 [node name="DebugHud" type="CanvasLayer" parent="." node_paths=PackedStringArray("player")]
 script = ExtResource("8_6nfk6")
 player = NodePath("../Player")
+shown_by_default = false
 
 [node name="Text" type="Label" parent="DebugHud"]
 offset_left = 16.0
-offset_top = 12.0
+offset_top = 140.0
 offset_right = 16.0
-offset_bottom = 12.0
+offset_bottom = 140.0
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
@@ -76,3 +78,6 @@ theme_override_constants/shadow_offset_y = 2
 
 [node name="DebugKeys" type="Node" parent="."]
 script = ExtResource("9_rqhau")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("hud_icons")

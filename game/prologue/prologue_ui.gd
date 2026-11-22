@@ -14,7 +14,6 @@ var _meter_time_fill: ColorRect
 var _meter_label: Label
 var _blackout: ColorRect
 var _game_over: Label
-var _skip_hint: Label
 var _dev_note: Label
 
 
@@ -47,7 +46,7 @@ func _ready() -> void:
 	_meter_root.visible = false
 	add_child(_meter_root)
 	_meter_label = Label.new()
-	_meter_label.text = "WIGGLE!  A <-> D"
+	_meter_label.text = tr("WIGGLE!")
 	_meter_label.add_theme_font_size_override("font_size", 40)
 	_meter_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 1))
 	_meter_label.add_theme_constant_override("shadow_offset_x", 2)
@@ -71,12 +70,6 @@ func _ready() -> void:
 	_game_over.visible = false
 	add_child(_game_over)
 
-	_skip_hint = Label.new()
-	_skip_hint.text = "Skip: Jump / Enter"
-	_skip_hint.position = Vector2(1560.0, 1000.0)
-	_skip_hint.add_theme_font_size_override("font_size", 30)
-	_skip_hint.visible = false
-	add_child(_skip_hint)
 	_dev_note = Label.new()
 	_dev_note.text = "[dev] Map 1 continues here (Task 3b)"
 	_dev_note.position = Vector2(560.0, 480.0)
@@ -140,11 +133,6 @@ func set_blackout(progress: float, game_over_text: String = "") -> void:
 
 func blackout_progress() -> float:
 	return _blackout.size.y / 1080.0 if _blackout != null else 0.0
-
-
-func set_skip_hint(shown: bool) -> void:
-	if _skip_hint != null:
-		_skip_hint.visible = shown
 
 
 func set_dev_note(shown: bool) -> void:

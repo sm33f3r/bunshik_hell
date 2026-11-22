@@ -29,6 +29,8 @@ func open_map(skip_cutscene: bool = true, keep_mandu: bool = false) -> void:
 		# The live 만두 hurt on contact: tests about hearts and stabs start without them.
 		for mandu: Node3D in (map.call("live_mandu") as Array):
 			mandu.call("debug_defeat")
+		# ... and they do not come back by themselves (that is tested on its own, with keep_mandu).
+		map.get("_mandu_respawn").set("count", 0)
 
 
 ## Frees him from the opening pick at once and waits until he stands on the counter. The
@@ -530,6 +532,87 @@ func test_the_mandu_come_back_after_a_restart() -> void:
 	check_eq((map.call("live_mandu") as Array).size(), 3, "three live again after the restart")
 
 
+## Kills every live 만두 and returns how many frames it takes until new ones are on the plate.
+func _frames_until_restocked(max_frames: int) -> int:
+	for i: int in max_frames:
+		if (map.call("live_mandu") as Array).size() > 0:
+			return i
+		await tree.physics_frame
+	return -1
+
+
+func test_two_new_mandu_appear_when_the_last_one_is_killed_by_him() -> void:
+	await open_map(true, true)
+	await stand_on_counter()
+	hold_stabs_back()
+	var all: Array = map.call("live_mandu")
+	for i: int in 2:
+		(all[i] as Node3D).call("debug_defeat")
+	var last: Node3D = all[2]
+	last.set_physics_process(false)
+	last.global_position = Vector3(_free_x() + 0.5, _top() + 0.05, 0.0)
+	teleport(_free_x() + 0.5, _top() + 3.0)
+	await frames(2)
+	await tap("look_down")
+	check(await until(func() -> bool: return not last.get("alive"), 90), "the stomp killed the last one")
+	await frames(60)
+	check_eq((map.call("live_mandu") as Array).size(), 0, "still none after 1 s (the delay is 1.5 s)")
+	var waited: int = await _frames_until_restocked(180)
+	check(waited >= 0, "new 만두 appeared")
+	check_eq((map.call("live_mandu") as Array).size(), 2, "two, not three")
+	await frames(120)
+	check_eq((map.call("live_mandu") as Array).size(), 2, "and no more while they live")
+
+
+func test_two_new_mandu_appear_when_she_eats_the_last_one() -> void:
+	await open_map(true, true)
+	dir.debug_free()
+	await until(func() -> bool: return dir.state == DirectorScript.State.STAB, 400)
+	var all: Array = map.call("live_mandu")
+	var mandu: Node3D = all[0]
+	for other: Node3D in all:
+		if other != mandu:
+			other.call("debug_defeat")
+	mandu.set_physics_process(false)
+	mandu.global_position = Vector3(_free_x(), _top() + 0.05, 0.0)
+	var eaten: Array[float] = []
+	dir.mandu_eaten.connect(func(x: float) -> void: eaten.append(x))
+	dir.force_next_pattern(dir.find_pattern("mandu_break"))
+	check(await until(func() -> bool: return not eaten.is_empty(), 600), "she ate the last 만두")
+	await frames(10)
+	check(not mandu.get("alive"), "it is gone")
+	var waited: int = await _frames_until_restocked(300)
+	check(waited >= 0, "new 만두 appeared")
+	check_eq((map.call("live_mandu") as Array).size(), 2, "two appear")
+
+
+func test_a_restart_puts_three_back_even_while_a_restock_is_counting_down() -> void:
+	await open_map(true, true)
+	await stand_on_counter()
+	hold_stabs_back()
+	for mandu: Node3D in (map.call("live_mandu") as Array):
+		mandu.call("debug_defeat")
+	await frames(30) # the restock is counting down
+	dir.restart()
+	await frames(3)
+	check_eq((map.call("live_mandu") as Array).size(), 3, "three again after the restart")
+	await frames(240)
+	check_eq((map.call("live_mandu") as Array).size(), 3, "and the old countdown added nothing")
+
+
+func test_her_reaction_shows_as_a_subtitle_in_the_real_scene() -> void:
+	await open_map(true, false)
+	dir.debug_free()
+	await until(func() -> bool: return dir.state == DirectorScript.State.STAB, 400)
+	teleport(_free_x(), _top() + 0.5)
+	dir.force_next_pattern(dir.find_pattern("fake_out"))
+	check(await until(func() -> bool: return dir.line_key == "reaction", 600), "she reacted")
+	await frames(3)
+	var ui: CanvasLayer = map.get("ui")
+	var pool: Array = dir.data.reactions
+	check(ui.call("subtitle_text") in pool, "the subtitle is one of the four: " + str(ui.call("subtitle_text")))
+
+
 # --- Pause menu in the real map -------------------------------------------------------------------------
 
 func _press(actions: Array[String]) -> void:
@@ -659,7 +742,12 @@ func test_debug_key_8_finishes_the_prologue() -> void:
 func test_the_debug_hud_shows_the_prologue_and_the_old_keys_still_work() -> void:
 	await open_map()
 	await frames(5)
-	var text: String = (room.get_node("DebugHud/Text") as Label).text
+	var hud_label: Label = room.get_node("DebugHud/Text") as Label
+	check(not hud_label.visible, "the debug text is hidden in the game until key 9")
+	await key_event(KEY_9)
+	check(hud_label.visible, "key 9 shows it")
+	await frames(3)
+	var text: String = hud_label.text
 	check("Stabs: 0 / 30" in text, "stab count: " + text)
 	check("Anger stage: 0" in text, "anger stage")
 	check("Pattern:" in text, "current pattern")

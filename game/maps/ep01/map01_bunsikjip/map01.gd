@@ -14,6 +14,7 @@ const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const GameplayInputScript := preload("res://systems/gameplay_input.gd")
 const ReactionTableScript := preload("res://systems/reaction_table.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
+const ManduRespawnScript := preload("res://prologue/mandu_respawn.gd")
 const MANDU_SCENE: PackedScene = preload("res://enemies/mandu.tscn")
 
 ## Physics ticks at the start during which the skip button is ignored.
@@ -39,6 +40,7 @@ var _squirm_phase: float = 0.0
 var _facing_pivot: Node3D
 var _was_controlled: bool = false
 var _mandu: Array[EnemyBaseScript] = []
+var _mandu_respawn: ManduRespawnScript
 
 
 func _ready() -> void:
@@ -58,6 +60,7 @@ func _ready() -> void:
 		camera.far = data.camera_far
 		camera.set("offset", data.stab_camera_offset)
 
+	_mandu_respawn = ManduRespawnScript.new(data.mandu_respawn_count, data.mandu_respawn_delay_s)
 	director = DirectorScript.new(data, game_state)
 	director.apply_damage = Callable(self, "_hurt_player")
 	director.restarted.connect(_on_restarted)
@@ -100,6 +103,7 @@ func _physics_process(delta: float) -> void:
 	director.player_x = player.global_position.x
 	director.player_bottom_y = player.global_position.y - player.body_half_height
 	director.mandu_xs = _live_mandu_xs()
+	_restock_plate(delta)
 	director.step(delta)
 	_sync_control()
 	actor.apply(director)
@@ -117,7 +121,6 @@ func _process(delta: float) -> void:
 	ui.set_subtitle(director.line_text)
 	var wiggling: bool = director.state == DirectorScript.State.PICK or director.state == DirectorScript.State.LIFT
 	ui.set_wiggle(wiggling, director.wiggle_progress(), director.wiggle_time_progress())
-	ui.set_skip_hint(director.state == DirectorScript.State.INTRO)
 	if director.state == DirectorScript.State.EATEN:
 		var p: float = clampf((director.eaten_t - data.eaten_shake_s * 0.5) / maxf(data.eaten_blackout_s, 0.01), 0.0, 1.0)
 		ui.set_blackout(p, data.game_over_text)
@@ -330,15 +333,36 @@ func _respawn_mandu() -> void:
 		if is_instance_valid(mandu):
 			mandu.queue_free()
 	_mandu.clear()
-	if set_node == null:
+	if _mandu_respawn != null:
+		_mandu_respawn.reset()
+	_spawn_mandu(data.plate_mandu_count)
+
+
+## The last live 만두 died (the 떡 stomped it, or she ate it): new ones appear after the delay.
+func _restock_plate(delta: float) -> void:
+	var active: bool = director.state in [DirectorScript.State.PRE_STAB, DirectorScript.State.STAB,
+			DirectorScript.State.LIFT]
+	var n: int = _mandu_respawn.update(director.mandu_xs.size(), delta, active)
+	if n > 0:
+		_spawn_mandu(n)
+
+
+func _spawn_mandu(how_many: int) -> void:
+	if set_node == null or how_many <= 0:
 		return
 	var width: float = data.dims().mandu_width_cm * data.m_per_cm()
-	var points: Array[Vector3] = set_node.plate_spawn_points(data.plate_mandu_count)
+	var points: Array[Vector3] = set_node.plate_spawn_points(how_many)
+	var kept: Array[EnemyBaseScript] = []
+	for old: EnemyBaseScript in _mandu:
+		if is_instance_valid(old):
+			kept.append(old)
+	_mandu = kept
+	var start_index: int = _mandu.size()
 	for i: int in points.size():
 		var node: EnemyBaseScript = MANDU_SCENE.instantiate() as EnemyBaseScript
 		node.set("width_m", width)
 		node.set("height_fraction", data.dims().mandu_height_fraction)
-		node.name = "Mandu%d" % (i + 1)
+		node.name = "Mandu%d" % (start_index + i + 1)
 		add_child(node)
 		node.global_position = points[i]
 		node.set("start_dir", -1.0 if i % 2 == 1 else 1.0)

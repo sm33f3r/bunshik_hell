@@ -18,18 +18,19 @@ signal restart_requested
 signal opened
 signal closed
 
-enum Screen { NONE, MAIN, SETTINGS, CONFIRM_QUIT }
+enum Screen { NONE, MAIN, SETTINGS, CONFIRM_QUIT, CONTROLS }
 
 const GameStateScript := preload("res://systems/game_state.gd")
 const SettingsScript := preload("res://systems/settings.gd")
 const ItemCatalogScript := preload("res://systems/item_catalog.gd")
 const GameplayInputScript := preload("res://systems/gameplay_input.gd")
+const ControlsListingScript := preload("res://systems/controls_listing.gd")
 
 ## Input is ignored for this many frames after something opens or changes screen.
 const GUARD_FRAMES: int = 2
 const VOLUME_STEP: float = 0.1
 const MAIN_ITEMS: int = 4
-const SETTINGS_ITEMS: int = 4
+const SETTINGS_ITEMS: int = 5
 const ITEM_RESUME: int = 0
 const ITEM_RESTART: int = 1
 const ITEM_SETTINGS: int = 2
@@ -37,7 +38,8 @@ const ITEM_QUIT: int = 3
 const SETTING_FULLSCREEN: int = 0
 const SETTING_VOLUME: int = 1
 const SETTING_HEAL: int = 2
-const SETTING_BACK: int = 3
+const SETTING_CONTROLS: int = 3
+const SETTING_BACK: int = 4
 
 ## Injected by tests; fall back to the autoloads in _ready().
 var game_state: GameStateScript
@@ -52,6 +54,7 @@ var quit_count: int = 0
 var _guard: int = 0
 var _dim: ColorRect
 var _label: Label
+var _controls_label: Label
 
 
 func _ready() -> void:
@@ -71,6 +74,14 @@ func _ready() -> void:
 	_label.add_theme_constant_override("shadow_offset_x", 2)
 	_label.add_theme_constant_override("shadow_offset_y", 2)
 	add_child(_label)
+	_controls_label = Label.new()
+	_controls_label.position = Vector2(200.0, 70.0)
+	_controls_label.visible = false
+	_controls_label.add_theme_font_size_override("font_size", 28)
+	_controls_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 1))
+	_controls_label.add_theme_constant_override("shadow_offset_x", 2)
+	_controls_label.add_theme_constant_override("shadow_offset_y", 2)
+	add_child(_controls_label)
 	if game_state == null:
 		game_state = get_node_or_null("/root/GameState") as GameStateScript
 	if settings == null:
@@ -99,6 +110,8 @@ func _process(_delta: float) -> void:
 			_process_settings()
 		Screen.CONFIRM_QUIT:
 			_process_confirm()
+		Screen.CONTROLS:
+			_process_controls()
 
 
 ## Not while something else owns the game: the inventory and the popup pause the tree, and a press
@@ -185,6 +198,8 @@ func _process_settings() -> void:
 	elif Input.is_action_just_pressed("ui_accept"):
 		if selected == SETTING_BACK:
 			_go(Screen.MAIN, ITEM_SETTINGS)
+		elif selected == SETTING_CONTROLS:
+			_go(Screen.CONTROLS)
 		else:
 			change_setting(selected, 1)
 
@@ -205,6 +220,13 @@ func change_setting(item: int, step: int) -> void:
 	settings.apply_to_system()
 	settings.save_settings()
 	_refresh()
+
+
+# --- Controls page (read-only) -----------------------------------------------------------------
+
+func _process_controls() -> void:
+	if _back_pressed() or Input.is_action_just_pressed("ui_accept"):
+		_go(Screen.SETTINGS, SETTING_CONTROLS)
 
 
 # --- Quit confirmation -----------------------------------------------------------------------------
@@ -287,12 +309,20 @@ func screen_text() -> String:
 				"%s: %s" % [tr("Fullscreen"), on_off],
 				"%s: %d%%" % [tr("Master volume"), percent],
 				"%s: %s" % [tr("Heal default"), heal],
+				tr("Controls"),
 				tr("Back"),
 			]
 			for i: int in rows.size():
 				lines.append("%s %s" % [">" if i == selected else " ", rows[i]])
 			lines.append("")
 			lines.append(tr("Left / right: change    Back: return"))
+		Screen.CONTROLS:
+			lines.append(tr("CONTROLS"))
+			lines.append("%s    |    %s    |    %s" % [tr("Action"), tr("Keyboard / mouse"), tr("Controller")])
+			for row: Dictionary in ControlsListingScript.rows():
+				lines.append("%s    |    %s    |    %s" % [tr(row["label"]), row["keyboard"], row["controller"]])
+			lines.append("")
+			lines.append(tr("Back: return"))
 		Screen.CONFIRM_QUIT:
 			lines.append(tr("Quit to the desktop?"))
 			lines.append("")
@@ -305,6 +335,11 @@ func _refresh() -> void:
 	if _label == null:
 		return
 	_dim.visible = screen != Screen.NONE
-	_label.visible = screen != Screen.NONE
+	var on_controls: bool = screen == Screen.CONTROLS
+	_label.visible = screen != Screen.NONE and not on_controls
+	_controls_label.visible = on_controls
 	if screen != Screen.NONE:
-		_label.text = screen_text()
+		if on_controls:
+			_controls_label.text = screen_text()
+		else:
+			_label.text = screen_text()

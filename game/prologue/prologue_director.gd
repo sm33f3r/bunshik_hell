@@ -89,6 +89,8 @@ class Stab extends RefCounted:
 var data: PrologueDataScript
 var gs: GameStateScript
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+## Her reactions have their own dice, so saying one never changes which stabs come next.
+var reaction_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 ## (half_hearts: int, source_x: float) -> bool. The scene sets it to the 떡's hurt(), which
 ## honours i-frames. Left invalid, damage goes straight through GameState.take_hit().
 var apply_damage: Callable
@@ -122,7 +124,12 @@ var wiggle_window: float = 3.0
 var line_key: String = ""
 var line_text: String = ""
 var line_left: float = 0.0
+## True while the line on screen is one of her scheduled lines (never covered by a reaction).
+var line_scheduled: bool = false
 var lines_shown: Dictionary = {}
+## Every reaction she said, in order, and the last one (for "never twice in a row").
+var reaction_log: Array[String] = []
+var last_reaction: String = ""
 
 ## For the HUD and the tests: every telegraph that started (kind, length, stage, hazard).
 var telegraph_log: Array[Dictionary] = []
@@ -132,12 +139,15 @@ var _queue: Array[Dictionary] = []
 var _gap_left: float = 0.0
 var _pre_left: float = 0.0
 var _forced: StabPatternScript = null
+var _reaction_pending: bool = false
+var _reaction_wait: float = 0.0
 
 
 func _init(prologue_data: PrologueDataScript = null, game_state: GameStateScript = null) -> void:
 	data = prologue_data if prologue_data != null else load(DATA_PATH) as PrologueDataScript
 	gs = game_state
 	rng.randomize()
+	reaction_rng.randomize()
 	if gs != null:
 		gs.died.connect(_on_died)
 
@@ -227,6 +237,7 @@ func _start_pick() -> void:
 	_queue.clear()
 	_forced = null
 	_gap_left = 0.0
+	_reaction_pending = false
 	lines_shown.clear()
 	telegraph_log.clear()
 	_wiggle_reset(data.required_alternations, data.window_s)
@@ -294,6 +305,8 @@ func step(delta: float) -> void:
 		if line_left <= 0.0:
 			line_text = ""
 			line_key = ""
+			line_scheduled = false
+	_step_reaction(delta)
 	match state:
 		State.INTRO:
 			intro_t += delta
@@ -332,6 +345,7 @@ func _on_died() -> void:
 		return
 	stab = null
 	_queue.clear()
+	_reaction_pending = false
 	_set_state(State.DEAD)
 
 
@@ -367,10 +381,56 @@ func _update_stage() -> void:
 
 func _show_line(key: String) -> void:
 	lines_shown[key] = true
+	line_scheduled = true
 	line_key = key
 	line_text = data.lines.get_line(key) if data.lines != null else ""
 	line_left = data.line_duration_s
 	line_shown.emit(key, line_text)
+
+
+# --- Her reactions ------------------------------------------------------------------------------
+
+## An attempted stab (landed, drag or fake-out) was made: she will react once the whole pattern
+## (a burst is one pattern) is over.
+func _note_attempt() -> void:
+	_reaction_pending = true
+	_reaction_wait = data.reaction_delay_s
+
+
+## Counts the delay down once no stab is playing or queued, then says the reaction as soon as no
+## scheduled line of hers is on screen (a scheduled line is never covered or cut off).
+func _step_reaction(delta: float) -> void:
+	if not _reaction_pending or pattern_running():
+		return
+	if state != State.STAB and state != State.PRE_STAB and state != State.LIFT:
+		return
+	if _reaction_wait > 0.0:
+		_reaction_wait -= delta
+		return
+	if line_left > 0.0 and line_scheduled:
+		return
+	_reaction_pending = false
+	_say_reaction()
+
+
+func _say_reaction() -> void:
+	var pool: Array[String] = []
+	for text: String in data.reactions:
+		if text != last_reaction:
+			pool.append(text)
+	if pool.is_empty():
+		for text: String in data.reactions:
+			pool.append(text)
+	if pool.is_empty():
+		return
+	var text: String = pool[reaction_rng.randi_range(0, pool.size() - 1)]
+	last_reaction = text
+	reaction_log.append(text)
+	line_scheduled = false
+	line_key = "reaction"
+	line_text = text
+	line_left = data.reaction_duration_s
+	line_shown.emit("reaction", text)
 
 
 # --- Patterns --------------------------------------------------------------------------------
@@ -522,6 +582,7 @@ func _make_stab(spec: Dictionary) -> Stab:
 		"hazard": s.hazard, "count_before": count,
 	})
 	if s.kind == KIND_FINAL:
+		_reaction_pending = false # her scream is the last word
 		_show_line("final_stab")
 	telegraph_started.emit(s)
 	return s
@@ -564,6 +625,7 @@ func _advance_stab(delta: float) -> void:
 					s.tip_x = s.target_x
 			if s.phase_t >= s.phase_len:
 				if s.kind == KIND_FAKE:
+					_note_attempt()
 					_enter_phase(s, Phase.FAKE_RETRACT, data.fake_retract_s)
 				else:
 					_enter_phase(s, Phase.STRIKE, data.strike_s)
@@ -601,6 +663,8 @@ func _impact(s: Stab) -> void:
 		landed_count += 1
 		count_changed.emit(count)
 	stab_landed.emit(s)
+	if s.kind in [KIND_SMALL, KIND_BIG, KIND_DRAG]:
+		_note_attempt()
 	match s.kind:
 		KIND_FINAL:
 			_update_stage()
