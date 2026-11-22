@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/danmuji.gd" id="1_danmuji"]
+[ext_resource type="Resource" path="res://data/enemies/danmuji.tres" id="2_def"]
+[ext_resource type="Resource" path="res://data/reaction_table.tres" id="3_table"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_danmuji"]
+size = Vector3(1.4, 1.4, 0.35)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_disc"]
+albedo_color = Color(0.98, 0.88, 0.2, 1)
+roughness = 0.45
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_disc"]
+top_radius = 0.7
+bottom_radius = 0.7
+height = 0.35
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mark"]
+albedo_color = Color(0.85, 0.65, 0.1, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_mark"]
+size = Vector3(0.22, 0.48, 0.38)
+
+[node name="Danmuji" type="CharacterBody3D"]
+script = ExtResource("1_danmuji")
+def = ExtResource("2_def")
+reaction_table = ExtResource("3_table")
+body_height = 1.4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("BoxShape3D_danmuji")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Spin" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+
+[node name="Disc" type="MeshInstance3D" parent="Visual/Spin"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
+material_override = SubResource("StandardMaterial3D_disc")
+mesh = SubResource("CylinderMesh_disc")
+
+[node name="Mark" type="MeshInstance3D" parent="Visual/Spin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("StandardMaterial3D_mark")
+mesh = SubResource("BoxMesh_mark")

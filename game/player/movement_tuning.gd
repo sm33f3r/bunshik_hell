@@ -32,6 +32,9 @@ extends Resource
 @export var slam_radius: float = 0.0
 ## Upward speed after a landing or stomp hits an enemy.
 @export var bounce_velocity: float = 0.0
+## A bounce_boost (a 단무지 springboard) launches him at bounce_velocity times this (and times
+## the enemy's own bounce_multiplier).
+@export var bounce_boost_multiplier: float = 0.0
 ## How far below an enemy's top the previous-frame feet may be and still count as "from above".
 @export var above_tolerance: float = 0.0
 

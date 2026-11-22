@@ -194,8 +194,9 @@ func _apply_reaction(reaction: String, damage: int, hit_dir: float, params: Dict
 			hp = 0
 			_die(false, hit_dir)
 		ReactionTableScript.REACTION_KNOCK_OVER:
-			hp = 0
-			_die(true, hit_dir)
+			if not _handle_knock_over(hit_dir):
+				hp = 0
+				_die(true, hit_dir)
 		ReactionTableScript.REACTION_ABSORB:
 			_play_slurp()
 		ReactionTableScript.REACTION_DETERIORATE:
@@ -304,6 +305,22 @@ func _ai(_delta: float) -> void:
 	pass
 
 
+## Override: an enemy that is knocked over without dying (it falls flat and becomes a platform, like
+## the 단무지) does that here and returns true. false = the usual: it dies, tipping over.
+func _handle_knock_over(_hit_dir: float) -> bool:
+	return false
+
+
+## Override: play your own death and return true. false = the usual squash (or tip over).
+func _play_death(_tip_over: bool, _hit_dir: float) -> bool:
+	return false
+
+
+## How many times the usual bounce a bounce_boost throws him (data: EnemyDef.bounce_multiplier).
+func bounce_multiplier() -> float:
+	return def.bounce_multiplier if def != null else 1.0
+
+
 func _on_ready() -> void:
 	pass
 
@@ -326,6 +343,8 @@ func _die(tip_over: bool, hit_dir: float) -> void:
 	if not is_inside_tree():
 		return
 	collision_layer = 0
+	if _play_death(tip_over, hit_dir):
+		return
 	if _visual == null:
 		_finish_death()
 		return

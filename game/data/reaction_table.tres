@@ -5,6 +5,36 @@
 [resource]
 script = ExtResource("1_yre74")
 entries = {
+"crunchy": {
+"heavy_object": {
+"damage": 3,
+"reaction": "damage"
+},
+"landing": {
+"damage": 0,
+"reaction": "bounce_boost"
+},
+"roll": {
+"damage": 0,
+"reaction": "knock_over"
+},
+"sauce": {
+"damage": 0,
+"reaction": "absorb"
+},
+"slam": {
+"damage": 2,
+"reaction": "damage"
+},
+"stomp": {
+"damage": 0,
+"reaction": "bounce_boost"
+},
+"water": {
+"damage": 0,
+"reaction": "absorb"
+}
+},
 "fried": {
 "heavy_object": {
 "damage": 0,

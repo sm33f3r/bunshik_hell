@@ -18,6 +18,9 @@ const ROCK_SPEED: float = 9.0
 @export var height_fraction: float = 0.7
 ## Which way it waddles first (+1 right, -1 left).
 @export var start_dir: float = 1.0
+## Times its walking speed (0 = it stands where it is, hopping when he is close). A map's spawn data
+## sets this for a huddled cluster.
+@export var speed_scale: float = 1.0
 
 var _dir: float = 1.0
 var _hop_rest: float = 0.0
@@ -68,7 +71,7 @@ func half_width() -> float:
 
 
 func _ai(delta: float) -> void:
-	var speed: float = (def.walk_speed_mps if def != null else 0.0) * speed_factor()
+	var speed: float = (def.walk_speed_mps if def != null else 0.0) * speed_factor() * speed_scale
 	if is_on_wall() and signf(get_wall_normal().x) == -_dir:
 		_dir = -_dir
 	elif is_on_floor() and _edge_ahead():

@@ -315,9 +315,10 @@ func test_he_can_jump_from_her_counter_to_the_next_table_once_the_forearm_is_gon
 	check(player.global_position.x >= dir.data.next_table_min_x, "x on the table: " + describe())
 	check(absf(player.global_position.y - (dir.data.next_table_top_y + 0.32)) < 0.15, "same height as her counter: " + describe())
 	check(gs.get("prologue_complete"), "prologue complete flag")
-	check_eq(gs.get("checkpoint_id"), "map01_next_table", "respawn point set there")
+	check_eq(gs.get("checkpoint_id"), "map01_tutorial_start", "respawn point set there (the tutorial's start, on the next table)")
 	await frames(3)
-	check(map.get("ui").dev_note_visible(), "the plain dev note is up")
+	check(map.get("flow").get("ui").prompt_visible(), "the tutorial prompt is up (Task 3b-i: it replaced the dev note)")
+	check(not map.get("ui").dev_note_visible(), "and the old dev note is gone")
 
 
 func test_falling_into_the_gap_puts_him_back_on_the_counter_without_a_hit() -> void:
@@ -728,6 +729,7 @@ func test_restart_after_the_prologue_goes_to_the_checkpoint_on_the_next_table() 
 	await key_event(KEY_8)
 	await frames(60)
 	check_eq(dir.state, DirectorScript.State.COMPLETE, "complete")
+	await _press(["ui_accept"] as Array[String]) # the tutorial prompt is open (it pauses the game): start it
 	teleport(dir.data.next_table_spawn.x + 4.0, dir.data.next_table_top_y + 1.0)
 	await _press(["pause"] as Array[String])
 	await _press(["look_down"] as Array[String])
@@ -758,8 +760,10 @@ func test_debug_key_8_finishes_the_prologue() -> void:
 	check_eq(dir.state, DirectorScript.State.COMPLETE, "complete")
 	check(absf(player.global_position.x - dir.data.next_table_spawn.x) < 1.0, "at the next table: " + describe())
 	check(absf(player.global_position.y - (dir.data.next_table_top_y + 0.32)) < 0.2, "standing on it: " + describe())
-	check(map.get("ui").dev_note_visible(), "dev note")
+	check(map.get("flow").get("ui").prompt_visible(), "the tutorial prompt is up (it replaced the dev note)")
 	check(not map.get("actor").shadow_visible(), "no stabbing any more")
+	await _press(["ui_accept"] as Array[String]) # start the tutorial: the prompt pauses the game
+	check(not tree.paused, "the game runs again")
 	# Dying afterwards respawns him there, not at the pick.
 	gs.call("take_damage", 14)
 	await frames(100)

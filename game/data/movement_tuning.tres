@@ -23,6 +23,7 @@ roll_cooldown = 0.25
 slam_speed = 32.0
 slam_radius = 2.2
 bounce_velocity = 8.5
+bounce_boost_multiplier = 1.9
 above_tolerance = 0.12
 i_frame_time = 1.0
 flash_interval = 0.08

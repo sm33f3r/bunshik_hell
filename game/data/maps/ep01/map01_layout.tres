@@ -1,0 +1,261 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://maps/layout/map_layout.gd" id="s_layout"]
+[ext_resource type="Script" path="res://maps/layout/map_section.gd" id="s_section"]
+[ext_resource type="Script" path="res://maps/layout/platform_def.gd" id="s_plat"]
+[ext_resource type="Script" path="res://maps/layout/spawn_entry.gd" id="s_spawn"]
+[ext_resource type="Script" path="res://maps/layout/checkpoint_def.gd" id="s_cp"]
+[ext_resource type="Script" path="res://maps/layout/prompt_trigger.gd" id="s_trig"]
+[ext_resource type="PackedScene" path="res://enemies/mandu.tscn" id="sc_mandu"]
+[ext_resource type="PackedScene" path="res://enemies/danmuji.tscn" id="sc_danmuji"]
+
+[sub_resource type="Resource" id="plat_prologue_exit_table"]
+script = ExtResource("s_plat")
+id = "prologue_exit_table"
+kind = "existing"
+length_cm = 120
+color = Color(0.451, 0.600, 0.435, 1)
+
+[sub_resource type="Resource" id="plat_tut_t1"]
+script = ExtResource("s_plat")
+id = "tut_t1"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.55
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_tut_t2"]
+script = ExtResource("s_plat")
+id = "tut_t2"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.6
+color = Color(0.761, 0.604, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_tut_ledge1"]
+script = ExtResource("s_plat")
+id = "tut_ledge1"
+kind = "ledge"
+length_cm = 45
+rise_fraction = 0.68
+rise_basis = "bounce"
+color = Color(0.612, 0.435, 0.247, 1)
+
+[sub_resource type="Resource" id="plat_tut_t3"]
+script = ExtResource("s_plat")
+id = "tut_t3"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.3
+rise_fraction = -0.68
+rise_basis = "bounce"
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_tut_ledge2"]
+script = ExtResource("s_plat")
+id = "tut_ledge2"
+kind = "ledge"
+length_cm = 35
+rise_fraction = 0.826
+rise_basis = "platform"
+color = Color(0.612, 0.435, 0.247, 1)
+
+[sub_resource type="Resource" id="plat_tut_t4"]
+script = ExtResource("s_plat")
+id = "tut_t4"
+kind = "table"
+length_cm = 45
+gap_fraction = 0.3
+rise_fraction = -0.826
+rise_basis = "platform"
+color = Color(0.761, 0.604, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_dining_1"]
+script = ExtResource("s_plat")
+id = "dining_1"
+kind = "table"
+length_cm = 70
+gap_fraction = 0.7
+color = Color(0.541, 0.561, 0.416, 1)
+
+[sub_resource type="Resource" id="plat_dining_2"]
+script = ExtResource("s_plat")
+id = "dining_2"
+kind = "table"
+length_cm = 70
+gap_fraction = 0.6
+color = Color(0.604, 0.627, 0.439, 1)
+
+[sub_resource type="Resource" id="plat_dining_3"]
+script = ExtResource("s_plat")
+id = "dining_3"
+kind = "table"
+length_cm = 50
+gap_fraction = 0.6
+color = Color(0.541, 0.561, 0.416, 1)
+
+[sub_resource type="Resource" id="sp_b"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t1"
+scene = ExtResource("sc_mandu")
+along_m = 6.0
+size_cm = 5.0
+group = "b"
+
+[sub_resource type="Resource" id="sp_c1"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t2"
+scene = ExtResource("sc_danmuji")
+along_m = 5.0
+start_dir = -1.0
+group = "c1"
+
+[sub_resource type="Resource" id="sp_c2"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t3"
+scene = ExtResource("sc_danmuji")
+along_m = 5.0
+group = "c2"
+
+[sub_resource type="Resource" id="sp_d1"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t4"
+scene = ExtResource("sc_mandu")
+along_m = 3.0
+size_cm = 5.0
+params = {"speed_scale": 0.0}
+group = "d"
+
+[sub_resource type="Resource" id="sp_d2"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t4"
+scene = ExtResource("sc_mandu")
+along_m = 3.9
+size_cm = 5.0
+start_dir = -1.0
+params = {"speed_scale": 0.0}
+group = "d"
+
+[sub_resource type="Resource" id="sp_d3"]
+script = ExtResource("s_spawn")
+platform_id = "tut_t4"
+scene = ExtResource("sc_mandu")
+along_m = 4.8
+size_cm = 5.0
+params = {"speed_scale": 0.0}
+group = "d"
+
+[sub_resource type="Resource" id="sp_dining"]
+script = ExtResource("s_spawn")
+platform_id = "dining_2"
+scene = ExtResource("sc_danmuji")
+along_m = 6.0
+start_dir = -1.0
+group = "dining"
+
+[sub_resource type="Resource" id="cp_tut"]
+script = ExtResource("s_cp")
+id = "map01_tutorial_start"
+platform_id = "prologue_exit_table"
+along_m = 1.5
+lift_m = 0.5
+
+[sub_resource type="Resource" id="cp_din"]
+script = ExtResource("s_cp")
+id = "map01_dining_start"
+platform_id = "dining_1"
+along_m = 2.0
+lift_m = 0.5
+finishes_tutorial = true
+
+[sub_resource type="Resource" id="tr_a"]
+script = ExtResource("s_trig")
+id = "hint_a_move_jump"
+platform_id = "prologue_exit_table"
+rect = Rect2(0, 0, 21, 6)
+text = "이동: {move_left} {move_right}   점프: {jump}"
+action = "jump"
+beat = "a"
+
+[sub_resource type="Resource" id="tr_b"]
+script = ExtResource("s_trig")
+id = "hint_b_stomp"
+platform_id = "tut_t1"
+rect = Rect2(0, 0, 5, 6)
+text = "만두 밟기: 위에 착지, 또는 공중에서 {look_down}"
+action = "look_down"
+beat = "b"
+
+[sub_resource type="Resource" id="tr_c1"]
+script = ExtResource("s_trig")
+id = "hint_c_bounce"
+platform_id = "tut_t2"
+rect = Rect2(0, 0, 5, 6)
+text = "단무지 위에 착지하면 높이 튕겨 오름"
+action = "jump"
+beat = "c"
+grants_skill = "roll"
+toast = "새 기술: 구르기 ({roll})"
+
+[sub_resource type="Resource" id="tr_c2"]
+script = ExtResource("s_trig")
+id = "hint_c_roll"
+platform_id = "tut_t3"
+rect = Rect2(0, 0, 5, 6)
+text = "구르기 {roll}: 단무지가 쓰러져 발판이 됨"
+action = "roll"
+beat = "c"
+
+[sub_resource type="Resource" id="tr_d"]
+script = ExtResource("s_trig")
+id = "hint_d_slam"
+platform_id = "tut_t4"
+rect = Rect2(0, 0, 4, 6)
+text = "내려찍기: 공중에서 {roll}"
+action = "roll"
+beat = "d"
+grants_skill = "slam"
+toast = "새 기술: 내려찍기 (공중에서 {roll})"
+
+[sub_resource type="Resource" id="tr_e"]
+script = ExtResource("s_trig")
+id = "hint_e_exit"
+platform_id = "tut_t4"
+rect = Rect2(5.5, 0, 3, 6)
+text = "건너편으로 점프: {jump}"
+action = "jump"
+beat = "e"
+
+[sub_resource type="Resource" id="sec_prologue"]
+script = ExtResource("s_section")
+id = "prologue"
+external = true
+
+[sub_resource type="Resource" id="sec_tutorial"]
+script = ExtResource("s_section")
+id = "tutorial"
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_prologue_exit_table"), SubResource("plat_tut_t1"), SubResource("plat_tut_t2"), SubResource("plat_tut_ledge1"), SubResource("plat_tut_t3"), SubResource("plat_tut_ledge2"), SubResource("plat_tut_t4")])
+spawns = Array[ExtResource("s_spawn")]([SubResource("sp_b"), SubResource("sp_c1"), SubResource("sp_c2"), SubResource("sp_d1"), SubResource("sp_d2"), SubResource("sp_d3")])
+checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_tut")])
+triggers = Array[ExtResource("s_trig")]([SubResource("tr_a"), SubResource("tr_b"), SubResource("tr_c1"), SubResource("tr_c2"), SubResource("tr_d"), SubResource("tr_e")])
+skip_grants = PackedStringArray("roll", "slam")
+skip_source = "tutorial"
+skip_toast = "새 기술: 구르기 ({roll}) · 내려찍기 (공중에서 {roll})"
+skip_to_checkpoint = "map01_dining_start"
+
+[sub_resource type="Resource" id="sec_dining"]
+script = ExtResource("s_section")
+id = "dining_room_start"
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_dining_1"), SubResource("plat_dining_2"), SubResource("plat_dining_3")])
+spawns = Array[ExtResource("s_spawn")]([SubResource("sp_dining")])
+checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_din")])
+end_wall_text = "[dev] Map 1 continues here (Task 3b-ii)"
+
+[resource]
+script = ExtResource("s_layout")
+sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining")])
+prompt_accept_text = "튜토리얼 하기"
+prompt_cancel_text = "건너뛰기"
+fade_out_s = 0.35
+fade_in_s = 0.35
+fall_depth_m = 4.0

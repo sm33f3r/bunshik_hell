@@ -1,8 +1,10 @@
 extends Node3D
-## Map 1 (lunch 분식집), gray box, at real scale. For now only the prologue lives here: the opening
-## cutscene, the pick and the wiggle, the 30 stabs at the window counter, and the exit to the next
-## table. All the rules are in PrologueDirector; this node moves things and draws them. The set
-## (counter, props, her forearm, the next table) is built by PrologueSet from the real-size table.
+## Map 1 (lunch 분식집), gray box, at real scale. The prologue lives here: the opening cutscene, the
+## pick and the wiggle, the 30 stabs at the window counter, and the exit to the next table. All the
+## rules are in PrologueDirector; this node moves things and draws them. The set (counter, props, her
+## forearm, the next table) is built by PrologueSet from the real-size table. After the exit the map
+## goes on from data: MapFlow builds the optional tutorial and the start of the dining room from
+## data/maps/ep01/map01_layout.tres and runs them.
 
 const GameStateScript := preload("res://systems/game_state.gd")
 const DdeokScript := preload("res://player/ddeok.gd")
@@ -15,6 +17,7 @@ const GameplayInputScript := preload("res://systems/gameplay_input.gd")
 const ReactionTableScript := preload("res://systems/reaction_table.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
 const ManduRespawnScript := preload("res://prologue/mandu_respawn.gd")
+const MapFlowScript := preload("res://maps/layout/map_flow.gd")
 const MANDU_SCENE: PackedScene = preload("res://enemies/mandu.tscn")
 
 ## Physics ticks at the start during which the skip button is ignored.
@@ -33,6 +36,8 @@ var director: DirectorScript
 var actor: ActorScript
 var ui: UiScript
 var game_state: GameStateScript
+## Everything after the prologue (see MapFlow).
+var flow: MapFlowScript
 
 var _ticks: int = 0
 var _squirm: float = 0.0
@@ -81,11 +86,18 @@ func _ready() -> void:
 	ui.name = "PrologueUi"
 	add_child(ui)
 
+	flow = MapFlowScript.new()
+	flow.name = "MapFlow"
+	add_child(flow)
+	flow.setup(player, camera, game_state, data)
+	player.respawned.connect(flow.on_player_respawned)
+
 	_set_world_open(false)
 	director.begin()
 	if director.state == DirectorScript.State.COMPLETE:
 		# Loaded after the prologue was done: no stabbing, the way on is open.
 		_set_world_open(true)
+		flow.resume()
 		player.global_position = game_state.checkpoint_position
 		player.reset_physics_interpolation()
 		return
@@ -278,8 +290,9 @@ func _on_exit_opened() -> void:
 	_set_world_open(true)
 
 
+## The prologue is over: the map goes on from data (the tutorial prompt, then the tutorial).
 func _on_completed() -> void:
-	ui.set_dev_note(true)
+	flow.on_prologue_complete()
 
 
 ## true: she has yanked her forearm away and the way on is open. false: it lies across the counter.
@@ -301,11 +314,16 @@ func _check_next_table() -> void:
 
 
 ## The floor is a long way below the counter: a fall is not death, he is put back (no damage).
+## After the prologue that is the last checkpoint, and the section starts over.
 func _catch_fall() -> void:
-	if player.controlled or player.global_position.y >= data.fall_catch_y:
+	var limit: float = data.fall_catch_y
+	if director.state == DirectorScript.State.COMPLETE and flow != null:
+		limit = flow.fall_y
+	if player.controlled or player.global_position.y >= limit:
 		return
 	if director.state == DirectorScript.State.COMPLETE:
 		player.global_position = game_state.checkpoint_position
+		flow.on_fell()
 	else:
 		player.global_position = Vector3(data.fall_return_x, data.counter_top_y + 0.6, 0.0)
 	player.velocity = Vector3.ZERO

@@ -600,6 +600,8 @@ func _hit_enemy(enemy: EnemyBaseScript, attack: String) -> void:
 		hurt(enemy.contact_damage(), enemy.global_position.x)
 	elif attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP:
 		velocity.y = tuning.bounce_velocity
+		if (result["reactions"] as Array).has(ReactionTableScript.REACTION_BOUNCE_BOOST):
+			velocity.y *= tuning.bounce_boost_multiplier * enemy.bounce_multiplier()
 		grounded = false
 		_set_state(State.JUMP)
 

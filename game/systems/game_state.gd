@@ -80,6 +80,14 @@ var kill_counts: Dictionary[String, int] = {}
 ## Map 1 prologue: the opening cutscene was shown (it never replays), and the prologue is done.
 var prologue_intro_seen: bool = false
 var prologue_complete: bool = false
+## Map 1: the "tutorial or skip" prompt was shown. Once per new game; not saved.
+var tutorial_prompt_shown: bool = false
+## Which source gave each skill ("tutorial", a boss...), for skills unlocked with a source id.
+## Not saved: the skill itself is.
+var skill_sources: Dictionary[String, String] = {}
+## What he carried when he reached the current checkpoint ({"sauce", "sodium"}); empty = none taken
+## (a 찜기 restores nothing). Respawning puts these back. Not saved to disk.
+var checkpoint_snapshot: Dictionary = {}
 
 var _popup_on_used: Callable
 
@@ -102,6 +110,9 @@ func reset() -> void:
 	kill_counts.clear()
 	prologue_intro_seen = false
 	prologue_complete = false
+	tutorial_prompt_shown = false
+	skill_sources = {}
+	checkpoint_snapshot = {}
 	_emit_all()
 
 
@@ -358,10 +369,18 @@ static func format_hearts(half_hearts: int) -> String:
 	return "%d.5" % whole if half_hearts % 2 == 1 else "%d" % whole
 
 
+## A checkpoint without a snapshot (a 찜기): respawning restores hearts only.
 func set_checkpoint(id: String, at: Vector3) -> void:
 	checkpoint_id = id
 	checkpoint_position = at
+	checkpoint_snapshot = {}
 	checkpoint_changed.emit(id)
+
+
+## A map checkpoint: respawning here gives full hearts and the sauce and 나트륨 he has right now.
+func set_checkpoint_snapshot(id: String, at: Vector3) -> void:
+	set_checkpoint(id, at)
+	checkpoint_snapshot = {"sauce": sauce, "sodium": sodium}
 
 
 ## Using a 찜기: full heal and it becomes the checkpoint. Refused (false) while dead.
@@ -373,11 +392,21 @@ func use_steamer(id: String, at: Vector3) -> bool:
 	return true
 
 
-## Brings a dead 떡 back with full hearts. Returns where to put him (the last checkpoint).
+## Brings a dead 떡 back with full hearts, and with the sauce and 나트륨 of the checkpoint's
+## snapshot when it has one. Returns where to put him (the last checkpoint).
 func respawn() -> Vector3:
 	if hearts != MAX_HEARTS:
 		hearts = MAX_HEARTS
 		hearts_changed.emit(hearts, MAX_HEARTS)
+	if not checkpoint_snapshot.is_empty():
+		var kept_sauce: int = clampi(_to_int(checkpoint_snapshot.get("sauce"), sauce), 0, MAX_SAUCE)
+		var kept_sodium: int = clampi(_to_int(checkpoint_snapshot.get("sodium"), sodium), 0, MAX_SODIUM)
+		if kept_sauce != sauce:
+			sauce = kept_sauce
+			sauce_changed.emit(sauce, MAX_SAUCE)
+		if kept_sodium != sodium:
+			sodium = kept_sodium
+			sodium_changed.emit(sodium, MAX_SODIUM)
 	return checkpoint_position
 
 
@@ -460,12 +489,15 @@ func has_skill(skill_id: String) -> bool:
 	return skills.get(skill_id, false)
 
 
-## Returns false for an unknown skill id. Unlocking an already unlocked skill is a no-op.
-func unlock_skill(skill_id: String) -> bool:
+## Returns false for an unknown skill id. Unlocking an already unlocked skill is a no-op (the first
+## source stays). `source` says where it came from ("tutorial", ...); empty = not recorded.
+func unlock_skill(skill_id: String, source: String = "") -> bool:
 	if not skills.has(skill_id):
 		return false
 	if not skills[skill_id]:
 		skills[skill_id] = true
+		if source != "":
+			skill_sources[skill_id] = source
 		skill_unlocked.emit(skill_id)
 	return true
 
@@ -521,6 +553,7 @@ func from_dict(data: Dictionary) -> void:
 	var saved_id: Variant = data.get("checkpoint_id")
 	checkpoint_id = saved_id if saved_id is String else ""
 	checkpoint_position = Vector3.ZERO
+	checkpoint_snapshot = {}
 	var saved_pos: Variant = data.get("checkpoint_position")
 	if saved_pos is Array and (saved_pos as Array).size() == 3:
 		var p: Array = saved_pos

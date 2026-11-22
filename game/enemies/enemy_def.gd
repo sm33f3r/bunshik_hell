@@ -36,3 +36,18 @@ const DropEntryScript := preload("res://systems/drop_entry.gd")
 ## `every_nth_drop` (a DropEntry kind) where it died. 0 = off. Independent of `drops`.
 @export var every_nth_kill: int = 0
 @export var every_nth_drop: String = ""
+
+@export_group("Wheel (단무지)")
+## Size in real centimetres (times the world scale): the wheel's diameter, its thickness, and how
+## high it is once it has fallen flat. 0 = not a wheel.
+@export var size_cm: float = 0.0
+@export var thickness_cm: float = 0.0
+@export var flat_height_cm: float = 0.0
+## A bounce_boost launches him at this times the tuning's boost.
+@export var bounce_multiplier: float = 1.0
+## Knocked over (roll): it keeps sliding the way it was hit for up to this far (stopping at an edge
+## or a wall) at this speed, wobbles for platform_duration_s, then stays as a static platform
+## until the section resets.
+@export var knock_slide_m: float = 0.0
+@export var knock_slide_speed_mps: float = 0.0
+@export var platform_duration_s: float = 0.0
