@@ -197,6 +197,10 @@ func _apply_reaction(reaction: String, damage: int, hit_dir: float, params: Dict
 			if not _handle_knock_over(hit_dir):
 				hp = 0
 				_die(true, hit_dir)
+		ReactionTableScript.REACTION_SPILL:
+			_handle_spill()
+		ReactionTableScript.REACTION_BREAK_LINE:
+			_handle_break_line(hit_dir)
 		ReactionTableScript.REACTION_ABSORB:
 			_play_slurp()
 		ReactionTableScript.REACTION_DETERIORATE:
@@ -309,6 +313,35 @@ func _ai(_delta: float) -> void:
 ## the 단무지) does that here and returns true. false = the usual: it dies, tipping over.
 func _handle_knock_over(_hit_dir: float) -> bool:
 	return false
+
+
+## Override: the enemy spills (landing on a 김밥 slice) and leaves a slippery patch.
+func _handle_spill() -> void:
+	pass
+
+
+## Override: a line of enemies scatters into single pieces (a roll through a 김밥 train).
+func _handle_break_line(_hit_dir: float) -> void:
+	pass
+
+
+## A hazard picks it up and carries it off (chopsticks): it is gone, with no drop and no defeat on the
+## books. The section brings it back when it starts over.
+func take_away(lift_m: float, seconds: float) -> void:
+	if not alive:
+		return
+	alive = false
+	hp = 0
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	if not is_inside_tree():
+		visible = false
+		return
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_property(self, "global_position:y", global_position.y + lift_m, maxf(seconds, 0.01)) 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_tween.tween_callback(_finish_death)
 
 
 ## Override: play your own death and return true. false = the usual squash (or tip over).

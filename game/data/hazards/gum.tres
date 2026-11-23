@@ -1,0 +1,10 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://hazards/stick_def.gd" id="1_stick"]
+
+[resource]
+script = ExtResource("1_stick")
+wiggle_required = 14
+enemy_hits_required = 3
+timeout_s = 10.0
+rearm_s = 3.0

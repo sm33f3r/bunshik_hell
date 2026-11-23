@@ -4,8 +4,10 @@ extends Node3D
 ## (LayoutGeometry); nothing here is a typed-in coordinate.
 ##
 ## Node names (tests look things up by them):
-##   Platform_<id>   StaticBody3D, solid (world layer)
-##   EndWall_<section>   StaticBody3D, a tall wall after the last platform of a section, with a sign
+##   Platform_<id>   StaticBody3D, solid (world layer): tables, ledges, napkin boxes, sills, the floor
+##     lane and the chair steps
+##   FloorWall_<id>   StaticBody3D, a low wall at the left end of a floor lane (it keeps him on it)
+##   EndWall_<section>   StaticBody3D, a tall wall after the last table of a section, with a sign
 
 const MapLayoutScript := preload("res://maps/layout/map_layout.gd")
 const MapSectionScript := preload("res://maps/layout/map_section.gd")
@@ -39,12 +41,14 @@ func build(p_layout: MapLayoutScript, p_placed: Array[LayoutGeometryScript.Place
 		if p.def.kind == "existing":
 			continue
 		platform_nodes[p.def.id] = _build_platform(p)
+		if p.def.kind == "floor" and p.def.wall_cm > 0.0:
+			_build_floor_wall(p)
 	for section: MapSectionScript in layout.sections:
 		if section.external or section.end_wall_text == "":
 			continue
 		var last: LayoutGeometryScript.Placed = null
 		for p: LayoutGeometryScript.Placed in placed:
-			if p.section_id == section.id:
+			if p.section_id == section.id and p.chain and p.def.kind != "floor":
 				last = p
 		if last != null:
 			end_walls[section.id] = _build_end_wall(section, last)
@@ -65,14 +69,40 @@ func _build_platform(p: LayoutGeometryScript.Placed) -> StaticBody3D:
 	body.add_child(shape)
 	PrologueSetScript.add_mesh(body, "Mesh", PrologueSetScript.box_mesh(size), p.def.color, Vector3.ZERO)
 	if p.def.kind == "table":
-		# Legs (decor): from the underside down to the floor.
-		var leg_h: float = maxf(p.top - p.thickness, 0.1)
+		# Legs (decor): from the underside down to the floor (or to y = 0 where there is no lane).
+		var floor_y: float = _floor_top_under(p)
+		var leg_h: float = maxf(p.top - p.thickness - floor_y, 0.1)
 		for i: int in 2:
 			var leg_x: float = (-0.5 + 0.06 + 0.88 * float(i)) * p.length()
 			PrologueSetScript.add_mesh(body, "Leg%d" % i, PrologueSetScript.box_mesh(Vector3(0.6, leg_h, 0.6)),
 				p.def.color.darkened(0.35), Vector3(leg_x, -p.thickness * 0.5 - leg_h * 0.5, 0.0))
 	add_child(body)
 	return body
+
+
+func _floor_top_under(p: LayoutGeometryScript.Placed) -> float:
+	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.floor_at(placed, p.center_x())
+	return lane.top if lane != null else 0.0
+
+
+## A wall at the left end of the floor lane, as high as the data says: it keeps him on the lane but
+## is lower than the tables above, so the jump over from the tutorial is not blocked.
+func _build_floor_wall(lane: LayoutGeometryScript.Placed) -> void:
+	var height: float = lane.def.wall_cm * m_per_cm
+	var body: StaticBody3D = StaticBody3D.new()
+	body.name = "FloorWall_%s" % lane.def.id
+	body.collision_layer = Layers.WORLD
+	body.collision_mask = 0
+	body.position = Vector3(lane.left - WALL_THICKNESS_M * 0.5, lane.top + height * 0.5, 0.0)
+	var size: Vector3 = Vector3(WALL_THICKNESS_M, height, depth_m + 4.0)
+	var shape: CollisionShape3D = CollisionShape3D.new()
+	shape.name = "CollisionShape3D"
+	var box: BoxShape3D = BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	PrologueSetScript.add_mesh(body, "Mesh", PrologueSetScript.box_mesh(Vector3(WALL_THICKNESS_M, height, depth_m)), lane.def.color.darkened(0.2), Vector3.ZERO)
+	add_child(body)
 
 
 func _build_end_wall(section: MapSectionScript, last: LayoutGeometryScript.Placed) -> StaticBody3D:
@@ -120,25 +150,57 @@ func spawn_section(section_id: String) -> Array[Node3D]:
 	for entry: SpawnEntryScript in section.spawns:
 		if entry.scene == null:
 			continue
-		var node: Node3D = entry.scene.instantiate() as Node3D
-		if node == null:
-			continue
 		index += 1
-		node.name = "%s%d" % [entry.group.to_upper() if entry.group != "" else "E", index]
-		if entry.size_cm > 0.0:
-			node.set("width_m", entry.size_cm * m_per_cm)
-		if "m_per_cm" in node:
-			node.set("m_per_cm", m_per_cm)
-		node.set("start_dir", entry.start_dir)
-		for key: Variant in entry.params:
-			node.set(String(key), entry.params[key])
-		add_child(node)
-		node.global_position = LayoutGeometryScript.spawn_position(placed, entry)
-		node.set_meta("section_id", section_id)
-		node.set_meta("group", entry.group)
-		out.append(node)
+		var node: Node3D = _make(entry, section_id, index)
+		if node != null:
+			out.append(node)
 	_spawned[section_id] = out
 	return out
+
+
+## One spawn entry as a node in the tree.
+func _make(entry: SpawnEntryScript, section_id: String, index: int) -> Node3D:
+	var node: Node3D = entry.scene.instantiate() as Node3D
+	if node == null:
+		return null
+	node.name = "%s%d" % [entry.group.to_upper() if entry.group != "" else "E", index]
+	if entry.size_cm > 0.0:
+		node.set("width_m", entry.size_cm * m_per_cm)
+	if "m_per_cm" in node:
+		node.set("m_per_cm", m_per_cm)
+	node.set("start_dir", entry.start_dir)
+	for key: Variant in entry.params:
+		node.set(String(key), entry.params[key])
+	add_child(node)
+	node.global_position = LayoutGeometryScript.spawn_position(placed, entry)
+	node.set_meta("section_id", section_id)
+	node.set_meta("group", entry.group)
+	node.set_meta("entry", entry)
+	node.set_meta("entry_index", index)
+	return node
+
+
+## Puts one spawned thing back as it started (a 단무지 that ended up out of reach). Returns the new node.
+func respawn_node(node: Node3D) -> Node3D:
+	if not is_instance_valid(node) or not node.has_meta("entry"):
+		return null
+	var section_id: String = String(node.get_meta("section_id"))
+	var entry: SpawnEntryScript = node.get_meta("entry") as SpawnEntryScript
+	var index: int = int(node.get_meta("entry_index"))
+	var list: Array = _spawned.get(section_id, [])
+	var slot: int = list.find(node)
+	if node.get_parent() == self:
+		remove_child(node)
+	node.queue_free()
+	var fresh: Node3D = _make(entry, section_id, index)
+	if fresh == null:
+		return null
+	if slot >= 0:
+		list[slot] = fresh
+	else:
+		list.append(fresh)
+	_spawned[section_id] = list
+	return fresh
 
 
 func clear_section(section_id: String) -> void:
@@ -153,9 +215,9 @@ func clear_section(section_id: String) -> void:
 ## The enemies placed for a section (those still in the tree).
 func enemies_of(section_id: String) -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for node: Node3D in _spawned.get(section_id, []):
-		if is_instance_valid(node):
-			out.append(node)
+	for item: Variant in _spawned.get(section_id, []):
+		if is_instance_valid(item): # a freed one (a train's slice, a defeated enemy) must not be assigned to a typed var
+			out.append(item as Node3D)
 	return out
 
 

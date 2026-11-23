@@ -20,6 +20,7 @@ const MapLayoutScript := preload("res://maps/layout/map_layout.gd")
 const MapSectionScript := preload("res://maps/layout/map_section.gd")
 const CheckpointDefScript := preload("res://maps/layout/checkpoint_def.gd")
 const PromptTriggerScript := preload("res://maps/layout/prompt_trigger.gd")
+const SpawnEntryScript := preload("res://maps/layout/spawn_entry.gd")
 const LayoutGeometryScript := preload("res://maps/layout/layout_geometry.gd")
 const JumpReachScript := preload("res://maps/layout/jump_reach.gd")
 const SectionBuilderScript := preload("res://maps/layout/section_builder.gd")
@@ -56,7 +57,8 @@ var phase: Phase = Phase.IDLE
 var using_pad: bool = false
 ## Section ids whose enemies are out and whose hints are live.
 var enabled_sections: Array[String] = []
-## Below this he has fallen off the tables: put back at the checkpoint, no damage.
+## Below this he has fallen off the tables: put back at the checkpoint, no damage. (Over a floor lane
+## the catch is lower: see catch_y_at.)
 var fall_y: float = -INF
 ## The tutorial was finished (reaching the last checkpoint of the optional section's way on).
 var tutorial_done: bool = false
@@ -65,6 +67,8 @@ var _zones: Array[Dictionary] = []
 var _checkpoints: Array[CheckpointDefScript] = []
 var _guard: int = 0
 var _fade_t: float = 0.0
+## The platform he stood on at the last tick ("" = none), for the "steps onto its platform again" respawn.
+var _last_stand: String = ""
 
 
 ## Loads the layout, works out where everything stands and builds it. `data` is the prologue's data
@@ -299,6 +303,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_step_checkpoints()
 	_step_hints()
+	_step_respawns(delta)
 
 
 func _step_prompt() -> void:
@@ -391,7 +396,68 @@ func fire_trigger(trigger: PromptTriggerScript) -> void:
 		grant_skill(trigger.grants_skill, trigger.grant_source, trigger.toast, trigger.action)
 
 
+# --- Things that end up out of reach ----------------------------------------------------------------
+
+## True when a spawned thing is where it is no use any more (see SpawnEntry): fallen off its platform,
+## or knocked over (flat) outside the stretch of its platform the entry calls useful.
+func is_out_of_reach(node: Node3D, entry: SpawnEntryScript) -> bool:
+	var platform: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, entry.platform_id)
+	if platform == null or not is_instance_valid(node):
+		return false
+	var at: Vector3 = node.global_position if node.is_inside_tree() else node.position
+	if at.y < platform.top - entry.out_below_m:
+		return true
+	if entry.useful_from_m != entry.useful_to_m and bool(node.get("flat")):
+		var a: float = LayoutGeometryScript.x_on(platform, entry.useful_from_m)
+		var b: float = LayoutGeometryScript.x_on(platform, entry.useful_to_m)
+		if at.x < minf(a, b) or at.x > maxf(a, b):
+			return true
+	return false
+
+
+## The id of the platform he stands on ("" = none).
+func standing_on() -> String:
+	if player == null or not player.grounded:
+		return ""
+	var feet_y: float = player.global_position.y - player.body_half_height
+	for p: LayoutGeometryScript.Placed in placed:
+		if p.def.kind == "floor" or p.def.kind == "block":
+			continue
+		var x: float = player.global_position.x
+		if x >= p.left and x <= p.right and absf(feet_y - p.top) <= STAND_TOLERANCE_M:
+			return p.def.id
+	return ""
+
+
+## Every tick: a thing that has been out of reach for its respawn delay is put back as it started; so is
+## one that is out of reach when he steps onto its platform again.
+func _step_respawns(delta: float) -> void:
+	if builder == null:
+		return
+	var stand: String = standing_on()
+	for section_id: String in enabled_sections:
+		for node: Node3D in builder.enemies_of(section_id):
+			var entry: SpawnEntryScript = node.get_meta("entry", null) as SpawnEntryScript
+			if entry == null or not entry.respawn_when_out_of_reach:
+				continue
+			if is_out_of_reach(node, entry):
+				var out_time: float = float(node.get_meta("out_time", 0.0)) + delta
+				node.set_meta("out_time", out_time)
+				var entered: bool = stand == entry.platform_id and _last_stand != stand
+				if out_time >= entry.respawn_delay_s or entered:
+					builder.respawn_node(node)
+			else:
+				node.set_meta("out_time", 0.0)
+	_last_stand = stand
+
+
 # --- Death and falls --------------------------------------------------------------------------------
+
+## Where a fall is caught at x: below the floor lane where there is one (he lands on it first), else
+## below the lowest table.
+func catch_y_at(x: float) -> float:
+	return LayoutGeometryScript.catch_y_at(placed, x, layout.fall_depth_m)
+
 
 ## A new life: the hints may show again, and the section starts over.
 func on_player_respawned() -> void:

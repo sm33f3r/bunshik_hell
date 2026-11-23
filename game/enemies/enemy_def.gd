@@ -37,6 +37,23 @@ const DropEntryScript := preload("res://systems/drop_entry.gd")
 @export var every_nth_kill: int = 0
 @export var every_nth_drop: String = ""
 
+@export_group("Slices (김밥)")
+## Each slice: diameter and thickness in real centimetres (times the world scale), and the empty
+## space between two slices of a train.
+@export var slice_size_cm: float = 0.0
+@export var slice_thickness_cm: float = 0.0
+@export var slice_gap_cm: float = 0.0
+## How many slices a train has (the first is the uncut end piece, the 꼬다리).
+@export var train_slices: int = 0
+## After break_line each slice walks on its own at this speed and hops out with this launch speed.
+@export var scatter_speed_mps: float = 0.0
+@export var scatter_hop_mps: float = 0.0
+## A landing spills a slippery patch this wide (real cm), that lasts this long; one slice spills again
+## only after the cooldown.
+@export var spill_patch_width_cm: float = 0.0
+@export var spill_patch_lifetime_s: float = 0.0
+@export var spill_cooldown_s: float = 0.0
+
 @export_group("Wheel (단무지)")
 ## Size in real centimetres (times the world scale): the wheel's diameter, its thickness, and how
 ## high it is once it has fallen flat. 0 = not a wheel.

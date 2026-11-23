@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://hazards/chopsticks.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/hazards/chopsticks.tres" id="2_def"]
+
+[node name="Chopsticks" type="Node3D"]
+script = ExtResource("1_script")
+def = ExtResource("2_def")

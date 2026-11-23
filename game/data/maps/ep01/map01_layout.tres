@@ -8,6 +8,12 @@
 [ext_resource type="Script" path="res://maps/layout/prompt_trigger.gd" id="s_trig"]
 [ext_resource type="PackedScene" path="res://enemies/mandu.tscn" id="sc_mandu"]
 [ext_resource type="PackedScene" path="res://enemies/danmuji.tscn" id="sc_danmuji"]
+[ext_resource type="PackedScene" path="res://enemies/gimbap_train.tscn" id="sc_train"]
+[ext_resource type="PackedScene" path="res://hazards/chopsticks.tscn" id="sc_chop"]
+[ext_resource type="PackedScene" path="res://hazards/giant_foot.tscn" id="sc_foot"]
+[ext_resource type="PackedScene" path="res://hazards/gum_patch.tscn" id="sc_gum"]
+[ext_resource type="PackedScene" path="res://items/natrium_pickup.tscn" id="sc_natrium"]
+[ext_resource type="PackedScene" path="res://items/sauce_drip.tscn" id="sc_drip"]
 
 [sub_resource type="Resource" id="plat_prologue_exit_table"]
 script = ExtResource("s_plat")
@@ -116,6 +122,11 @@ platform_id = "tut_t3"
 scene = ExtResource("sc_danmuji")
 along_m = 5.0
 group = "c2"
+respawn_when_out_of_reach = true
+respawn_delay_s = 4.0
+out_below_m = 1.5
+useful_from_m = -3.0
+useful_to_m = -0.001
 
 [sub_resource type="Resource" id="sp_d1"]
 script = ExtResource("s_spawn")
@@ -249,13 +260,657 @@ id = "dining_room_start"
 platforms = Array[ExtResource("s_plat")]([SubResource("plat_dining_1"), SubResource("plat_dining_2"), SubResource("plat_dining_3")])
 spawns = Array[ExtResource("s_spawn")]([SubResource("sp_dining")])
 checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_din")])
-end_wall_text = "[dev] Map 1 continues here (Task 3b-ii)"
+
+[sub_resource type="Resource" id="plat_r_t1"]
+script = ExtResource("s_plat")
+id = "r_t1"
+kind = "table"
+length_cm = 80
+gap_fraction = 0.45
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_r_t2"]
+script = ExtResource("s_plat")
+id = "r_t2"
+kind = "table"
+length_cm = 55
+gap_fraction = 0.5
+rise_fraction = 0.3
+color = Color(0.651, 0.502, 0.329, 1)
+
+[sub_resource type="Resource" id="plat_r_t3"]
+script = ExtResource("s_plat")
+id = "r_t3"
+kind = "table"
+length_cm = 90
+gap_fraction = 0.55
+rise_fraction = -0.25
+color = Color(0.725, 0.576, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_r_t4"]
+script = ExtResource("s_plat")
+id = "r_t4"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.6
+rise_fraction = 0.35
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_box_a"]
+script = ExtResource("s_plat")
+id = "box_a"
+kind = "prop"
+length_cm = 14
+host = "r_t4"
+anchor = "at_end"
+rise_basis = "cm"
+rise_cm = 8
+chain = false
+main_path = false
+color = Color(0.920, 0.920, 0.860, 1)
+
+[sub_resource type="Resource" id="plat_sill_a"]
+script = ExtResource("s_plat")
+id = "sill_a"
+kind = "sill"
+length_cm = 17
+host = "box_a"
+gap_fraction = 0.5
+rise_fraction = 0.6
+chain = false
+main_path = false
+color = Color(0.850, 0.820, 0.700, 1)
+
+[sub_resource type="Resource" id="plat_r_t5"]
+script = ExtResource("s_plat")
+id = "r_t5"
+kind = "table"
+length_cm = 100
+gap_fraction = 0.5
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_r_t6"]
+script = ExtResource("s_plat")
+id = "r_t6"
+kind = "table"
+length_cm = 50
+gap_fraction = 0.65
+rise_fraction = 0.4
+color = Color(0.651, 0.502, 0.329, 1)
+
+[sub_resource type="Resource" id="plat_r_t7"]
+script = ExtResource("s_plat")
+id = "r_t7"
+kind = "table"
+length_cm = 85
+gap_fraction = 0.6
+rise_fraction = -0.4
+color = Color(0.725, 0.576, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_r_t8"]
+script = ExtResource("s_plat")
+id = "r_t8"
+kind = "table"
+length_cm = 90
+gap_fraction = 0.55
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_r_t9"]
+script = ExtResource("s_plat")
+id = "r_t9"
+kind = "table"
+length_cm = 55
+gap_fraction = 0.7
+rise_fraction = 0.2
+color = Color(0.651, 0.502, 0.329, 1)
+
+[sub_resource type="Resource" id="plat_box_b"]
+script = ExtResource("s_plat")
+id = "box_b"
+kind = "prop"
+length_cm = 14
+host = "r_t9"
+anchor = "at_end"
+rise_basis = "cm"
+rise_cm = 8
+chain = false
+main_path = false
+color = Color(0.920, 0.920, 0.860, 1)
+
+[sub_resource type="Resource" id="plat_sill_b"]
+script = ExtResource("s_plat")
+id = "sill_b"
+kind = "sill"
+length_cm = 17
+host = "box_b"
+gap_fraction = 0.5
+rise_fraction = 0.6
+chain = false
+main_path = false
+color = Color(0.850, 0.820, 0.700, 1)
+
+[sub_resource type="Resource" id="plat_r_t10"]
+script = ExtResource("s_plat")
+id = "r_t10"
+kind = "table"
+length_cm = 70
+gap_fraction = 0.75
+color = Color(0.651, 0.502, 0.329, 1)
+
+[sub_resource type="Resource" id="plat_r_t11"]
+script = ExtResource("s_plat")
+id = "r_t11"
+kind = "table"
+length_cm = 100
+gap_fraction = 0.5
+rise_fraction = -0.2
+color = Color(0.725, 0.576, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_box_req"]
+script = ExtResource("s_plat")
+id = "box_req"
+kind = "prop"
+length_cm = 14
+host = "r_t11"
+anchor = "at_end"
+rise_basis = "cm"
+rise_cm = 8
+chain = false
+color = Color(0.920, 0.920, 0.860, 1)
+
+[sub_resource type="Resource" id="plat_sill_req"]
+script = ExtResource("s_plat")
+id = "sill_req"
+kind = "sill"
+length_cm = 40
+host = "box_req"
+gap_fraction = 0.5
+rise_fraction = 0.6
+color = Color(0.850, 0.820, 0.700, 1)
+
+[sub_resource type="Resource" id="plat_r_t12"]
+script = ExtResource("s_plat")
+id = "r_t12"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.55
+rise_fraction = -1.45
+color = Color(0.725, 0.576, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_r_t13"]
+script = ExtResource("s_plat")
+id = "r_t13"
+kind = "table"
+length_cm = 60
+gap_fraction = 0.6
+color = Color(0.690, 0.541, 0.353, 1)
+
+[sub_resource type="Resource" id="plat_r_t14"]
+script = ExtResource("s_plat")
+id = "r_t14"
+kind = "table"
+length_cm = 70
+gap_fraction = 0.75
+rise_fraction = 0.3
+color = Color(0.651, 0.502, 0.329, 1)
+
+[sub_resource type="Resource" id="plat_r_t15"]
+script = ExtResource("s_plat")
+id = "r_t15"
+kind = "table"
+length_cm = 90
+gap_fraction = 0.6
+color = Color(0.725, 0.576, 0.384, 1)
+
+[sub_resource type="Resource" id="plat_dining_floor"]
+script = ExtResource("s_plat")
+id = "dining_floor"
+kind = "floor"
+length_cm = 100
+thickness_cm = 30
+chain = false
+main_path = false
+color = Color(0.300, 0.260, 0.240, 1)
+span_from = "dining_1"
+span_to = "r_t15"
+drop_from = "prologue_exit_table"
+drop_cm = 75.0
+wall_cm = 60.0
+
+[sub_resource type="Resource" id="plat_chair_dining_3"]
+script = ExtResource("s_plat")
+id = "chair_dining_3"
+kind = "stairs"
+length_cm = 14
+host = "dining_3"
+along_cm = 0.5
+chain = false
+main_path = false
+color = Color(0.450, 0.330, 0.220, 1)
+steps = 9
+side = "right"
+top_drop_cm = 10.5
+bottom_rise_cm = 8.0
+thickness_cm = 2
+
+[sub_resource type="Resource" id="plat_chair_r_t5"]
+script = ExtResource("s_plat")
+id = "chair_r_t5"
+kind = "stairs"
+length_cm = 14
+host = "r_t5"
+along_cm = 0.5
+chain = false
+main_path = false
+color = Color(0.450, 0.330, 0.220, 1)
+steps = 9
+side = "right"
+top_drop_cm = 9.0
+bottom_rise_cm = 8.0
+thickness_cm = 2
+
+[sub_resource type="Resource" id="plat_chair_r_t8"]
+script = ExtResource("s_plat")
+id = "chair_r_t8"
+kind = "stairs"
+length_cm = 14
+host = "r_t8"
+along_cm = 0.5
+chain = false
+main_path = false
+color = Color(0.450, 0.330, 0.220, 1)
+steps = 9
+side = "right"
+top_drop_cm = 9.0
+bottom_rise_cm = 8.0
+thickness_cm = 2
+
+[sub_resource type="Resource" id="plat_chair_r_t13"]
+script = ExtResource("s_plat")
+id = "chair_r_t13"
+kind = "stairs"
+length_cm = 14
+host = "r_t13"
+along_cm = 0.5
+chain = false
+main_path = false
+color = Color(0.450, 0.330, 0.220, 1)
+steps = 9
+side = "right"
+top_drop_cm = 9.0
+bottom_rise_cm = 8.0
+thickness_cm = 2
+
+[sub_resource type="Resource" id="sp_t1"]
+script = ExtResource("s_spawn")
+platform_id = "r_t1"
+scene = ExtResource("sc_mandu")
+along_m = 5
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t2"]
+script = ExtResource("s_spawn")
+platform_id = "r_t2"
+scene = ExtResource("sc_mandu")
+along_m = 3
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t3"]
+script = ExtResource("s_spawn")
+platform_id = "r_t2"
+scene = ExtResource("sc_mandu")
+along_m = 6.5
+size_cm = 5
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t4"]
+script = ExtResource("s_spawn")
+platform_id = "r_t3"
+scene = ExtResource("sc_danmuji")
+along_m = 6
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t5"]
+script = ExtResource("s_spawn")
+platform_id = "r_t4"
+scene = ExtResource("sc_mandu")
+along_m = 6
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t6"]
+script = ExtResource("s_spawn")
+platform_id = "sill_a"
+scene = ExtResource("sc_natrium")
+along_m = 2
+group = "sill"
+
+[sub_resource type="Resource" id="sp_t7"]
+script = ExtResource("s_spawn")
+platform_id = "r_t5"
+scene = ExtResource("sc_train")
+along_m = 7
+group = "train"
+
+[sub_resource type="Resource" id="sp_t8"]
+script = ExtResource("s_spawn")
+platform_id = "r_t6"
+scene = ExtResource("sc_mandu")
+along_m = 4
+size_cm = 5
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t9"]
+script = ExtResource("s_spawn")
+platform_id = "r_t7"
+scene = ExtResource("sc_danmuji")
+along_m = 12
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t10"]
+script = ExtResource("s_spawn")
+platform_id = "r_t7"
+scene = ExtResource("sc_mandu")
+along_m = 4
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t11"]
+script = ExtResource("s_spawn")
+platform_id = "r_t8"
+scene = ExtResource("sc_mandu")
+along_m = -4
+size_cm = 5
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t12"]
+script = ExtResource("s_spawn")
+platform_id = "r_t8"
+scene = ExtResource("sc_chop")
+along_m = 6
+size_cm = 60
+group = "chop"
+
+[sub_resource type="Resource" id="sp_t13"]
+script = ExtResource("s_spawn")
+platform_id = "r_t9"
+scene = ExtResource("sc_mandu")
+along_m = 4
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t14"]
+script = ExtResource("s_spawn")
+platform_id = "sill_b"
+scene = ExtResource("sc_drip")
+along_m = 2
+group = "sill"
+
+[sub_resource type="Resource" id="sp_t15"]
+script = ExtResource("s_spawn")
+platform_id = "r_t10"
+scene = ExtResource("sc_train")
+along_m = 9
+start_dir = -1
+group = "train"
+
+[sub_resource type="Resource" id="sp_t16"]
+script = ExtResource("s_spawn")
+platform_id = "r_t10"
+scene = ExtResource("sc_mandu")
+along_m = 3
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t17"]
+script = ExtResource("s_spawn")
+platform_id = "r_t11"
+scene = ExtResource("sc_mandu")
+along_m = 4
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t18"]
+script = ExtResource("s_spawn")
+platform_id = "r_t11"
+scene = ExtResource("sc_mandu")
+along_m = 5.2
+size_cm = 5
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t19"]
+script = ExtResource("s_spawn")
+platform_id = "r_t12"
+scene = ExtResource("sc_danmuji")
+along_m = 6
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t20"]
+script = ExtResource("s_spawn")
+platform_id = "r_t13"
+scene = ExtResource("sc_train")
+along_m = 6
+group = "train"
+
+[sub_resource type="Resource" id="sp_t21"]
+script = ExtResource("s_spawn")
+platform_id = "r_t13"
+scene = ExtResource("sc_chop")
+along_m = 5
+size_cm = 50
+group = "chop"
+
+[sub_resource type="Resource" id="sp_t22"]
+script = ExtResource("s_spawn")
+platform_id = "r_t14"
+scene = ExtResource("sc_danmuji")
+along_m = 7
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t23"]
+script = ExtResource("s_spawn")
+platform_id = "r_t14"
+scene = ExtResource("sc_mandu")
+along_m = 4
+size_cm = 5
+group = "t"
+
+[sub_resource type="Resource" id="sp_t24"]
+script = ExtResource("s_spawn")
+platform_id = "r_t14"
+scene = ExtResource("sc_mandu")
+along_m = 5
+size_cm = 5
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_t25"]
+script = ExtResource("s_spawn")
+platform_id = "r_t15"
+scene = ExtResource("sc_train")
+along_m = 5
+group = "train"
+
+[sub_resource type="Resource" id="sp_t26"]
+script = ExtResource("s_spawn")
+platform_id = "r_t15"
+scene = ExtResource("sc_chop")
+along_m = 11
+size_cm = 40
+group = "chop"
+
+[sub_resource type="Resource" id="sp_t27"]
+script = ExtResource("s_spawn")
+platform_id = "r_t15"
+scene = ExtResource("sc_danmuji")
+along_m = -3
+start_dir = -1
+group = "t"
+
+[sub_resource type="Resource" id="sp_l28"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 30
+size_cm = 5
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l29"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_gum")
+along_m = 75
+size_cm = 12
+group = "gum"
+
+[sub_resource type="Resource" id="sp_l30"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 55
+size_cm = 5
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l31"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_danmuji")
+along_m = 72
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l32"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_chop")
+along_m = 92
+size_cm = 60
+group = "chop"
+
+[sub_resource type="Resource" id="sp_l33"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 118
+size_cm = 5
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l34"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 124
+size_cm = 5
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l35"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_gum")
+along_m = 150
+size_cm = 12
+group = "gum"
+
+[sub_resource type="Resource" id="sp_l36"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 146
+size_cm = 5
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l37"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_foot")
+along_m = 165
+size_cm = 60
+group = "foot"
+
+[sub_resource type="Resource" id="sp_l38"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_danmuji")
+along_m = 190
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l39"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_chop")
+along_m = 205
+size_cm = 60
+group = "chop"
+
+[sub_resource type="Resource" id="sp_l40"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_gum")
+along_m = 222
+size_cm = 12
+group = "gum"
+
+[sub_resource type="Resource" id="sp_l41"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_mandu")
+along_m = 228
+size_cm = 5
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="sp_l42"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_foot")
+along_m = 245
+size_cm = 60
+group = "foot"
+
+[sub_resource type="Resource" id="sp_l43"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_danmuji")
+along_m = 262
+start_dir = -1
+group = "lane"
+
+[sub_resource type="Resource" id="cp_mid"]
+script = ExtResource("s_cp")
+id = "map01_dining_mid"
+platform_id = "r_t8"
+along_m = 2.0
+lift_m = 0.5
+
+[sub_resource type="Resource" id="sec_dining_room"]
+script = ExtResource("s_section")
+id = "dining_room"
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_r_t1"), SubResource("plat_r_t2"), SubResource("plat_r_t3"), SubResource("plat_r_t4"), SubResource("plat_box_a"), SubResource("plat_sill_a"), SubResource("plat_r_t5"), SubResource("plat_r_t6"), SubResource("plat_r_t7"), SubResource("plat_r_t8"), SubResource("plat_r_t9"), SubResource("plat_box_b"), SubResource("plat_sill_b"), SubResource("plat_r_t10"), SubResource("plat_r_t11"), SubResource("plat_box_req"), SubResource("plat_sill_req"), SubResource("plat_r_t12"), SubResource("plat_r_t13"), SubResource("plat_r_t14"), SubResource("plat_r_t15"), SubResource("plat_dining_floor"), SubResource("plat_chair_dining_3"), SubResource("plat_chair_r_t5"), SubResource("plat_chair_r_t8"), SubResource("plat_chair_r_t13")])
+spawns = Array[ExtResource("s_spawn")]([SubResource("sp_t1"), SubResource("sp_t2"), SubResource("sp_t3"), SubResource("sp_t4"), SubResource("sp_t5"), SubResource("sp_t6"), SubResource("sp_t7"), SubResource("sp_t8"), SubResource("sp_t9"), SubResource("sp_t10"), SubResource("sp_t11"), SubResource("sp_t12"), SubResource("sp_t13"), SubResource("sp_t14"), SubResource("sp_t15"), SubResource("sp_t16"), SubResource("sp_t17"), SubResource("sp_t18"), SubResource("sp_t19"), SubResource("sp_t20"), SubResource("sp_t21"), SubResource("sp_t22"), SubResource("sp_t23"), SubResource("sp_t24"), SubResource("sp_t25"), SubResource("sp_t26"), SubResource("sp_t27"), SubResource("sp_l28"), SubResource("sp_l29"), SubResource("sp_l30"), SubResource("sp_l31"), SubResource("sp_l32"), SubResource("sp_l33"), SubResource("sp_l34"), SubResource("sp_l35"), SubResource("sp_l36"), SubResource("sp_l37"), SubResource("sp_l38"), SubResource("sp_l39"), SubResource("sp_l40"), SubResource("sp_l41"), SubResource("sp_l42"), SubResource("sp_l43")])
+checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_mid")])
+end_wall_text = "[dev] Map 1 continues here (Task 3c: the first ramyeon)"
 
 [resource]
 script = ExtResource("s_layout")
-sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining")])
+sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining"), SubResource("sec_dining_room")])
 prompt_accept_text = "튜토리얼 하기"
 prompt_cancel_text = "건너뛰기"
 fade_out_s = 0.35
 fade_in_s = 0.35
 fall_depth_m = 4.0
+headroom_m = 0.9
+climb_spacing_max_m = 60.0

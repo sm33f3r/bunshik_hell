@@ -11,6 +11,10 @@ const MapSectionScript := preload("res://maps/layout/map_section.gd")
 @export var fade_in_s: float = 0.35
 ## Fallen this far below the lowest top of the map he is put back at the checkpoint (no damage).
 @export var fall_depth_m: float = 4.0
+## Validation: a chair step under a table needs this much room between its top and the table's
+## underside, and every point of a floor lane must be within this many metres of a way back up.
+@export var headroom_m: float = 0.9
+@export var climb_spacing_max_m: float = 60.0
 
 
 func section(section_id: String) -> MapSectionScript:

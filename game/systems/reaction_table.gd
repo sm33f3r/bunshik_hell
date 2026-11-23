@@ -13,6 +13,8 @@ const ATTACK_SAUCE: String = "sauce"
 ## From a usable environment object (see EnvSpecialDef).
 const ATTACK_WATER: String = "water"
 const ATTACK_HEAVY_OBJECT: String = "heavy_object"
+## A giant foot coming down (a hazard, not the 떡's doing).
+const ATTACK_FOOT: String = "foot"
 
 const REACTION_DAMAGE: String = "damage"
 const REACTION_KILL: String = "kill"
@@ -20,6 +22,10 @@ const REACTION_BOUNCE_OFF: String = "bounce_off"
 ## 🟡 bounce_off that also launches him higher (a springboard): the 단무지.
 const REACTION_BOUNCE_BOOST: String = "bounce_boost"
 const REACTION_KNOCK_OVER: String = "knock_over"
+## The enemy spills, leaving a slippery patch (김밥 slices, landing).
+const REACTION_SPILL: String = "spill"
+## A line of enemies scatters into single pieces that act on their own (김밥, roll).
+const REACTION_BREAK_LINE: String = "break_line"
 const REACTION_HURT_PLAYER: String = "hurt_player"
 ## Spec §8.1 "absorb" (no effect). Also the answer for any pair the table does not know.
 const REACTION_ABSORB: String = "absorb"

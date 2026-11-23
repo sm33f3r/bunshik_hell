@@ -142,7 +142,7 @@ func test_the_cross_starts_the_tutorial() -> void:
 	check_eq(flow.phase, MapFlowScript.Phase.IDLE, "the prompt is gone")
 	check(not tree.paused, "the game runs")
 	check(not flow.ui.prompt_visible(), "and it is hidden")
-	check_eq(flow.enabled_sections, ["tutorial", "dining_room_start"] as Array[String], "the tutorial and what follows are live")
+	check_eq(flow.enabled_sections, ["tutorial", "dining_room_start", "dining_room"] as Array[String], "the tutorial and what follows are live")
 	check_eq(flow.builder.enemies_of("tutorial").size(), 6, "the tutorial's enemies are out")
 	check_eq(flow.builder.enemies_of("dining_room_start").size(), 1, "and the second 단무지")
 	check(flow.ui.hint_visible() and "이동" in flow.ui.hint_text(), "the first hint (move and jump): " + flow.ui.hint_text())
@@ -520,15 +520,16 @@ func test_falling_off_a_table_puts_him_back_at_the_checkpoint_without_damage() -
 	check(enemies("c1")[0] != wheel, "and the section started over")
 
 
-func test_the_dining_room_start_ends_in_a_marked_wall() -> void:
+func test_the_dining_room_start_goes_on_and_the_dining_room_ends_in_a_marked_wall() -> void:
 	await open_tutorial()
-	var last: LayoutGeometryScript.Placed = plat("dining_3")
-	var wall: Node3D = flow.builder.end_walls.get("dining_room_start")
-	check(wall != null, "an end wall exists")
+	check(flow.builder.end_walls.get("dining_room_start") == null, "no wall at the dining room start any more")
+	var wall: Node3D = flow.builder.end_walls.get("dining_room")
+	check(wall != null, "the dining room ends in a wall")
 	check("Map 1 continues here" in (wall.get_node("Sign") as Label3D).text, "with a sign saying so")
-	await put_on("dining_3", last.length() - 3.0)
+	var last: LayoutGeometryScript.Placed = plat("r_t15")
+	await put_on("r_t15", last.length() - 3.0)
 	Input.action_press("move_right")
 	await frames(90)
 	Input.action_release("move_right")
-	check(player.global_position.x < last.right, "he cannot go past it: " + describe())
-	check(on_top_of("dining_3"), "still on the table")
+	check(player.global_position.x < last.right + 0.01, "he cannot go past it: " + describe())
+	check(on_top_of("r_t15"), "still on the table")

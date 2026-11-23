@@ -318,7 +318,7 @@ func _check_next_table() -> void:
 func _catch_fall() -> void:
 	var limit: float = data.fall_catch_y
 	if director.state == DirectorScript.State.COMPLETE and flow != null:
-		limit = flow.fall_y
+		limit = flow.catch_y_at(player.global_position.x)
 	if player.controlled or player.global_position.y >= limit:
 		return
 	if director.state == DirectorScript.State.COMPLETE:

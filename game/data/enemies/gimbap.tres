@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyDef" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_def.gd" id="1_def"]
+[ext_resource type="Script" path="res://systems/drop_entry.gd" id="2_drop"]
+
+[sub_resource type="Resource" id="Resource_drop"]
+script = ExtResource("2_drop")
+kind = "sesame_oil"
+amount = 1
+chance = 0.25
+
+[resource]
+script = ExtResource("1_def")
+id = "gimbap"
+material = "segmented"
+max_hp = 2
+contact_damage_half_hearts = 2
+hits_per_stage = 1
+walk_speed_mps = 1.5
+drops = Array[ExtResource("2_drop")]([SubResource("Resource_drop")])
+slice_size_cm = 5.0
+slice_thickness_cm = 2.0
+slice_gap_cm = 0.6
+train_slices = 5
+scatter_speed_mps = 2.2
+scatter_hop_mps = 6.0
+spill_patch_width_cm = 12.0
+spill_patch_lifetime_s = 6.0
+spill_cooldown_s = 1.5

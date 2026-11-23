@@ -38,6 +38,13 @@ extends Resource
 ## How far below an enemy's top the previous-frame feet may be and still count as "from above".
 @export var above_tolerance: float = 0.0
 
+@export_group("Slippery floor")
+## On a slippery patch (a spilled 김밥) his ground acceleration and his braking are these fractions of
+## normal. The patch keeps the effect on for slip_linger_s after he leaves it.
+@export var slip_acceleration_scale: float = 0.0
+@export var slip_friction_scale: float = 0.0
+@export var slip_linger_s: float = 0.0
+
 @export_group("Damage")
 @export var i_frame_time: float = 0.0
 @export var flash_interval: float = 0.0

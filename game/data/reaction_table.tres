@@ -6,6 +6,10 @@
 script = ExtResource("1_yre74")
 entries = {
 "crunchy": {
+"foot": {
+"damage": 0,
+"reaction": "knock_over"
+},
 "heavy_object": {
 "damage": 3,
 "reaction": "damage"
@@ -29,6 +33,40 @@ entries = {
 "stomp": {
 "damage": 0,
 "reaction": "bounce_boost"
+},
+"water": {
+"damage": 0,
+"reaction": "absorb"
+}
+},
+"segmented": {
+"foot": {
+"damage": 0,
+"reaction": "kill"
+},
+"heavy_object": {
+"damage": 0,
+"reaction": "kill"
+},
+"landing": {
+"damage": 0,
+"reaction": "spill"
+},
+"roll": {
+"damage": 0,
+"reaction": "break_line"
+},
+"sauce": {
+"damage": 1,
+"reaction": "damage"
+},
+"slam": {
+"damage": 0,
+"reaction": "kill"
+},
+"stomp": {
+"damage": 1,
+"reaction": "damage"
 },
 "water": {
 "damage": 0,
@@ -99,6 +137,10 @@ entries = {
 }
 },
 "soft": {
+"foot": {
+"damage": 0,
+"reaction": "kill"
+},
 "heavy_object": {
 "damage": 0,
 "reaction": "kill"

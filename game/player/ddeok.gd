@@ -7,6 +7,8 @@ signal state_changed(old_state: int, new_state: int)
 signal landed(impact_speed: float)
 signal attacked(attack: String, reaction: String)
 signal respawned
+## He got free of a `stick` (reason: "wiggle" | "enemy_hits" | "timeout").
+signal stick_released(reason: String)
 ## A sauce attack was fired.
 signal sauce_fired
 ## Flick unlocked but not enough sauce. (A locked flick emits nothing, on purpose.)
@@ -34,6 +36,8 @@ const SettingsScript := preload("res://systems/settings.gd")
 const HealthPickupScene: PackedScene = preload("res://items/health_pickup.tscn")
 const UsableObjectScript := preload("res://items/usable_object.gd")
 const GameplayInputScript := preload("res://systems/gameplay_input.gd")
+const StuckStatusScript := preload("res://systems/stuck_status.gd")
+const StickDefScript := preload("res://hazards/stick_def.gd")
 
 ## A dropped item cannot be picked up again for this long (seconds).
 const DROP_REPICK_DELAY_S: float = 1.0
@@ -79,6 +83,14 @@ var grounded: bool = false
 ## how many were in range. The nearest one wins.
 var special_target: UsableObjectScript = null
 var special_candidates: int = 0
+## The `stick` status (gum): null = not stuck. While stuck he cannot walk, jump or roll.
+var stuck: StuckStatusScript = null
+## Whoever holds him (a pair of chopsticks): null = free. Held: no input, no physics, no damage.
+var held_by: Node = null
+## Seconds the slippery-floor effect is still on (a spilled 김밥 keeps refreshing it).
+var slip_left: float = 0.0
+## Seconds he is still flattened (a giant foot): no input, then he pops back.
+var flat_left: float = 0.0
 
 var _coyote_timer: float = 0.0
 var _buffer_timer: float = 0.0
@@ -157,7 +169,7 @@ func request_stomp() -> bool:
 ## Roll button. On the ground: roll (needs "roll"). In the air: slam (needs "slam").
 func request_roll() -> bool:
 	_ensure_tuning()
-	if not _can_act() or state == State.ROLL or state == State.STOMP or state == State.SLAM:
+	if stuck != null or not _can_act() or state == State.ROLL or state == State.STOMP or state == State.SLAM:
 		return false
 	if grounded:
 		if not _has_skill(SKILL_ROLL) or _roll_cooldown > 0.0:
@@ -258,9 +270,11 @@ func request_heal() -> bool:
 ## A coat blocks the damage of this hit; knockback and invulnerability still happen.
 func hurt(half_hearts: int, source_x: float) -> bool:
 	_ensure_tuning()
-	if game_state == null or state == State.DEAD or _invuln_timer > 0.0:
+	if game_state == null or state == State.DEAD or _invuln_timer > 0.0 or held_by != null:
 		return false
 	game_state.take_hit(half_hearts)
+	if stuck != null:
+		stuck.enemy_hit() # a hit on him shakes him loose, a bit at a time
 	if state == State.DEAD:
 		return true # the died signal got there first
 	_invuln_timer = tuning.i_frame_time
@@ -295,6 +309,11 @@ func respawn() -> void:
 	_roll_timer = 0.0
 	_drop_timer = 0.0
 	_above_hits.clear()
+	stuck = null
+	held_by = null
+	controlled = false
+	slip_left = 0.0
+	flat_left = 0.0
 	_set_state(State.IDLE)
 	respawned.emit()
 
@@ -312,6 +331,65 @@ func set_controlled(on: bool) -> void:
 		_buffer_timer = 0.0
 		_prev_bottom = global_position.y - body_half_height
 		_set_state(State.FALL)
+
+
+# --- Hazard statuses (gum, chopsticks, a giant foot, a slippery floor) -----------------------
+
+## Gum: he is stuck until the wiggle, enemy hits or the fallback timer frees him. Returns false when
+## he already is, is dead or is held.
+func apply_stick(def: StickDefScript, source: Object = null) -> bool:
+	if stuck != null or state == State.DEAD or held_by != null:
+		return false
+	stuck = StuckStatusScript.new(def, source)
+	velocity.x = 0.0
+	return true
+
+
+func is_stuck() -> bool:
+	return stuck != null
+
+
+## True while this very thing (a gum patch) is what holds him.
+func is_stuck_by(source: Object) -> bool:
+	return stuck != null and stuck.source == source
+
+
+## Chopsticks pick him up: scripted, and no damage until he is let go. Returns false if he cannot be held.
+func grab(by: Node) -> bool:
+	if held_by != null or state == State.DEAD:
+		return false
+	held_by = by
+	stuck = null
+	set_controlled(true)
+	return true
+
+
+func release_grab() -> void:
+	if held_by == null:
+		return
+	held_by = null
+	set_controlled(false)
+	_ensure_tuning()
+	_invuln_timer = maxf(_invuln_timer, tuning.i_frame_time * 0.5)
+
+
+## A giant foot: damage and a short flat stun, no knockback. False if he is invulnerable, held or dead.
+func smoosh(half_hearts: int, stun_s: float) -> bool:
+	_ensure_tuning()
+	if game_state == null or state == State.DEAD or _invuln_timer > 0.0 or held_by != null:
+		return false
+	game_state.take_hit(half_hearts)
+	if state == State.DEAD:
+		return true
+	_invuln_timer = tuning.i_frame_time
+	flat_left = stun_s
+	velocity = Vector3.ZERO
+	return true
+
+
+## The floor under him is slippery for this many more seconds (a patch refreshes it every tick).
+func apply_slip(seconds: float) -> void:
+	slip_left = maxf(slip_left, seconds)
 
 
 func is_invulnerable() -> bool:
@@ -342,9 +420,12 @@ func _physics_process(delta: float) -> void:
 	_resolve_enemy_contacts()
 	_prev_bottom = bottom_now
 
+	_step_stick(delta)
 	match state:
 		State.DEAD:
 			_step_dead(delta)
+		_ when flat_left > 0.0:
+			_step_flat(delta)
 		State.HURT:
 			_step_hurt(delta)
 		State.ROLL:
@@ -371,6 +452,8 @@ func _process(delta: float) -> void:
 	var flashing: bool = _invuln_timer > 0.0 and state != State.DEAD \
 		and int(_invuln_timer / tuning.flash_interval) % 2 == 0
 	_visual.set_flash(flashing)
+	if flat_left > 0.0:
+		_visual.scale = Vector3(1.3, 0.3, 1.0) # flattened by a foot (gray box); the visual eases back afterwards
 
 
 func _tick_timers(delta: float) -> void:
@@ -381,6 +464,8 @@ func _tick_timers(delta: float) -> void:
 	_roll_timer = maxf(_roll_timer - delta, 0.0)
 	_roll_cooldown = maxf(_roll_cooldown - delta, 0.0)
 	_sauce_cooldown = maxf(_sauce_cooldown - delta, 0.0)
+	slip_left = maxf(slip_left - delta, 0.0)
+	flat_left = maxf(flat_left - delta, 0.0)
 	_drop_timer = maxf(_drop_timer - delta, 0.0)
 	_dead_timer = maxf(_dead_timer - delta, 0.0)
 
@@ -438,14 +523,20 @@ func _step_free(delta: float, input_x: float) -> void:
 	var accel: float
 	if grounded:
 		accel = tuning.acceleration if pushing else tuning.friction
+		if slip_left > 0.0:
+			accel *= tuning.slip_acceleration_scale if pushing else tuning.slip_friction_scale
 	else:
 		accel = tuning.air_acceleration if pushing else tuning.air_friction
 	# Input strength scales the target speed: a light push is a slow squiggle.
 	velocity.x = move_toward(velocity.x, input_x * tuning.max_speed, accel * delta)
+	if stuck != null:
+		velocity.x = 0.0 # stuck: no walking
 	_apply_gravity(delta)
 
 	if GameplayInputScript.just_pressed(ACTION_JUMP):
 		_buffer_timer = tuning.buffer_time
+	if stuck != null:
+		_buffer_timer = 0.0 # nor jumping
 	if _buffer_timer > 0.0 and (grounded or _coyote_timer > 0.0) and _has_skill(SKILL_JUMP):
 		_start_jump()
 	if Input.is_action_just_released(ACTION_JUMP) and velocity.y > 0.0 and state == State.JUMP:
@@ -465,6 +556,31 @@ func _step_free(delta: float, input_x: float) -> void:
 		_set_state(State.SQUIGGLE if pushing or not is_zero_approx(velocity.x) else State.IDLE)
 	else:
 		_set_state(State.JUMP if velocity.y > 0.0 else State.FALL)
+
+
+## The stick status: the wiggle presses and the fallback timer; he is free when one of them says so.
+func _step_stick(delta: float) -> void:
+	if held_by != null and not is_instance_valid(held_by):
+		release_grab() # whatever held him is gone (section reset): never stay held
+	if stuck == null:
+		return
+	if GameplayInputScript.just_pressed(ACTION_LEFT):
+		stuck.press(-1)
+	if GameplayInputScript.just_pressed(ACTION_RIGHT):
+		stuck.press(1)
+	stuck.tick(delta)
+	if stuck.released:
+		var why: String = stuck.reason
+		stuck = null
+		stick_released.emit(why)
+
+
+## Flattened by a foot: he cannot move for a moment, then he pops back.
+func _step_flat(delta: float) -> void:
+	velocity.x = 0.0
+	_apply_gravity(delta)
+	if flat_left <= 0.0:
+		_set_state(State.IDLE if grounded else State.FALL)
 
 
 func _step_roll(delta: float) -> void:

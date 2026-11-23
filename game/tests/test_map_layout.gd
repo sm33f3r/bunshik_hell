@@ -48,12 +48,13 @@ func test_the_layout_loads_with_its_three_sections() -> void:
 	var ids: Array[String] = []
 	for section: MapSectionScript in layout.sections:
 		ids.append(section.id)
-	check_eq(ids, ["prologue", "tutorial", "dining_room_start"] as Array[String], "sections in order")
+	check_eq(ids, ["prologue", "tutorial", "dining_room_start", "dining_room"] as Array[String], "sections in order")
 	check(layout.section("prologue").external, "the prologue is built by the prologue code, not from here")
 	check(layout.section("prologue").platforms.is_empty(), "so it lists nothing")
 	check(not layout.section("tutorial").platforms.is_empty(), "the tutorial has platforms")
 	check(not layout.section("dining_room_start").platforms.is_empty(), "so does the dining room start")
-	check(layout.section("dining_room_start").end_wall_text != "", "the dining room start ends in a marked wall")
+	check_eq(layout.section("dining_room_start").end_wall_text, "", "the dining room start goes on into the dining room (Task 3b-ii)")
+	check(layout.section("dining_room").end_wall_text != "", "the dining room ends in a marked wall")
 
 
 func test_every_step_of_the_main_path_can_be_done_at_85_percent() -> void:
@@ -71,15 +72,23 @@ func test_the_validation_names_the_step_that_is_too_hard() -> void:
 	gap_def.gap_fraction = 0.95 # wider than 85% of his longest jump
 	var reach: JumpReachScript = _reach()
 	var problems: Array[String] = LayoutGeometryScript.validate(_placed(layout, reach), reach)
-	check_eq(problems.size(), 1, "exactly the one step is reported")
-	if not problems.is_empty():
-		check("'tut_t2'" in problems[0] and "gap" in problems[0] and "section tutorial" in problems[0], "it says which step and what: " + problems[0])
+	var mine: Array[String] = []
+	for line: String in problems:
+		if "'tut_t2'" in line:
+			mine.append(line)
+	check_eq(mine.size(), 1, "exactly the one step is reported")
+	if not mine.is_empty():
+		check("gap" in mine[0] and "section tutorial" in mine[0], "it says which step and what: " + mine[0])
 	var high: MapLayoutScript = _layout().duplicate(true) as MapLayoutScript
 	for def: PlatformDefScript in high.section("tutorial").platforms:
 		if def.id == "tut_t1":
 			def.rise_fraction = 0.9 # a plain jump onto a ledge 90% of his jump height
 	problems = LayoutGeometryScript.validate(_placed(high, reach), reach)
-	check(not problems.is_empty() and "'tut_t1'" in problems[0] and "ledge" in problems[0], "a too high ledge is reported too: " + str(problems))
+	var ledge_problems: Array[String] = []
+	for line: String in problems:
+		if "'tut_t1'" in line and "ledge" in line:
+			ledge_problems.append(line)
+	check_eq(ledge_problems.size(), 1, "a too high ledge is reported too: " + str(problems))
 
 
 func test_the_two_helped_steps_really_need_their_help() -> void:
@@ -123,7 +132,12 @@ func test_the_jump_numbers_match_the_tuning() -> void:
 
 func test_platforms_follow_one_another_in_order_without_overlap() -> void:
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
-	check_eq(placed.size(), 10, "ten platforms (the prologue's table, six tutorial, three dining)")
+	var way: Array[LayoutGeometryScript.Placed] = []
+	for p: LayoutGeometryScript.Placed in placed:
+		if p.chain and p.def.kind != "floor":
+			way.append(p)
+	check(way.size() >= 10, "the way through: the prologue's table, six tutorial, three dining start, then the dining room")
+	placed = way
 	check_eq(placed[0].def.kind, "existing", "the first is the prologue's next table")
 	var d: PrologueDataScript = _prologue()
 	check_eq(placed[0].left, d.next_table_min_x, "placed where the prologue's table is")

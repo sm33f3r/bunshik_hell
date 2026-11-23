@@ -1,0 +1,22 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://hazards/chopsticks_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+telegraph_s = 0.8
+strike_hold_s = 0.25
+recover_s = 0.6
+cooldown_min_s = 3.0
+cooldown_max_s = 6.0
+strike_width_cm = 10.0
+strike_height_m = 3.0
+damage_half_hearts = 1
+aim_player = true
+wiggle_required = 4
+hold_max_s = 6.0
+lift_m = 2.5
+lift_speed_mps = 5.0
+takes_enemy_ids = PackedStringArray("mandu")
+enemy_lift_m = 8.0
+enemy_lift_s = 0.7
