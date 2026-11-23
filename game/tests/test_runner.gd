@@ -14,6 +14,13 @@ extends SceneTree
 ## frames per second), so they are slow and sit behind a flag:
 ##   godot --headless --path game -s res://tests/test_runner.gd -- --physics
 ## Add --only=<text> to run only the test files whose name contains <text>.
+##
+## A GDScript runtime error (a null call, a bad index, a wrong type...) inside a test or in anything it
+## runs aborts that function and prints "SCRIPT ERROR", but the test then has no failed check, so it
+## used to count as a pass. The runner now listens to the engine's log (OS.add_logger) and fails the
+## test that was running when a script error was reported (res://tests/fixtures/test_script_error.gd
+## proves it, see test_runner_failure.gd). Engine errors that are not script errors (the known
+## "!is_inside_tree()" noise) are not counted.
 
 const TESTS_DIR := "res://tests/"
 const PHYSICS_DIR := "res://tests/physics/"
@@ -21,6 +28,32 @@ const FIXTURES_DIR := "res://tests/fixtures/"
 const FIXTURES_FLAG := "--fixtures-only"
 const PHYSICS_FLAG := "--physics"
 const ONLY_PREFIX := "--only="
+
+
+## Collects the script errors the engine logs. _log_error may be called from any thread.
+class ScriptErrorLogger extends Logger:
+	var messages: Array[String] = []
+	var _mutex: Mutex = Mutex.new()
+
+	func _log_error(function: String, file: String, line: int, code: String, rationale: String,
+			_editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type != ERROR_TYPE_SCRIPT:
+			return
+		var text: String = rationale if rationale != "" else code
+		_mutex.lock()
+		messages.append("SCRIPT ERROR in %s:%d (%s): %s" % [file.get_file(), line, function, text])
+		_mutex.unlock()
+
+	## Returns what was collected and forgets it.
+	func take() -> Array[String]:
+		_mutex.lock()
+		var out: Array[String] = messages.duplicate()
+		messages.clear()
+		_mutex.unlock()
+		return out
+
+
+var _logger: ScriptErrorLogger
 
 
 func _initialize() -> void:
@@ -34,6 +67,8 @@ func _initialize() -> void:
 	for arg: String in args:
 		if arg.begins_with(ONLY_PREFIX):
 			only = arg.trim_prefix(ONLY_PREFIX)
+	_logger = ScriptErrorLogger.new()
+	OS.add_logger(_logger)
 	var started: int = Time.get_ticks_msec()
 	var passed: int = 0
 	var failed: int = 0
@@ -65,6 +100,7 @@ func _run_file(dir_path: String, file_name: String) -> Vector2i:
 		return Vector2i(0, 1)
 	var suite: Object = script.new()
 	suite.set("tree", self)
+	_logger.take() # whatever was logged before this file is not this file's
 	var file_started: int = Time.get_ticks_msec()
 	for method: Dictionary in script.get_script_method_list():
 		var method_name: String = method["name"]
@@ -75,6 +111,8 @@ func _run_file(dir_path: String, file_name: String) -> Vector2i:
 		if suite.has_method("after_each"):
 			await suite.call("after_each")
 		var failures: Array = suite.get("failures")
+		for error_text: String in _logger.take():
+			failures.append(error_text) # a script error inside the test (or what it ran) is a failure
 		if failures.is_empty():
 			passed += 1
 			print("ok    %s::%s" % [file_name, method_name])

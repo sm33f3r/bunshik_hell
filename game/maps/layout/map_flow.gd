@@ -69,7 +69,8 @@ var _guard: int = 0
 var _fade_t: float = 0.0
 ## The fade in progress is the tutorial's own end (he reached the dining room), not the skip.
 var _fade_exit: bool = false
-## The platform he stood on at the last tick ("" = none), for the "steps onto its platform again" respawn.
+## The last platform he stood on ("" = none yet), for the "steps onto its platform again" respawn. It is not
+## cleared while he is in the air, so jumping and landing on the same table is not stepping onto it.
 var _last_stand: String = ""
 
 
@@ -440,7 +441,8 @@ func fire_trigger(trigger: PromptTriggerScript) -> void:
 # --- Things that end up out of reach ----------------------------------------------------------------
 
 ## True when a spawned thing is where it is no use any more (see SpawnEntry): fallen off its platform,
-## or knocked over (flat) outside the stretch of its platform the entry calls useful.
+## or knocked over (flat) outside the stretch of its platform the entry calls useful. A required entry
+## is also no use when it is dead (or taken away), or flat where a flat one is spent (usable_when_flat).
 func is_out_of_reach(node: Node3D, entry: SpawnEntryScript) -> bool:
 	var platform: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, entry.platform_id)
 	if platform == null or not is_instance_valid(node):
@@ -448,6 +450,13 @@ func is_out_of_reach(node: Node3D, entry: SpawnEntryScript) -> bool:
 	var at: Vector3 = node.global_position if node.is_inside_tree() else node.position
 	if at.y < platform.top - entry.out_below_m:
 		return true
+	if entry.required_for_progress:
+		var alive: Variant = node.get("alive")
+		var lying_flat: bool = bool(node.get("flat"))
+		if alive != null and not bool(alive) and not lying_flat:
+			return true
+		if lying_flat and not entry.usable_when_flat:
+			return true
 	if entry.useful_from_m != entry.useful_to_m and bool(node.get("flat")):
 		var a: float = LayoutGeometryScript.x_on(platform, entry.useful_from_m)
 		var b: float = LayoutGeometryScript.x_on(platform, entry.useful_to_m)
@@ -470,8 +479,20 @@ func standing_on() -> String:
 	return ""
 
 
+## True when he stands on top of `node` (a knocked-over 단무지 he is climbing): it is not pulled away
+## from under him.
+func is_standing_on_node(node: Node3D) -> bool:
+	if player == null or not player.grounded or not is_instance_valid(node):
+		return false
+	var at: Vector3 = node.global_position if node.is_inside_tree() else node.position
+	var half: float = float(node.call("half_width")) if node.has_method("half_width") else 0.5
+	var top: float = at.y + float(node.get("body_height"))
+	var feet_y: float = player.global_position.y - player.body_half_height
+	return absf(player.global_position.x - at.x) <= half + STAND_TOLERANCE_M and absf(feet_y - top) <= STAND_TOLERANCE_M
+
+
 ## Every tick: a thing that has been out of reach for its respawn delay is put back as it started; so is
-## one that is out of reach when he steps onto its platform again.
+## one that is out of reach when he steps onto its platform again. (Not one he is standing on.)
 func _step_respawns(delta: float) -> void:
 	if builder == null:
 		return
@@ -479,17 +500,18 @@ func _step_respawns(delta: float) -> void:
 	for section_id: String in enabled_sections:
 		for node: Node3D in builder.enemies_of(section_id):
 			var entry: SpawnEntryScript = node.get_meta("entry", null) as SpawnEntryScript
-			if entry == null or not entry.respawn_when_out_of_reach:
+			if entry == null or not (entry.respawn_when_out_of_reach or entry.required_for_progress):
 				continue
 			if is_out_of_reach(node, entry):
 				var out_time: float = float(node.get_meta("out_time", 0.0)) + delta
 				node.set_meta("out_time", out_time)
-				var entered: bool = stand == entry.platform_id and _last_stand != stand
-				if out_time >= entry.respawn_delay_s or entered:
+				var entered: bool = stand == entry.platform_id and _last_stand != stand # from another table, not a hop on this one
+				if (out_time >= entry.respawn_delay_s or entered) and not is_standing_on_node(node):
 					builder.respawn_node(node)
 			else:
 				node.set_meta("out_time", 0.0)
-	_last_stand = stand
+	if stand != "":
+		_last_stand = stand # in the air he keeps the last table he stood on: a jump on one table is not stepping onto it again
 
 
 # --- Death and falls --------------------------------------------------------------------------------

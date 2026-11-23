@@ -16,13 +16,25 @@ extends Resource
 @export var group: String = ""
 
 @export_group("Respawn")
+## The way on needs this thing (a 단무지 he bounces on or climbs). It always comes back at its start
+## spot after respawn_delay_s when it is no use any more: dead, taken away, fallen off, or knocked flat
+## where a flat one is no use (see below); and at once when he steps onto its platform again. A flat one
+## he is standing on stays until he steps off. The soft-lock check (ProgressGraph) fails the tests if a
+## thing the way on depends on is not marked, so a wasted one can never block him. It implies the
+## respawn below (respawn_when_out_of_reach does not also have to be set).
+@export var required_for_progress: bool = false
 ## If it ends up out of reach (see below) for respawn_delay_s it is put back as it started. It is
 ## also put back at once when he steps onto its platform again. false = never.
 @export var respawn_when_out_of_reach: bool = false
 @export var respawn_delay_s: float = 4.0
+## A required thing that is knocked over (flat): true = a flat one is a platform that stays until he has
+## left the beat (the useful stretch below says where it has to lie); false = a flat one is spent, it
+## springs back upright after respawn_delay_s (a bounce source: rolling it must not cost him the bounce).
+@export var usable_when_flat: bool = true
 ## Out of reach: it fell this far below its platform's top ...
 @export var out_below_m: float = 1.5
 ## ... or it is knocked over (flat) anywhere outside this stretch of its platform (metres along it,
-## negative from its right edge). Both 0 = any flat position is fine.
+## negative from its right edge). Both 0 = any flat position is fine. (For a wheel with usable_when_flat
+## false it is the stretch where its flat body would be a step: the soft-lock check uses that.)
 @export var useful_from_m: float = 0.0
 @export var useful_to_m: float = 0.0

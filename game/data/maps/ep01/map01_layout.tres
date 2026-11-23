@@ -39,6 +39,22 @@ length_cm = 60
 gap_fraction = 0.6
 color = Color(0.761, 0.604, 0.384, 1)
 
+; The second way up to the first ledge: a napkin box against its wall. Too high to jump onto
+; (rise_basis "platform"), it is a step from a knocked-over wheel lying next to it, and from its top the
+; ledge is a plain jump. The bounce is the first way (hint c1), the roll the second (hint c2).
+[sub_resource type="Resource" id="plat_tut_box"]
+script = ExtResource("s_plat")
+id = "tut_box"
+kind = "prop"
+length_cm = 8
+host = "tut_t2"
+anchor = "at_end"
+rise_basis = "platform"
+rise_fraction = 0.84
+chain = false
+main_path = false
+color = Color(0.920, 0.920, 0.860, 1)
+
 [sub_resource type="Resource" id="plat_tut_ledge1"]
 script = ExtResource("s_plat")
 id = "tut_ledge1"
@@ -116,6 +132,12 @@ scene = ExtResource("sc_danmuji")
 along_m = 5.0
 start_dir = -1.0
 group = "c1"
+required_for_progress = true
+respawn_delay_s = 4.0
+usable_when_flat = false
+out_below_m = 1.5
+useful_from_m = -4.3
+useful_to_m = -1.9
 
 [sub_resource type="Resource" id="sp_c2"]
 script = ExtResource("s_spawn")
@@ -123,6 +145,7 @@ platform_id = "tut_t3"
 scene = ExtResource("sc_danmuji")
 along_m = 5.0
 group = "c2"
+required_for_progress = true
 respawn_when_out_of_reach = true
 respawn_delay_s = 4.0
 out_below_m = 1.5
@@ -246,7 +269,7 @@ external = true
 [sub_resource type="Resource" id="sec_tutorial"]
 script = ExtResource("s_section")
 id = "tutorial"
-platforms = Array[ExtResource("s_plat")]([SubResource("plat_prologue_exit_table"), SubResource("plat_tut_t1"), SubResource("plat_tut_t2"), SubResource("plat_tut_ledge1"), SubResource("plat_tut_t3"), SubResource("plat_tut_ledge2"), SubResource("plat_tut_t4")])
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_prologue_exit_table"), SubResource("plat_tut_t1"), SubResource("plat_tut_t2"), SubResource("plat_tut_box"), SubResource("plat_tut_ledge1"), SubResource("plat_tut_t3"), SubResource("plat_tut_ledge2"), SubResource("plat_tut_t4")])
 spawns = Array[ExtResource("s_spawn")]([SubResource("sp_b"), SubResource("sp_c1"), SubResource("sp_c2"), SubResource("sp_d1"), SubResource("sp_d2"), SubResource("sp_d3")])
 checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_tut")])
 triggers = Array[ExtResource("s_trig")]([SubResource("tr_a"), SubResource("tr_b"), SubResource("tr_c1"), SubResource("tr_c2"), SubResource("tr_d"), SubResource("tr_e")])

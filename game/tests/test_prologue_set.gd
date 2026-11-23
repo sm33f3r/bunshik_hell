@@ -11,6 +11,8 @@ const MovementTuningScript := preload("res://player/movement_tuning.gd")
 const Layers := preload("res://systems/layers.gd")
 
 const TOLERANCE: float = 0.02 # 2 %
+## Far outside the section, so no stab column can ever contain him.
+const FAR_FROM_EVERY_STAB_X: float = 1000.0
 
 var _nodes: Array[Node] = []
 
@@ -153,9 +155,14 @@ func test_the_forearm_blocks_the_way_until_the_exit_opens() -> void:
 	check(not wall.disabled, "it is solid")
 	check(((wall.shape as BoxShape3D).size.y) > 10.0, "and too tall to jump over")
 	d.gs.prologue_intro_seen = true
+	# Deterministic: the director's rng starts unseeded, and a stab that lands on him can lift him and
+	# then eat him, which restarts the count (that made this test fail about 1 run in 12). So fixed seeds,
+	# and he stands far outside every stab's column (a stab never reaches past the section's x range).
+	d.rng.seed = 1234
+	d.reaction_rng.seed = 5678
 	d.begin()
 	d.debug_free()
-	d.player_x = 5.0
+	d.player_x = FAR_FROM_EVERY_STAB_X
 	d.player_bottom_y = 13.0
 	d.debug_set_count(2)
 	for i: int in 240:
