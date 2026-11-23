@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://hazards/chopsticks.tscn" id="sc_chop"]
 [ext_resource type="PackedScene" path="res://hazards/giant_foot.tscn" id="sc_foot"]
 [ext_resource type="PackedScene" path="res://hazards/gum_patch.tscn" id="sc_gum"]
+[ext_resource type="PackedScene" path="res://hazards/falling_zone.tscn" id="sc_fall"]
 [ext_resource type="PackedScene" path="res://items/natrium_pickup.tscn" id="sc_natrium"]
 [ext_resource type="PackedScene" path="res://items/sauce_drip.tscn" id="sc_drip"]
 
@@ -889,6 +890,51 @@ along_m = 262
 start_dir = -1
 group = "lane"
 
+[sub_resource type="Resource" id="sp_f1"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_fall")
+along_m = 40
+size_cm = 150
+params = {"interval_scale": 2.2}
+group = "fall"
+
+[sub_resource type="Resource" id="sp_f2"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_fall")
+along_m = 90
+size_cm = 150
+params = {"interval_scale": 1.8}
+group = "fall"
+
+[sub_resource type="Resource" id="sp_f3"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_fall")
+along_m = 145
+size_cm = 150
+params = {"interval_scale": 1.3}
+group = "fall"
+
+[sub_resource type="Resource" id="sp_f4"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_fall")
+along_m = 195
+size_cm = 150
+params = {"interval_scale": 0.9}
+group = "fall"
+
+[sub_resource type="Resource" id="sp_f5"]
+script = ExtResource("s_spawn")
+platform_id = "dining_floor"
+scene = ExtResource("sc_fall")
+along_m = 230
+size_cm = 150
+params = {"interval_scale": 0.6}
+group = "fall"
+
 [sub_resource type="Resource" id="cp_mid"]
 script = ExtResource("s_cp")
 id = "map01_dining_mid"
@@ -900,7 +946,7 @@ lift_m = 0.5
 script = ExtResource("s_section")
 id = "dining_room"
 platforms = Array[ExtResource("s_plat")]([SubResource("plat_r_t1"), SubResource("plat_r_t2"), SubResource("plat_r_t3"), SubResource("plat_r_t4"), SubResource("plat_box_a"), SubResource("plat_sill_a"), SubResource("plat_r_t5"), SubResource("plat_r_t6"), SubResource("plat_r_t7"), SubResource("plat_r_t8"), SubResource("plat_r_t9"), SubResource("plat_box_b"), SubResource("plat_sill_b"), SubResource("plat_r_t10"), SubResource("plat_r_t11"), SubResource("plat_box_req"), SubResource("plat_sill_req"), SubResource("plat_r_t12"), SubResource("plat_r_t13"), SubResource("plat_r_t14"), SubResource("plat_r_t15"), SubResource("plat_dining_floor"), SubResource("plat_chair_dining_3"), SubResource("plat_chair_r_t5"), SubResource("plat_chair_r_t8"), SubResource("plat_chair_r_t13")])
-spawns = Array[ExtResource("s_spawn")]([SubResource("sp_t1"), SubResource("sp_t2"), SubResource("sp_t3"), SubResource("sp_t4"), SubResource("sp_t5"), SubResource("sp_t6"), SubResource("sp_t7"), SubResource("sp_t8"), SubResource("sp_t9"), SubResource("sp_t10"), SubResource("sp_t11"), SubResource("sp_t12"), SubResource("sp_t13"), SubResource("sp_t14"), SubResource("sp_t15"), SubResource("sp_t16"), SubResource("sp_t17"), SubResource("sp_t18"), SubResource("sp_t19"), SubResource("sp_t20"), SubResource("sp_t21"), SubResource("sp_t22"), SubResource("sp_t23"), SubResource("sp_t24"), SubResource("sp_t25"), SubResource("sp_t26"), SubResource("sp_t27"), SubResource("sp_l28"), SubResource("sp_l29"), SubResource("sp_l30"), SubResource("sp_l31"), SubResource("sp_l32"), SubResource("sp_l33"), SubResource("sp_l34"), SubResource("sp_l35"), SubResource("sp_l36"), SubResource("sp_l37"), SubResource("sp_l38"), SubResource("sp_l39"), SubResource("sp_l40"), SubResource("sp_l41"), SubResource("sp_l42"), SubResource("sp_l43")])
+spawns = Array[ExtResource("s_spawn")]([SubResource("sp_t1"), SubResource("sp_t2"), SubResource("sp_t3"), SubResource("sp_t4"), SubResource("sp_t5"), SubResource("sp_t6"), SubResource("sp_t7"), SubResource("sp_t8"), SubResource("sp_t9"), SubResource("sp_t10"), SubResource("sp_t11"), SubResource("sp_t12"), SubResource("sp_t13"), SubResource("sp_t14"), SubResource("sp_t15"), SubResource("sp_t16"), SubResource("sp_t17"), SubResource("sp_t18"), SubResource("sp_t19"), SubResource("sp_t20"), SubResource("sp_t21"), SubResource("sp_t22"), SubResource("sp_t23"), SubResource("sp_t24"), SubResource("sp_t25"), SubResource("sp_t26"), SubResource("sp_t27"), SubResource("sp_l28"), SubResource("sp_l29"), SubResource("sp_l30"), SubResource("sp_l31"), SubResource("sp_l32"), SubResource("sp_l33"), SubResource("sp_l34"), SubResource("sp_l35"), SubResource("sp_l36"), SubResource("sp_l37"), SubResource("sp_l38"), SubResource("sp_l39"), SubResource("sp_l40"), SubResource("sp_l41"), SubResource("sp_l42"), SubResource("sp_l43"), SubResource("sp_f1"), SubResource("sp_f2"), SubResource("sp_f3"), SubResource("sp_f4"), SubResource("sp_f5")])
 checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_mid")])
 end_wall_text = "[dev] Map 1 continues here (Task 3c: the first ramyeon)"
 

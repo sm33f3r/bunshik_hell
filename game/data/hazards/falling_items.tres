@@ -1,0 +1,24 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://hazards/falling_zone_def.gd" id="1_def"]
+[ext_resource type="Script" path="res://hazards/falling_item_def.gd" id="2_item"]
+[ext_resource type="Resource" path="res://data/hazards/falling_chopsticks.tres" id="3_chop"]
+[ext_resource type="Resource" path="res://data/hazards/falling_spoon.tres" id="4_spoon"]
+
+[resource]
+script = ExtResource("1_def")
+telegraph_s = 0.6
+strike_hold_s = 0.05
+recover_s = 0.2
+cooldown_min_s = 2.5
+cooldown_max_s = 5.0
+strike_width_cm = 3.0
+strike_height_m = 3.0
+damage_half_hearts = 1
+aim_player = false
+items = Array[ExtResource("2_item")]([ExtResource("3_chop"), ExtResource("4_spoon")])
+cap = 4
+start_height_m = 11.0
+active_range_m = 30.0
+clearance_cm = 3.0
+hits_enemies = true

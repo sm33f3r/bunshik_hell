@@ -1,0 +1,14 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://hazards/falling_item_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = "falling_chopsticks"
+weight = 3.0
+fall_speed_mps = 14.0
+fall_width_cm = 3.0
+fall_length_cm = 12.0
+damage_half_hearts = 1
+prop_size_cm = Vector3(20, 1.8, 3)
+color = Color(0.74, 0.76, 0.8, 1)

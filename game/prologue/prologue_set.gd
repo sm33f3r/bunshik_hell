@@ -13,6 +13,7 @@ extends Node3D
 const PrologueDataScript := preload("res://prologue/prologue_data.gd")
 const SetDimensionsScript := preload("res://prologue/set_dimensions.gd")
 const Layers := preload("res://systems/layers.gd")
+const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
 
 const WALL_HEIGHT_M: float = 40.0
 const WALL_THICKNESS_M: float = 0.6
@@ -187,10 +188,10 @@ func _build_counter(level: Node3D) -> void:
 	var top: float = data.counter_top_y
 	var length: float = data.counter_length_m
 	var depth: float = d.counter_depth_cm * m
-	_box(level, "Counter", Vector3(length, top, depth), Vector3(length * 0.5, top * 0.5, 0.0),
+	var counter: Node3D = _box(level, "Counter", Vector3(length, top, depth), Vector3(length * 0.5, top * 0.5, 0.0),
 		Color(0.6, 0.4, 0.25), true)
-	_box(level, "CounterEdge", Vector3(length, 0.04, depth + 0.02), Vector3(length * 0.5, top - 0.01, 0.0),
-		Color(0.8, 0.62, 0.4), false)
+	# The lighter top strip is part of the counter's own picture (a child of its collider), not a separate prop.
+	add_mesh(counter, "CounterEdge", box_mesh(Vector3(length, 0.04, depth + 0.02)), Color(0.8, 0.62, 0.4), Vector3(0.0, top * 0.5 - 0.01, 0.0))
 	# Stools in front of the counter (decor): seat width is the real 35 cm.
 	var seat_w: float = d.stool_seat_width_cm * m
 	var seat_h: float = d.stool_seat_height_cm * m
@@ -233,8 +234,9 @@ func _build_props(props: Node3D) -> void:
 	add_mesh(holder, "Can", cylinder_mesh(holder_r, holder_r, holder_h), Color(0.7, 0.72, 0.76), Vector3.ZERO)
 	for i: int in 3:
 		var u: float = float(i - 1)
+		# Inside the can's own bounds: a utensil sticking out of it would be decor standing in the lane.
 		add_mesh(holder, "Utensil%d" % i, box_mesh(Vector3(0.16, holder_h * 0.35, 0.1)), Color(0.85, 0.66, 0.38),
-			Vector3(u * holder_r * 0.5, holder_h * 0.5 + holder_h * 0.1, 0.0))
+			Vector3(u * holder_r * 0.5, holder_h * 0.5 - holder_h * 0.175, 0.0))
 
 
 ## Where the live 만두 start: spread over her plate, standing on it.
@@ -305,7 +307,9 @@ func _build_exit(level: Node3D, exit: Node3D) -> void:
 		Color(0.45, 0.6, 0.45), true)
 	for i: int in 2:
 		var leg_x: float = data.next_table_min_x + (0.06 + 0.88 * float(i)) * len
-		_box(level, "NextTableLeg%d" % i, Vector3(0.6, top - thick, 0.6), Vector3(leg_x, (top - thick) * 0.5, 0.0),
+		# Decor, so behind the character lane (the table's depth), never in it.
+		var leg_z: float = LaneRulesScript.decor_z("behind", table_depth, 1.0 * m, 0.6)
+		_box(level, "NextTableLeg%d" % i, Vector3(0.6, top - thick, 0.6), Vector3(leg_x, (top - thick) * 0.5, leg_z),
 			Color(0.4, 0.5, 0.4), false)
 
 

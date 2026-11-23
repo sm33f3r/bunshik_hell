@@ -274,7 +274,7 @@ func test_a_fall_is_caught_on_the_floor_in_the_dining_room_and_by_the_checkpoint
 
 func test_every_spawn_entry_is_complete() -> void:
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
-	var allowed: Array[String] = ["mandu", "danmuji", "gimbap_train", "chopsticks", "giant_foot", "gum_patch", "natrium_pickup", "sauce_drip"]
+	var allowed: Array[String] = ["mandu", "danmuji", "gimbap_train", "chopsticks", "giant_foot", "gum_patch", "falling_zone", "natrium_pickup", "sauce_drip"]
 	var entries: int = 0
 	for entry: SpawnEntryScript in _dining().spawns:
 		entries += 1

@@ -39,6 +39,18 @@ extends Resource
 @export var main_path: bool = true
 @export var color: Color = Color(0.62, 0.45, 0.28)
 
+@export_group("Decor")
+## Where this platform's decor that is NOT a collider (a table's legs, a chair's legs) stands across the
+## character lane. "behind": entirely further from the camera than the lane (the lane is the depth of
+## the tables he and the enemies walk on), so nothing they can walk through is ever in their way.
+## LaneRules tests that no decor is in the lane.
+@export_enum("behind") var decor_layer: String = "behind"
+## Space between the back edge of the lane and the decor (real centimetres, times the world scale).
+@export var decor_gap_cm: float = 1.0
+## The legs' size: this wide (x) and this deep (z), real centimetres.
+@export var leg_width_cm: float = 3.4
+@export var leg_depth_cm: float = 3.4
+
 @export_group("Floor")
 ## The floor lane runs from under `span_from` to under `span_to` (platform ids), `span_margin_cm`
 ## further out at each end. Its top is `drop_cm` below the top of `drop_from`. At its left end a wall

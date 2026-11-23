@@ -97,6 +97,8 @@ var _buffer_timer: float = 0.0
 var _invuln_timer: float = 0.0
 var _hurt_timer: float = 0.0
 var _roll_timer: float = 0.0
+## Letting go of jump cuts the rise only of a jump he made himself, never a bounce off an enemy.
+var _jump_cut_allowed: bool = true
 var _roll_cooldown: float = 0.0
 var _sauce_cooldown: float = 0.0
 var _roll_dir: float = 1.0
@@ -539,7 +541,7 @@ func _step_free(delta: float, input_x: float) -> void:
 		_buffer_timer = 0.0 # nor jumping
 	if _buffer_timer > 0.0 and (grounded or _coyote_timer > 0.0) and _has_skill(SKILL_JUMP):
 		_start_jump()
-	if Input.is_action_just_released(ACTION_JUMP) and velocity.y > 0.0 and state == State.JUMP:
+	if Input.is_action_just_released(ACTION_JUMP) and velocity.y > 0.0 and state == State.JUMP and _jump_cut_allowed:
 		velocity.y *= tuning.short_hop_cut
 
 	if GameplayInputScript.just_pressed(ACTION_DOWN):
@@ -618,6 +620,7 @@ func _apply_gravity(delta: float) -> void:
 
 func _start_jump() -> void:
 	velocity.y = tuning.jump_velocity
+	_jump_cut_allowed = true
 	_buffer_timer = 0.0
 	_coyote_timer = 0.0
 	grounded = false
@@ -716,6 +719,7 @@ func _hit_enemy(enemy: EnemyBaseScript, attack: String) -> void:
 		hurt(enemy.contact_damage(), enemy.global_position.x)
 	elif attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP:
 		velocity.y = tuning.bounce_velocity
+		_jump_cut_allowed = false # letting go of the button must not cut a bounce (the 단무지's throw to the ledge)
 		if (result["reactions"] as Array).has(ReactionTableScript.REACTION_BOUNCE_BOOST):
 			velocity.y *= tuning.bounce_boost_multiplier * enemy.bounce_multiplier()
 		grounded = false

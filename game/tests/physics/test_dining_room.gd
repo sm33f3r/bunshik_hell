@@ -80,7 +80,7 @@ func clear_enemies() -> void:
 func hazards_off(kinds: Array[String]) -> void:
 	for node: Node in tree.get_nodes_in_group("hazards"):
 		var file: String = (node.get_script() as Script).resource_path.get_file()
-		if kinds.has(file):
+		if kinds.has(file) or file == "falling_zone.gd": # the falling items only ever have their own tests
 			node.call("set_enabled", false)
 
 

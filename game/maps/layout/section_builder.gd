@@ -15,6 +15,7 @@ const SpawnEntryScript := preload("res://maps/layout/spawn_entry.gd")
 const LayoutGeometryScript := preload("res://maps/layout/layout_geometry.gd")
 const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const Layers := preload("res://systems/layers.gd")
+const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
 
 const WALL_HEIGHT_M: float = 40.0
 const WALL_THICKNESS_M: float = 0.6
@@ -74,10 +75,24 @@ func _build_platform(p: LayoutGeometryScript.Placed) -> StaticBody3D:
 		var leg_h: float = maxf(p.top - p.thickness - floor_y, 0.1)
 		for i: int in 2:
 			var leg_x: float = (-0.5 + 0.06 + 0.88 * float(i)) * p.length()
-			PrologueSetScript.add_mesh(body, "Leg%d" % i, PrologueSetScript.box_mesh(Vector3(0.6, leg_h, 0.6)),
-				p.def.color.darkened(0.35), Vector3(leg_x, -p.thickness * 0.5 - leg_h * 0.5, 0.0))
+			_add_leg(body, p, "Leg%d" % i, leg_x, -p.thickness * 0.5 - leg_h * 0.5, leg_h)
+	elif p.def.kind == "block":
+		# A chair step is a seat: one leg under it, down to the floor.
+		var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.floor_at(placed, p.center_x())
+		if lane != null:
+			var seat_h: float = maxf(p.top - p.thickness - lane.top, 0.1)
+			_add_leg(body, p, "Leg0", 0.0, -p.thickness * 0.5 - seat_h * 0.5, seat_h)
 	add_child(body)
 	return body
+
+
+## A leg of decor under `body` (not a collider): behind the character lane, never in it.
+func _add_leg(body: StaticBody3D, p: LayoutGeometryScript.Placed, leg_name: String, x: float, y: float, height: float) -> void:
+	var width: float = p.def.leg_width_cm * m_per_cm
+	var leg_depth: float = p.def.leg_depth_cm * m_per_cm
+	var z: float = LaneRulesScript.decor_z(p.def.decor_layer, depth_m, p.def.decor_gap_cm * m_per_cm, leg_depth)
+	PrologueSetScript.add_mesh(body, leg_name, PrologueSetScript.box_mesh(Vector3(width, height, leg_depth)),
+		p.def.color.darkened(0.35), Vector3(x, y, z))
 
 
 func _floor_top_under(p: LayoutGeometryScript.Placed) -> float:
@@ -171,6 +186,8 @@ func _make(entry: SpawnEntryScript, section_id: String, index: int) -> Node3D:
 	node.set("start_dir", entry.start_dir)
 	for key: Variant in entry.params:
 		node.set(String(key), entry.params[key])
+	if node.has_method("set_cover"):
+		node.call("set_cover", cover_ranges())
 	add_child(node)
 	node.global_position = LayoutGeometryScript.spawn_position(placed, entry)
 	node.set_meta("section_id", section_id)
@@ -178,6 +195,16 @@ func _make(entry: SpawnEntryScript, section_id: String, index: int) -> Node3D:
 	node.set_meta("entry", entry)
 	node.set_meta("entry_index", index)
 	return node
+
+
+## The x ranges of everything above the floor lane (tables, ledges, boxes, sills, chair steps): a zone
+## that lets things fall onto the lane keeps clear of them.
+func cover_ranges() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for p: LayoutGeometryScript.Placed in placed:
+		if p.def.kind != "floor" and p.def.kind != "existing":
+			out.append(Vector2(p.left, p.right))
+	return out
 
 
 ## Puts one spawned thing back as it started (a 단무지 that ended up out of reach). Returns the new node.

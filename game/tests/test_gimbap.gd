@@ -48,7 +48,7 @@ func test_gimbap_tres_holds_every_number() -> void:
 	var def: EnemyDefScript = _def()
 	check_eq(def.id, "gimbap", "id")
 	check_eq(def.material, "segmented", "its own material row")
-	check(def.max_hp >= 2, "a slice takes a couple of hits")
+	check_eq(def.max_hp, 1, "a slice is small: one stomp (1 damage) kills it")
 	check_eq(def.contact_damage_half_hearts, 2, "contact: 1 heart")
 	check(def.walk_speed_mps > 0.0, "marching speed")
 	check(def.slice_size_cm > 0.0 and def.slice_thickness_cm > 0.0 and def.slice_gap_cm >= 0.0, "slice size, thickness, gap")

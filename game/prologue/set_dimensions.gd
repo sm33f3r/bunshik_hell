@@ -52,9 +52,9 @@ extends Resource
 @export var shop_floor_min_x_cm: float = -800.0
 @export var shop_floor_max_x_cm: float = 400.0
 @export var dining_table_width_cm: float = 90.0
-@export var dining_table_depth_cm: float = 60.0
+@export var dining_table_depth_cm: float = 20.0
 @export var dining_table_x_cm: PackedFloat32Array = PackedFloat32Array([-150.0, -280.0, -410.0])
-@export var dining_table_z_cm: float = -10.0
+@export var dining_table_z_cm: float = -31.0
 @export var back_wall_z_cm: float = -45.0
 @export var menu_board_x_cm: float = -330.0
 @export var kitchen_x_cm: float = -620.0

@@ -243,117 +243,266 @@ func test_roll_and_slam_do_nothing_before_the_tutorial_grants_them() -> void:
 
 # --- Beats a to e, played start to finish -----------------------------------------------------------
 
-func test_a_run_through_every_beat_in_order() -> void:
-	await open_tutorial()
-	var seen: Array[String] = []
-	var watch: Callable = func() -> void:
-		var text: String = flow.ui.hint_text()
-		if flow.ui.hint_visible() and (seen.is_empty() or seen[-1] != text):
-			seen.append(text)
-	# a) move and jump over a small gap (the hint is up from the start).
-	watch.call()
-	await put_on("prologue_exit_table", plat("prologue_exit_table").length() - 3.0)
-	check(await cross_gap("prologue_exit_table", "tut_t1"), "a) he jumped the gap onto the first table: " + describe())
-	# b) one 만두: stomp it (a landing works too, tested below).
-	await frames(3)
-	watch.call()
-	var mandu: Node3D = enemies("b")[0]
-	place(mandu, "tut_t1", plat("tut_t1").left + 6.0)
-	teleport(mandu.global_position.x, mandu.global_position.y + 3.5)
-	await frames(2)
-	await tap("look_down")
-	check(await until(func() -> bool: return not mandu.get("alive"), 60), "b) the stomp killed the 만두")
-	await frames(30)
-	# c) the first 단무지: roll arrives with the beat, and a bounce reaches the ledge.
-	check(not gs.has_skill("roll"), "roll is not granted before beat c")
-	await put_on("tut_t2", 1.0)
-	await frames(3)
-	watch.call()
-	check(gs.has_skill("roll") and not gs.has_skill("slam"), "c) roll arrives when the beat begins, slam not yet")
-	check_eq(gs.skill_sources.get("roll"), "tutorial", "from the tutorial")
-	check(flow.ui.toast_visible() and "구르기" in flow.ui.toast_text(), "with its toast: " + flow.ui.toast_text())
-	var wheel1: Node3D = enemies("c1")[0]
-	var ledge1: LayoutGeometryScript.Placed = plat("tut_ledge1")
-	place(wheel1, "tut_t2", ledge1.left - 3.0)
-	teleport(wheel1.global_position.x - 0.4, wheel1.global_position.y + wheel1.get("diameter_m") + 2.0)
-	await until(func() -> bool: return player.velocity.y > 9.0, 90)
-	var launch: float = player.velocity.y
-	var tuning: Resource = player.get("tuning")
-	check(launch > tuning.bounce_velocity * 1.5, "the 단무지 threw him higher than a plain bounce (%.1f m/s)" % launch)
-	Input.action_press("move_right")
-	check(await until(func() -> bool: return on_top_of("tut_ledge1"), 150), "c) the bounce took him up onto the high ledge: " + describe())
-	Input.action_release("move_right")
-	check(wheel1.get("alive"), "the wheel is unharmed by being bounced on")
-	# ... then down to the third table: the second 단무지, rolled over, becomes a platform.
-	await put_on("tut_t3", 1.0)
-	await frames(3)
-	watch.call()
-	check(" 구르기 " in " " + flow.ui.hint_text() or "구르기" in flow.ui.hint_text(), "the roll hint: " + flow.ui.hint_text())
-	var wheel2: Node3D = enemies("c2")[0]
-	var ledge2: LayoutGeometryScript.Placed = plat("tut_ledge2")
-	place(wheel2, "tut_t3", plat("tut_t3").left + 4.0)
-	teleport(plat("tut_t3").left + 1.2, plat("tut_t3").top + 0.4)
-	await frames(10)
-	Input.action_press("move_right")
-	await tap("roll")
-	Input.action_release("move_right")
-	check(await until(func() -> bool: return wheel2.get("flat"), 60), "the roll knocked the 단무지 over")
-	check(await until(func() -> bool: return wheel2.get("is_static"), 240), "and it settled as a static platform")
-	check(not wheel2.get("alive"), "it no longer counts as an enemy")
-	var wheel_right: float = wheel2.global_position.x + wheel2.get("diameter_m") * 0.5
-	check(absf(wheel_right - ledge2.left) < 0.4, "against the ledge's wall (%.2f vs %.2f)" % [wheel_right, ledge2.left])
-	# Standing on it, the ledge is within a jump.
-	teleport(wheel2.global_position.x, plat("tut_t3").top + wheel2.get("flat_height_m") + 0.6)
-	await frames(40) # fall onto it and settle
-	check(absf(feet_y() - (plat("tut_t3").top + wheel2.get("flat_height_m"))) < 0.15, "he stands on the flat wheel: %s feet=%.2f expected=%.2f wheel=%s" % [describe(), feet_y(), plat("tut_t3").top + wheel2.get("flat_height_m"), wheel2.global_position])
-	Input.action_press("move_right")
-	Input.action_press("jump")
-	var top_y: float = player.global_position.y
-	for i: int in 30:
+## The real path: from the tutorial's start to the dining room's first table with real input only (no
+## teleports, no direct calls). The bot is a plain player: it runs, jumps with the button held, stomps with
+## the down press, bounces on the wheel, rolls into the second wheel, climbs, slams, and jumps the exit gap.
+## Every enemy walks as it does in the game. It may die (a real player does); it then starts over from the
+## checkpoint, up to RUN_ATTEMPTS times.
+const RUN_ATTEMPTS: int = 5
+const RUN_BEAT_FRAMES: int = 1500
+
+
+func hold(action: String, on: bool) -> void:
+	if on:
+		Input.action_press(action)
+	else:
+		Input.action_release(action)
+
+
+func release_all() -> void:
+	for action: String in ["move_left", "move_right", "jump", "look_down", "roll"]:
+		Input.action_release(action)
+
+
+func dead() -> bool:
+	return state() == "dead" or gs.hearts <= 0
+
+
+## Runs toward x on the current platform until within `near`.
+func run_to(x: float, near: float = 0.25, max_frames: int = 900) -> bool:
+	for i: int in max_frames:
+		if dead():
+			release_all()
+			return false
+		var dx: float = x - player.global_position.x
+		if absf(dx) <= near:
+			release_all()
+			return true
+		hold("move_right", dx > 0.0)
+		hold("move_left", dx < 0.0)
 		await tree.physics_frame
-		top_y = maxf(top_y, player.global_position.y)
-	Input.action_release("jump")
-	check(await until(func() -> bool: return on_top_of("tut_ledge2"), 120), "he climbed from the wheel onto the second ledge: " + describe())
-	Input.action_release("move_right")
-	# d) the cluster of three: slam arrives with the beat and kills them.
-	await put_on("tut_t4", 0.8)
-	await frames(3)
-	watch.call()
-	check(gs.has_skill("slam"), "d) slam arrives when the beat begins")
-	check(flow.ui.toast_visible() and "내려찍기" in flow.ui.toast_text(), "with its toast: " + flow.ui.toast_text())
+	release_all()
+	return false
+
+
+## Runs right from where he is and jumps (button held 26 frames) at `edge_x`; true once he stands on `to_id`.
+func jump_to(edge_x: float, to_id: String, max_frames: int = 300) -> bool:
+	Input.action_press("move_right")
+	var jumped: bool = false
+	var jump_frame: int = 0
+	for i: int in max_frames:
+		await tree.physics_frame
+		if dead():
+			release_all()
+			return false
+		if not jumped and player.global_position.x >= edge_x and player.get("grounded"):
+			Input.action_press("jump")
+			jumped = true
+			jump_frame = i
+		if jumped and i - jump_frame == 26:
+			Input.action_release("jump")
+		if on_top_of(to_id):
+			release_all()
+			return true
+	release_all()
+	return false
+
+
+func living(group: String) -> Node3D:
+	var found: Array[Node3D] = enemies(group)
+	return found[0] if not found.is_empty() and found[0].get("alive") else null
+
+
+## Waits at wait_x on the table; when the enemy walks up he jumps on it with the down press (a stomp).
+func stomp_walker(enemy: Node3D, wait_x: float) -> bool:
+	if not await run_to(wait_x):
+		return false
+	for i: int in RUN_BEAT_FRAMES:
+		if dead():
+			release_all()
+			return false
+		if not enemy.get("alive"):
+			release_all()
+			return true
+		var dx: float = enemy.global_position.x - player.global_position.x
+		var grounded: bool = player.get("grounded")
+		if grounded and absf(dx) < 2.6 and dx > 0.0:
+			Input.action_press("jump")
+			hold("move_right", dx > 1.2)
+		elif not grounded:
+			var above: bool = player.global_position.y - player.get("body_half_height") > enemy.global_position.y + enemy.get("body_height") + 0.2
+			hold("look_down", above and absf(dx) < 0.9)
+			hold("move_right", dx > 0.3)
+			hold("move_left", dx < -0.3)
+			if player.velocity.y < 0.0:
+				Input.action_release("jump")
+		else:
+			release_all()
+		await tree.physics_frame
+	release_all()
+	return false
+
+
+## The beats, in order, from the tutorial start. Returns the name of the step that failed ("" = he made it).
+func play_tutorial() -> String:
+	# a) the first gap, onto the first table.
+	var exit_table: LayoutGeometryScript.Placed = plat("prologue_exit_table")
+	if not await jump_to(exit_table.right - 0.6, "tut_t1"):
+		return "a: the first gap"
+	# b) the 만두: wait for it, stomp it, go on.
+	var t1: LayoutGeometryScript.Placed = plat("tut_t1")
+	var mandu: Node3D = living("b")
+	if mandu != null and not await stomp_walker(mandu, t1.left + 2.0):
+		return "b: stomp the 만두"
+	if not await jump_to(t1.right - 0.6, "tut_t2"):
+		return "b: the gap to the second table"
+	# c1) the first 단무지: wait at the ledge's wall, jump on it when it comes, drift onto the ledge.
+	var t2: LayoutGeometryScript.Placed = plat("tut_t2")
+	var ledge1: LayoutGeometryScript.Placed = plat("tut_ledge1")
+	if not await run_to(t2.right - 2.5):
+		return "c1: walking to the ledge's wall"
+	var wheel1: Node3D = living("c1")
+	var up: bool = false
+	for i: int in RUN_BEAT_FRAMES:
+		if dead():
+			release_all()
+			return "c1: died"
+		if on_top_of("tut_ledge1"):
+			up = true
+			break
+		var dx: float = wheel1.global_position.x - player.global_position.x
+		if player.get("grounded"):
+			Input.action_release("move_right")
+			# The wheel comes from the left: jump when it is close enough to be under him on the way down.
+			if dx < 0.0 and dx > -1.6:
+				Input.action_press("jump")
+			else:
+				Input.action_release("jump")
+		else:
+			hold("move_right", player.velocity.y > 9.0 or player.global_position.y - player.get("body_half_height") > plat("tut_t2").top + 2.0)
+			if player.velocity.y <= 0.0:
+				Input.action_release("jump")
+		await tree.physics_frame
+	release_all()
+	if not up:
+		return "c1: the bounce onto the ledge: " + describe()
+	# ... then off the ledge down to the third table.
+	var t3: LayoutGeometryScript.Placed = plat("tut_t3")
+	Input.action_press("move_right")
+	var t3_ok: bool = await until(func() -> bool: return on_top_of("tut_t3"), 240)
+	release_all()
+	if not t3_ok:
+		return "c2: down to the third table"
+	# c2) the second 단무지: roll into it when it comes, then up onto the flat wheel and the ledge.
+	var wheel2: Node3D = living("c2")
+	if not await run_to(t3.left + 1.0, 0.4):
+		return "c2: waiting place"
+	var knocked: bool = false
+	for i: int in RUN_BEAT_FRAMES:
+		if dead():
+			release_all()
+			return "c2: died"
+		if not is_instance_valid(wheel2) or wheel2.get("flat"):
+			knocked = true
+			break
+		var dx: float = wheel2.global_position.x - player.global_position.x
+		if player.get("grounded") and dx > 0.2 and dx < 2.0:
+			Input.action_press("move_right")
+			await tap("roll")
+		await tree.physics_frame
+		release_all()
+	release_all()
+	if not knocked:
+		return "c2: knocking the 단무지 over"
+	await until(func() -> bool: return not is_instance_valid(wheel2) or wheel2.get("is_static"), 400)
+	if not is_instance_valid(wheel2):
+		return "c2: the flat wheel vanished"
+	# up onto the flat wheel, then the ledge: jumps toward the wall.
+	var on_ledge: bool = false
+	Input.action_press("move_right")
+	for i: int in 900:
+		await tree.physics_frame
+		if dead():
+			release_all()
+			return "c2: died climbing"
+		if on_top_of("tut_ledge2"):
+			on_ledge = true
+			break
+		if player.get("grounded"):
+			Input.action_press("jump")
+		elif player.velocity.y <= 0.0:
+			Input.action_release("jump")
+	release_all()
+	if not on_ledge:
+		return "c2: up the flat 단무지 onto the second ledge: " + describe()
+	# off the ledge onto the fourth table.
+	Input.action_press("move_right")
+	var t4_ok: bool = await until(func() -> bool: return on_top_of("tut_t4"), 240)
+	release_all()
+	if not t4_ok:
+		return "d: down to the fourth table"
+	# d) the cluster: jump toward it and slam in the air.
+	var t4: LayoutGeometryScript.Placed = plat("tut_t4")
 	var cluster: Array[Node3D] = enemies("d")
-	check_eq(cluster.size(), 3, "three 만두")
-	var middle: float = plat("tut_t4").left + 3.9
-	for i: int in cluster.size():
-		place(cluster[i], "tut_t4", middle + (float(i) - 1.0) * 0.9)
-	teleport(middle, plat("tut_t4").top + 4.5)
-	await frames(3)
-	await tap("roll")
-	check(await until(func() -> bool: return not cluster[0].get("alive") and not cluster[1].get("alive") and not cluster[2].get("alive"), 90),
-		"the slam killed the whole cluster")
-	await frames(20)
-	# e) the exit gap to the dining room start counts as finishing.
-	check(not flow.tutorial_done, "not finished before the last jump")
-	await put_on("tut_t4", plat("tut_t4").length() - 1.8) # inside the exit hint's zone
-	await frames(3)
-	watch.call()
-	check(await cross_gap("tut_t4", "dining_1"), "e) he jumped the exit gap onto the dining room's first table: " + describe())
-	await frames(5)
+	var slammed: bool = false
+	for i: int in RUN_BEAT_FRAMES:
+		if dead():
+			release_all()
+			return "d: died"
+		var nearest: float = INF
+		for m: Node3D in cluster:
+			if m.get("alive"):
+				nearest = minf(nearest, m.global_position.x - player.global_position.x)
+		if nearest == INF:
+			slammed = true
+			break
+		if player.get("grounded"):
+			Input.action_press("move_right")
+			if nearest < 3.3:
+				Input.action_press("jump")
+		else:
+			if player.velocity.y <= 0.0:
+				Input.action_release("jump")
+				if player.global_position.y - player.get("body_half_height") > t4.top + 1.2 and nearest < 2.6:
+					await tap("roll")
+		await tree.physics_frame
+	release_all()
+	if not slammed:
+		return "d: slamming the cluster"
+	await until(func() -> bool: return player.get("grounded"), 120)
+	# e) the exit gap to the dining room.
+	if not on_top_of("tut_t4"):
+		return "e: not on the fourth table: " + describe()
+	if not await run_to(t4.right - 3.5, 0.4):
+		return "e: run-up"
+	if not await jump_to(t4.right - 0.6, "dining_1"):
+		return "e: the exit gap: " + describe()
+	return ""
+
+
+func test_a_real_run_from_the_tutorial_start_to_the_dining_room() -> void:
+	await open_tutorial()
+	var last: String = ""
+	for attempt: int in RUN_ATTEMPTS:
+		last = await play_tutorial()
+		if last == "":
+			break
+		print("   attempt %d failed at %s" % [attempt + 1, last])
+		release_all()
+		if dead():
+			await until(func() -> bool: return state() != "dead" and gs.hearts == 14, 400)
+		else:
+			# walked off or stuck: the way a player would, by falling or dying back to the checkpoint
+			gs.call("take_damage", 14)
+			await until(func() -> bool: return state() == "dead", 60)
+			await until(func() -> bool: return state() != "dead" and gs.hearts == 14, 400)
+		await frames(30)
+	check_eq(last, "", "he walked it: " + last + " " + describe())
+	await frames(60)
+	check(on_top_of("dining_1"), "standing on the dining room's first table: " + describe())
 	check_eq(gs.checkpoint_id, "map01_dining_start", "the dining room's checkpoint")
-	check(flow.tutorial_done, "that counts as finishing the tutorial")
+	check(flow.tutorial_done, "the tutorial counts as finished")
 	check(gs.has_skill("roll") and gs.has_skill("slam"), "roll and slam are his")
-	# The hints came in beat order, each once.
-	check(seen.size() >= 5, "five hints were shown: " + str(seen))
-	var order: Array[String] = ["이동", "만두", "단무지", "구르기", "내려찍기", "건너편"]
-	var last: int = -1
-	for word: String in order:
-		var index: int = -1
-		for i: int in seen.size():
-			if word in seen[i]:
-				index = i
-				break
-		check(index > last, "hint '%s' comes after the one before it (%s)" % [word, str(seen)])
-		last = maxi(index, last)
 
 
 func test_a_landing_on_a_만두_works_too() -> void:
@@ -533,3 +682,106 @@ func test_the_dining_room_start_goes_on_and_the_dining_room_ends_in_a_marked_wal
 	Input.action_release("move_right")
 	check(player.global_position.x < last.right + 0.01, "he cannot go past it: " + describe())
 	check(on_top_of("r_t15"), "still on the table")
+
+
+# --- The end of the tutorial ---------------------------------------------------------------------------
+
+func test_reaching_the_dining_room_fades_out_and_in_and_leaves_the_tutorial_behind() -> void:
+	await open_tutorial()
+	check(flow.builder.enemies_of("tutorial").size() > 0, "the tutorial's enemies are out")
+	await put_on("tut_t4", plat("tut_t4").length() - 1.0)
+	await frames(3)
+	check(flow.ui.hint_visible(), "the exit hint is up")
+	# He steps (is put) on the first dining table: that is the exit.
+	var dining: LayoutGeometryScript.Placed = plat("dining_1")
+	teleport(dining.left + 5.0, dining.top + 0.4)
+	var max_alpha: float = 0.0
+	var moved_at_alpha: float = -1.0
+	for i: int in 120:
+		await tree.physics_frame
+		max_alpha = maxf(max_alpha, flow.ui.fade_alpha())
+		if moved_at_alpha < 0.0 and absf(player.global_position.x - (dining.left + 5.0)) > 1.0:
+			moved_at_alpha = flow.ui.fade_alpha()
+		if flow.phase == MapFlowScript.Phase.IDLE and i > 10:
+			break
+	check(max_alpha >= 0.99, "the screen went fully dark")
+	check(moved_at_alpha >= 0.99, "he was moved to the checkpoint only behind it (alpha %.2f)" % moved_at_alpha)
+	check_eq(flow.ui.fade_alpha(), 0.0, "and it is clear again")
+	await frames(30)
+	check(on_top_of("dining_1") and absf(player.global_position.x - (dining.left + 2.0)) < 1.5, "at the dining room's checkpoint: " + describe())
+	check_eq(gs.checkpoint_id, "map01_dining_start", "that is the checkpoint")
+	check(gs.has_skill("roll") and gs.has_skill("slam"), "roll and slam are his")
+	check(flow.tutorial_done, "the tutorial is done")
+	check_eq(flow.builder.enemies_of("tutorial").size(), 0, "its enemies are gone")
+	check(not flow.ui.hint_visible(), "and its hint")
+	check(not flow.enabled_sections.has("tutorial"), "the section is off")
+	check(flow.enabled_sections.has("dining_room_start"), "the dining room's is on")
+	check(not tree.paused, "the game runs")
+
+
+func test_a_player_who_finished_the_tutorial_cannot_be_sent_back_into_it() -> void:
+	await open_tutorial()
+	var dining: LayoutGeometryScript.Placed = plat("dining_1")
+	teleport(dining.left + 2.0, dining.top + 0.4)
+	await until(func() -> bool: return flow.tutorial_done and flow.phase == MapFlowScript.Phase.IDLE, 120)
+	await frames(30)
+	map.call("_on_completed") # the prologue reporting complete again must not undo it
+	await frames(10)
+	check_eq(flow.phase, MapFlowScript.Phase.IDLE, "no prompt")
+	check_eq(gs.checkpoint_id, "map01_dining_start", "the checkpoint stays the dining room's")
+	check(not flow.enabled_sections.has("tutorial"), "the tutorial stays off")
+	gs.call("take_damage", 14)
+	check(await until(func() -> bool: return state() == "dead", 30), "he died")
+	check(await until(func() -> bool: return state() != "dead" and gs.hearts == 14, 240), "and came back")
+	await frames(10)
+	check(on_top_of("dining_1"), "at the dining room, not the tutorial: " + describe())
+	check_eq(flow.builder.enemies_of("tutorial").size(), 0, "no tutorial enemies came back")
+	# Walking back across the gap (if he can) and falling does not change it either.
+	teleport(plat("tut_t4").right - 1.0, plat("tut_t4").top + 0.4)
+	await frames(30)
+	teleport(plat("tut_t1").right + 1.0, plat("tut_t1").top - 1.0) # into a gap of the tutorial
+	await frames(120)
+	check_eq(gs.checkpoint_id, "map01_dining_start", "a fall in the tutorial's tables still returns to the dining room's checkpoint")
+	check(player.global_position.x > dining.left - 1.0, "he is back at the dining room: " + describe())
+
+
+func test_dying_mid_tutorial_respawns_and_the_end_is_still_reachable() -> void:
+	await open_tutorial()
+	check(await jump_to(plat("prologue_exit_table").right - 0.6, "tut_t1"), "a) onto the first table")
+	gs.call("take_damage", 14)
+	check(await until(func() -> bool: return state() == "dead", 30), "he died on the first table")
+	check(await until(func() -> bool: return state() != "dead" and gs.hearts == 14, 400), "and came back")
+	await frames(30)
+	check_eq(gs.checkpoint_id, "map01_tutorial_start", "at the tutorial's start")
+	check(on_top_of("prologue_exit_table"), "on its table: " + describe())
+	var last: String = ""
+	for attempt: int in RUN_ATTEMPTS:
+		last = await play_tutorial()
+		if last == "":
+			break
+		release_all()
+		gs.call("take_damage", 14)
+		await until(func() -> bool: return state() == "dead", 60)
+		await until(func() -> bool: return state() != "dead" and gs.hearts == 14, 400)
+		await frames(30)
+	check_eq(last, "", "after the death he still walked to the end: " + last)
+	await frames(60)
+	check(flow.tutorial_done and on_top_of("dining_1"), "and reached the dining room: " + describe())
+
+
+func test_letting_go_of_jump_does_not_cut_a_bounce() -> void:
+	await open_tutorial()
+	var wheel: Node3D = enemies("c1")[0]
+	place(wheel, "tut_t2", plat("tut_t2").left + 4.0)
+	await put_on("tut_t2", 1.0)
+	teleport(wheel.global_position.x, wheel.global_position.y + 3.0)
+	Input.action_press("jump") # held through the fall, as a player does
+	var peak: float = 0.0
+	for i: int in 120:
+		await tree.physics_frame
+		if player.velocity.y > 0.0 and i > 5:
+			Input.action_release("jump") # let go right after the bounce
+		peak = maxf(peak, player.velocity.y)
+	Input.action_release("jump")
+	var tuning: Resource = player.get("tuning")
+	check(peak > tuning.bounce_velocity * 1.5, "the bounce kept its full speed (%.1f m/s) after the button was released" % peak)

@@ -67,6 +67,8 @@ var _zones: Array[Dictionary] = []
 var _checkpoints: Array[CheckpointDefScript] = []
 var _guard: int = 0
 var _fade_t: float = 0.0
+## The fade in progress is the tutorial's own end (he reached the dining room), not the skip.
+var _fade_exit: bool = false
 ## The platform he stood on at the last tick ("" = none), for the "steps onto its platform again" respawn.
 var _last_stand: String = ""
 
@@ -160,6 +162,8 @@ func on_prologue_complete() -> void:
 	var tutorial: MapSectionScript = tutorial_section()
 	if tutorial == null or tutorial.checkpoints.is_empty():
 		return
+	if tutorial_done or is_past_tutorial():
+		return # he is on the way on already: never back to the tutorial's start, never the prompt again
 	reach_checkpoint(tutorial.checkpoints[0])
 	if game_state.tutorial_prompt_shown:
 		begin_tutorial()
@@ -176,6 +180,8 @@ func resume() -> void:
 		return
 	game_state.tutorial_prompt_shown = true
 	var section: MapSectionScript = layout.section_of_checkpoint(game_state.checkpoint_id)
+	if section != null and _section_index(section.id) > _section_index(tutorial.id):
+		tutorial_done = true # a continued game that is past the tutorial
 	if section == null:
 		# The prologue's own checkpoint (the next table): that is the tutorial's start.
 		section = tutorial
@@ -184,6 +190,13 @@ func resume() -> void:
 	for i: int in range(_section_index(section.id), layout.sections.size()):
 		if not layout.sections[i].external:
 			enable_section(layout.sections[i].id)
+
+
+## True once the last checkpoint is in a section after the tutorial.
+func is_past_tutorial() -> bool:
+	var tutorial: MapSectionScript = tutorial_section()
+	var section: MapSectionScript = layout.section_of_checkpoint(game_state.checkpoint_id)
+	return tutorial != null and section != null and _section_index(section.id) > _section_index(tutorial.id)
 
 
 # --- The prompt -------------------------------------------------------------------------------------
@@ -275,7 +288,18 @@ func reach_checkpoint(checkpoint: CheckpointDefScript) -> void:
 	game_state.set_checkpoint_snapshot(checkpoint.id, LayoutGeometryScript.checkpoint_position(placed, checkpoint))
 	checkpoint_reached.emit(checkpoint.id)
 	if checkpoint.finishes_tutorial:
+		var first: bool = not tutorial_done
 		finish_tutorial()
+		if first and phase == Phase.IDLE and ui != null and is_inside_tree():
+			begin_exit_fade()
+
+
+## He reached the dining room's first table: the screen fades out and in, as in the skip, and the
+## tutorial is left behind (its enemies and hints off) while he stands at the dining room's checkpoint.
+func begin_exit_fade() -> void:
+	phase = Phase.FADE_OUT
+	_fade_t = 0.0
+	_fade_exit = true
 
 
 ## Reaching the way on counts as finishing the tutorial: whatever he did not get on the way, he gets.
@@ -320,10 +344,14 @@ func _step_fade_out(delta: float) -> void:
 	_fade_t += delta
 	ui.set_fade(_fade_t / maxf(layout.fade_out_s, 0.01))
 	if _fade_t >= layout.fade_out_s:
-		_perform_skip()
+		if _fade_exit:
+			_perform_exit()
+		else:
+			_perform_skip()
+			_release_pause()
+		_fade_exit = false
 		phase = Phase.FADE_IN
 		_fade_t = 0.0
-		_release_pause()
 
 
 func _step_fade_in(delta: float) -> void:
@@ -349,6 +377,19 @@ func _perform_skip() -> void:
 	var target: CheckpointDefScript = layout.find_checkpoint(tutorial.skip_to_checkpoint) as CheckpointDefScript
 	if target != null:
 		reach_checkpoint(target)
+		_move_player_to(game_state.checkpoint_position)
+	if ui != null:
+		ui.clear_hint()
+
+
+## The tutorial's end, behind the black screen: its enemies and hints go, he stands at the dining
+## room's checkpoint (the checkpoint, the skills and the toast were set when he reached it).
+func _perform_exit() -> void:
+	var tutorial: MapSectionScript = tutorial_section()
+	for section: MapSectionScript in layout.sections:
+		if not section.external and _section_index(section.id) <= _section_index(tutorial.id):
+			disable_section(section.id)
+	if player.call("state_name") != "dead":
 		_move_player_to(game_state.checkpoint_position)
 	if ui != null:
 		ui.clear_hint()
