@@ -182,6 +182,14 @@ static func x_on(p: Placed, along_m: float) -> float:
 	return p.left + along_m if along_m >= 0.0 else p.right + along_m
 
 
+## Where a 찜기 stands: on its platform's top (plus its lift).
+static func jjigi_position(placed: Array[Placed], placement: Resource) -> Vector3:
+	var p: Placed = find(placed, placement.platform_id)
+	if p == null:
+		return Vector3.ZERO
+	return Vector3(x_on(p, placement.along_m), p.top + placement.lift_m, 0.0)
+
+
 static func checkpoint_position(placed: Array[Placed], checkpoint: CheckpointDefScript) -> Vector3:
 	var p: Placed = find(placed, checkpoint.platform_id)
 	if p == null:

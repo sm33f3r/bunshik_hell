@@ -18,6 +18,8 @@ const ReactionTableScript := preload("res://systems/reaction_table.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
 const ManduRespawnScript := preload("res://prologue/mandu_respawn.gd")
 const MapFlowScript := preload("res://maps/layout/map_flow.gd")
+## The id this map has in MapCatalog and in the save.
+const MAP_ID: String = "map01"
 const MANDU_SCENE: PackedScene = preload("res://enemies/mandu.tscn")
 
 ## Physics ticks at the start during which the skip button is ignored.
@@ -53,6 +55,7 @@ func _ready() -> void:
 	game_state = get_node_or_null("/root/GameState") as GameStateScript
 	if game_state == null or player == null:
 		return
+	game_state.current_map = MAP_ID
 	if data == null:
 		data = load(DirectorScript.DATA_PATH) as PrologueDataScript
 	_facing_pivot = player.get_node_or_null("FacingPivot") as Node3D

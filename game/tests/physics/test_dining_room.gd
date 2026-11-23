@@ -181,7 +181,8 @@ func test_a_scripted_run_along_the_tables_reaches_the_end_wall_over_the_required
 		check(player.global_position.x < last.right + 0.01, "the end wall stops him: " + describe())
 		check(on_top_of(last.def.id), "on the last table")
 		check_eq(gs.hearts, 14, "and he took no damage on the way")
-	check(gs.checkpoint_id == "map01_dining_mid", "the checkpoint on the way was reached: " + str(gs.checkpoint_id))
+	check_eq(gs.checkpoint_id, "map01_dining_start", "walking past the 찜기 does not use it: the respawn point is still the start")
+	check(not gs.is_jjigi_used("map01_dining_mid"), "it is still unused")
 
 
 func test_the_napkin_box_hop_reaches_an_optional_sill() -> void:

@@ -11,6 +11,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"salt_crystal": "res://data/hud/icons/salt_crystal.tres",
 	"coat": "res://data/hud/icons/coat.tres",
 	"sauce_type": "res://data/hud/icons/sauce_type.tres",
+	"save_disk": "res://data/hud/icons/save_disk.tres",
 	"kongomul": "res://data/hud/icons/kongomul.tres",
 	"jocheong": "res://data/hud/icons/jocheong.tres",
 	"ggul": "res://data/hud/icons/ggul.tres",

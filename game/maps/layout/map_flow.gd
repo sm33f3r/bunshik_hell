@@ -180,7 +180,9 @@ func resume() -> void:
 	if tutorial == null:
 		return
 	game_state.tutorial_prompt_shown = true
-	var section: MapSectionScript = layout.section_of_checkpoint(game_state.checkpoint_id)
+	if game_state.tutorial_done:
+		tutorial_done = true # a loaded game that had finished (or skipped) it
+	var section: MapSectionScript = layout.section_of_respawn(game_state.checkpoint_id)
 	if section != null and _section_index(section.id) > _section_index(tutorial.id):
 		tutorial_done = true # a continued game that is past the tutorial
 	if section == null:
@@ -193,10 +195,10 @@ func resume() -> void:
 			enable_section(layout.sections[i].id)
 
 
-## True once the last checkpoint is in a section after the tutorial.
+## True once the respawn point (a checkpoint or a 찜기) is in a section after the tutorial.
 func is_past_tutorial() -> bool:
 	var tutorial: MapSectionScript = tutorial_section()
-	var section: MapSectionScript = layout.section_of_checkpoint(game_state.checkpoint_id)
+	var section: MapSectionScript = layout.section_of_respawn(game_state.checkpoint_id)
 	return tutorial != null and section != null and _section_index(section.id) > _section_index(tutorial.id)
 
 
@@ -284,6 +286,15 @@ func checkpoint_index(checkpoint_id: String) -> int:
 	return -1
 
 
+## The index (in the layout's order) of the furthest data checkpoint reached so far, -1 for none. A 찜기
+## used later does not move it, and a checkpoint behind it is never reached again.
+func furthest_reached() -> int:
+	var furthest: int = -1
+	for id: String in game_state.reached_checkpoints:
+		furthest = maxi(furthest, checkpoint_index(id))
+	return furthest
+
+
 ## He is at this checkpoint now: dying brings him back here with full hearts and what he carries now.
 func reach_checkpoint(checkpoint: CheckpointDefScript) -> void:
 	game_state.set_checkpoint_snapshot(checkpoint.id, LayoutGeometryScript.checkpoint_position(placed, checkpoint))
@@ -306,6 +317,7 @@ func begin_exit_fade() -> void:
 ## Reaching the way on counts as finishing the tutorial: whatever he did not get on the way, he gets.
 func finish_tutorial() -> void:
 	tutorial_done = true
+	game_state.tutorial_done = true
 	grant_tutorial_skills()
 	tutorial_finished.emit()
 
@@ -408,7 +420,7 @@ func _move_player_to(at: Vector3) -> void:
 func _step_checkpoints() -> void:
 	if not player.grounded:
 		return
-	var current: int = checkpoint_index(game_state.checkpoint_id)
+	var current: int = furthest_reached()
 	var feet_y: float = player.global_position.y - player.body_half_height
 	for i: int in range(current + 1, _checkpoints.size()):
 		var platform: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, _checkpoints[i].platform_id)

@@ -15,9 +15,15 @@ const MARGIN: Vector2 = Vector2(28.0, 22.0)
 const ICON_SIZE: float = 48.0
 const FONT_SIZE: int = 38
 const COLUMN_GAP: int = 30
+## The save icon (top right, icon only, no text) stays this long after a save, then fades out. 🟡
+const SAVE_FLASH_S: float = 1.8
+const SAVE_FADE_S: float = 0.5
+const SAVE_ICON_SIZE: float = 54.0
 
 ## Injected by tests; else the GameState autoload.
 var game_state: GameStateScript
+## Injected by tests; else the SaveSystem autoload.
+var save_system: Node
 
 var _hearts_label: Label
 var _sauce_label: Label
@@ -28,6 +34,8 @@ var _slots_row: HBoxContainer
 var _slot_frames: Array[PanelContainer] = []
 var _slot_icons: Array[HudIconViewScript] = []
 var _last_signature: String = ""
+var _save_icon: HudIconViewScript
+var _save_left: float = 0.0
 
 
 func _ready() -> void:
@@ -58,6 +66,19 @@ func _ready() -> void:
 	_sauce_type_icon = HudIconViewScript.new(ICON_SIZE * 0.7)
 	_sauce_type_icon.icon = HudIconCatalogScript.icon("sauce_type")
 	extras.add_child(_sauce_type_icon)
+	_save_icon = HudIconViewScript.new(SAVE_ICON_SIZE)
+	_save_icon.icon = HudIconCatalogScript.icon("save_disk")
+	_save_icon.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_save_icon.offset_left = -MARGIN.x - SAVE_ICON_SIZE
+	_save_icon.offset_right = -MARGIN.x
+	_save_icon.offset_top = MARGIN.y
+	_save_icon.offset_bottom = MARGIN.y + SAVE_ICON_SIZE
+	_save_icon.visible = false
+	add_child(_save_icon)
+	if save_system == null:
+		save_system = get_node_or_null("/root/SaveSystem")
+	if save_system != null and save_system.has_signal("saved"):
+		save_system.connect("saved", flash_save_icon)
 	_slots_row = HBoxContainer.new()
 	_slots_row.add_theme_constant_override("separation", 8)
 	_slots_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -65,8 +86,30 @@ func _ready() -> void:
 	refresh()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	refresh()
+	_step_save_icon(delta)
+
+
+## The small save icon flashes (a save was written). Icon only: no text.
+func flash_save_icon() -> void:
+	_save_left = SAVE_FLASH_S
+	if _save_icon != null:
+		_save_icon.visible = true
+		_save_icon.modulate.a = 1.0
+
+
+func save_icon_visible() -> bool:
+	return _save_icon != null and _save_icon.visible
+
+
+func _step_save_icon(delta: float) -> void:
+	if _save_icon == null or _save_left <= 0.0:
+		return
+	_save_left = maxf(_save_left - delta, 0.0)
+	_save_icon.modulate.a = clampf(_save_left / SAVE_FADE_S, 0.0, 1.0)
+	if _save_left == 0.0:
+		_save_icon.visible = false
 
 
 ## One "icon  number" pair; returns the number's label.

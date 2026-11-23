@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://maps/test/one_way_platform.gd" id="2_4iekt"]
 [ext_resource type="PackedScene" path="res://items/steamer.tscn" id="3_g72da"]
 [ext_resource type="Script" path="res://items/steamer.gd" id="4_2dbb2"]
+[ext_resource type="Resource" path="res://data/jjigi/jjigi_test_room.tres" id="jjigi_test"]
 [ext_resource type="PackedScene" path="res://enemies/tall_rigid_dummy.tscn" id="5_dbn7p"]
 [ext_resource type="Script" path="res://enemies/tall_rigid_dummy.gd" id="6_n1pat"]
 [ext_resource type="Resource" path="res://data/enemies/tall_rigid_dummy.tres" id="7_bh2yx"]
@@ -368,11 +369,13 @@ mesh = SubResource("BoxMesh_tableleg")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0, 0)
 script = ExtResource("4_2dbb2")
 steamer_id = "steamer_start"
+def = ExtResource("jjigi_test")
 
 [node name="SteamerFar" type="Node3D" parent="Steamers" unique_id=1363945066 instance=ExtResource("3_g72da")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 0, 0)
 script = ExtResource("4_2dbb2")
 steamer_id = "steamer_far"
+def = ExtResource("jjigi_test")
 spawn_offset = Vector3(-1.6, 0.5, 0)
 
 [node name="Dummies" type="Node3D" parent="." unique_id=401813305]

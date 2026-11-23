@@ -16,6 +16,7 @@ const LayoutGeometryScript := preload("res://maps/layout/layout_geometry.gd")
 const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const Layers := preload("res://systems/layers.gd")
 const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
+const STEAMER_SCENE: PackedScene = preload("res://items/steamer.tscn")
 
 const WALL_HEIGHT_M: float = 40.0
 const WALL_THICKNESS_M: float = 0.6
@@ -29,6 +30,8 @@ var depth_m: float = 0.0
 ## Platform id -> its node (the "existing" prologue table is not built here).
 var platform_nodes: Dictionary = {}
 var end_walls: Dictionary = {}
+## 찜기 placement id -> its node (Jjigi_<id>).
+var jjigi_nodes: Dictionary = {}
 
 var _spawned: Dictionary = {}
 
@@ -45,6 +48,13 @@ func build(p_layout: MapLayoutScript, p_placed: Array[LayoutGeometryScript.Place
 		if p.def.kind == "floor" and p.def.wall_cm > 0.0:
 			_build_floor_wall(p)
 	for section: MapSectionScript in layout.sections:
+		if section.external:
+			continue
+		for placement: Resource in section.jjigi:
+			var steamer: Node3D = _build_jjigi(placement)
+			if steamer != null:
+				jjigi_nodes[placement.id] = steamer
+	for section: MapSectionScript in layout.sections:
 		if section.external or section.end_wall_text == "":
 			continue
 		var last: LayoutGeometryScript.Placed = null
@@ -53,6 +63,19 @@ func build(p_layout: MapLayoutScript, p_placed: Array[LayoutGeometryScript.Place
 				last = p
 		if last != null:
 			end_walls[section.id] = _build_end_wall(section, last)
+
+
+## A 찜기 standing on its platform. Its id and def come from the placement (the layout data).
+func _build_jjigi(placement: Resource) -> Node3D:
+	if LayoutGeometryScript.find(placed, placement.platform_id) == null:
+		return null
+	var node: Node3D = STEAMER_SCENE.instantiate() as Node3D
+	node.name = "Jjigi_%s" % placement.id
+	node.set("steamer_id", placement.id)
+	node.set("def", placement.def)
+	add_child(node)
+	node.global_position = LayoutGeometryScript.jjigi_position(placed, placement)
+	return node
 
 
 func _build_platform(p: LayoutGeometryScript.Placed) -> StaticBody3D:

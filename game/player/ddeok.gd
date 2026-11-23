@@ -717,6 +717,9 @@ func _hit_enemy(enemy: EnemyBaseScript, attack: String) -> void:
 	attacked.emit(attack, reaction)
 	if (result["reactions"] as Array).has(ReactionTableScript.REACTION_HURT_PLAYER):
 		hurt(enemy.contact_damage(), enemy.global_position.x)
+	elif attack == ReactionTableScript.ATTACK_ROLL and (result["reactions"] as Array).has(ReactionTableScript.REACTION_BREAK_LINE):
+		# The slices hop apart and may land on him: a short grace, so breaking a line is not a trap.
+		_invuln_timer = maxf(_invuln_timer, tuning.roll_break_grace_s)
 	elif attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP:
 		velocity.y = tuning.bounce_velocity
 		_jump_cut_allowed = false # letting go of the button must not cut a bounce (the 단무지's throw to the ledge)

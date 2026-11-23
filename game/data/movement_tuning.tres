@@ -29,6 +29,7 @@ slip_friction_scale = 0.08
 slip_linger_s = 0.25
 above_tolerance = 0.12
 i_frame_time = 1.0
+roll_break_grace_s = 1.0
 flash_interval = 0.08
 knockback_horizontal = 6.0
 knockback_vertical = 5.0

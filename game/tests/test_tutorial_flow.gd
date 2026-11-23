@@ -109,14 +109,14 @@ func test_the_unlock_source_is_remembered_and_cleared_on_a_new_game() -> void:
 
 # --- The prompt flag --------------------------------------------------------------------------------
 
-func test_the_prompt_flag_resets_on_a_new_game_and_is_not_saved() -> void:
+func test_the_prompt_flag_resets_on_a_new_game_and_is_saved() -> void:
 	var gs: GameStateScript = _gs()
 	check_eq(gs.tutorial_prompt_shown, false, "not shown yet")
 	gs.tutorial_prompt_shown = true
-	check(not gs.to_dict().has("tutorial_prompt_shown"), "not written to the save")
+	check(gs.to_dict().has("tutorial_prompt_shown"), "written to the save (a loaded game does not ask again)")
 	var other: GameStateScript = _gs()
 	other.from_dict(gs.to_dict())
-	check_eq(other.tutorial_prompt_shown, false, "a loaded game does not carry it")
+	check_eq(other.tutorial_prompt_shown, true, "a loaded game carries it")
 	gs.reset()
 	check_eq(gs.tutorial_prompt_shown, false, "a new game asks again")
 
@@ -192,18 +192,19 @@ func test_a_later_checkpoint_takes_a_new_snapshot() -> void:
 	check_eq(gs.sauce, 4, "and sauce")
 
 
-func test_a_steamer_checkpoint_has_no_snapshot() -> void:
+func test_a_steamer_takes_its_own_snapshot_when_used() -> void:
 	var gs: GameStateScript = _gs()
 	gs.set_checkpoint_snapshot("map", Vector3.ZERO)
 	var steamer: SteamerScript = SteamerScript.new()
 	_nodes.append(steamer)
 	steamer.steamer_id = "pot"
+	gs.add_sodium(2)
 	steamer.activate(gs)
-	check(gs.checkpoint_snapshot.is_empty(), "a 찜기 forgets the map checkpoint's snapshot")
+	check_eq(gs.checkpoint_snapshot, {"sauce": 3, "sodium": 2}, "a 찜기 replaces the map checkpoint's snapshot with its own")
 	gs.spend_sauce(3)
 	gs.take_damage(14)
 	gs.respawn()
-	check_eq(gs.sauce, 0, "and restores nothing")
+	check_eq(gs.sauce, 3, "and respawning there restores what he had when he used it")
 
 
 func test_the_snapshot_is_not_saved_to_disk() -> void:

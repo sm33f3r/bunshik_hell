@@ -348,19 +348,21 @@ func test_the_difficulty_starts_gentle_and_rises() -> void:
 	check(lane_first > 0.0, "(sanity)")
 
 
-func test_there_is_a_mid_section_checkpoint_on_a_table() -> void:
+func test_there_is_a_mid_section_jjigi_on_a_table() -> void:
 	var layout: MapLayoutScript = _layout()
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
-	var mid: Resource = layout.find_checkpoint("map01_dining_mid")
-	check(mid != null, "the checkpoint exists")
-	check_eq(layout.section_of_checkpoint("map01_dining_mid").id, "dining_room", "in the dining room section")
+	var mid: Resource = layout.find_jjigi("map01_dining_mid")
+	check(mid != null, "the 찜기 exists")
+	check(layout.find_checkpoint("map01_dining_mid") == null, "and it replaced the data checkpoint")
+	check_eq(layout.section_of_respawn("map01_dining_mid").id, "dining_room", "in the dining room section")
+	check(mid.def != null and mid.def.heals_once and mid.def.saves and not mid.def.debug_unlimited, "once-only, saving, never debug_unlimited")
 	var table: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, mid.platform_id)
 	check_eq(table.def.kind, "table", "on a table")
 	var first: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "r_t1")
 	var last: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "r_t15")
 	var fraction: float = (table.left - first.left) / (last.right - first.left)
 	check(fraction > 0.3 and fraction < 0.7, "about half way (%.0f%%)" % (fraction * 100.0))
-	check(not mid.finishes_tutorial, "it does not finish the tutorial a second time")
+	check_eq(layout.section("dining_room").jjigi.size(), 1, "one 찜기 in the dining room")
 	check(layout.find_checkpoint("map01_dining_start") != null, "the start's checkpoint is still there")
 
 

@@ -8,6 +8,8 @@ signal sodium_changed(sodium: int, max_sodium: int)
 signal skill_unlocked(skill_id: String)
 signal died
 signal checkpoint_changed(id: String)
+## A 찜기 was used for the first time (its placement id).
+signal jjigi_used(id: String)
 signal sauce_type_changed(id: String)
 ## Container, items or popup contents changed.
 signal inventory_changed
@@ -38,6 +40,10 @@ const START_SAUCE: int = 3
 const MAX_SODIUM: int = 7
 const START_SODIUM: int = 0
 
+## What the respawn point is: a data checkpoint of the map, or a 찜기 that was used.
+const RESPAWN_CHECKPOINT: String = "checkpoint"
+const RESPAWN_JJIGI: String = "jjigi"
+
 const DEFAULT_SKILLS: Dictionary[String, bool] = {
 	"move": true,
 	"jump": true,
@@ -65,9 +71,23 @@ var items: Array[String] = []
 var coat: bool = false
 ## Item id the "full" popup is asking about; empty = no popup open.
 var popup_item_id: String = ""
-## Last 찜기 used. Empty id = no checkpoint yet.
+## THE respawn point: whichever of (a data checkpoint reached, a 찜기 used) happened most recently.
+## Empty id = none yet. `respawn_type` says which kind it is (RESPAWN_CHECKPOINT / RESPAWN_JJIGI).
+## (The fields keep their old "checkpoint" names: a lot of map code reads them.)
 var checkpoint_id: String = ""
 var checkpoint_position: Vector3 = Vector3.ZERO
+var respawn_type: String = RESPAWN_CHECKPOINT
+## Placement ids of the 찜기 already used (each gives its one heal and save, once). Saved.
+var used_jjigi: Array[String] = []
+## Ids of every data checkpoint reached, so one is never "reached" again and an earlier one never
+## replaces a later respawn point. Saved.
+var reached_checkpoints: Array[String] = []
+## Id of the map he is in ("map01", "test_room"; see MapCatalog). Saved.
+var current_map: String = ""
+## The tutorial was finished (or skipped past). Saved.
+var tutorial_done: bool = false
+## DDEOK, off-chain only for now (ChainBridge is a stub). Saved.
+var ddeok: int = 0
 ## Id of the selected sauce type (see data/sauce_types.tres).
 var sauce_type_id: String = DEFAULT_SAUCE_TYPE
 ## Ids of enemy defs defeated at least once. Drives "unlock on first defeat".
@@ -80,13 +100,13 @@ var kill_counts: Dictionary[String, int] = {}
 ## Map 1 prologue: the opening cutscene was shown (it never replays), and the prologue is done.
 var prologue_intro_seen: bool = false
 var prologue_complete: bool = false
-## Map 1: the "tutorial or skip" prompt was shown. Once per new game; not saved.
+## Map 1: the "tutorial or skip" prompt was shown. Once per new game. Saved.
 var tutorial_prompt_shown: bool = false
-## Which source gave each skill ("tutorial", a boss...), for skills unlocked with a source id.
-## Not saved: the skill itself is.
+## Which source gave each skill ("tutorial", a boss...), for skills unlocked with a source id. Saved.
 var skill_sources: Dictionary[String, String] = {}
-## What he carried when he reached the current checkpoint ({"sauce", "sodium"}); empty = none taken
-## (a 찜기 restores nothing). Respawning puts these back. Not saved to disk.
+## What he carried when he reached the current checkpoint or used the current 찜기 ({"sauce",
+## "sodium"}); empty = none taken. Respawning puts these back. Saved only for a 찜기 (saves are
+## made there); a data checkpoint's is not saved.
 var checkpoint_snapshot: Dictionary = {}
 
 var _popup_on_used: Callable
@@ -104,6 +124,12 @@ func reset() -> void:
 	close_popup()
 	checkpoint_id = ""
 	checkpoint_position = Vector3.ZERO
+	respawn_type = RESPAWN_CHECKPOINT
+	used_jjigi = []
+	reached_checkpoints = []
+	current_map = ""
+	tutorial_done = false
+	ddeok = 0
 	sauce_type_id = DEFAULT_SAUCE_TYPE
 	defeated_enemies = []
 	drops.reset()
@@ -369,11 +395,11 @@ static func format_hearts(half_hearts: int) -> String:
 	return "%d.5" % whole if half_hearts % 2 == 1 else "%d" % whole
 
 
-## A checkpoint without a snapshot (a 찜기): respawning restores hearts only.
+## A respawn point without a snapshot (the prologue's own, the test room's start).
 func set_checkpoint(id: String, at: Vector3) -> void:
-	checkpoint_id = id
-	checkpoint_position = at
-	checkpoint_snapshot = {}
+	_set_respawn(id, at, RESPAWN_CHECKPOINT)
+	if id != "" and not reached_checkpoints.has(id):
+		reached_checkpoints.append(id)
 	checkpoint_changed.emit(id)
 
 
@@ -383,17 +409,37 @@ func set_checkpoint_snapshot(id: String, at: Vector3) -> void:
 	checkpoint_snapshot = {"sauce": sauce, "sodium": sodium}
 
 
-## Using a 찜기: full heal and it becomes the checkpoint. Refused (false) while dead.
-func use_steamer(id: String, at: Vector3) -> bool:
+func is_jjigi_used(id: String) -> bool:
+	return id != "" and used_jjigi.has(id)
+
+
+## Using a 찜기: full heal; it is marked used; it becomes the respawn point, with the sauce and
+## 나트륨 he has right now. Refused (false, nothing changes) while dead, and when this 찜기 was used
+## already unless `repeatable` (the debug_unlimited test-room 찜기). The save is the caller's step.
+func use_jjigi(id: String, at: Vector3, repeatable: bool = false) -> bool:
 	if is_dead():
 		return false
-	set_checkpoint(id, at)
+	if is_jjigi_used(id) and not repeatable:
+		return false
+	_set_respawn(id, at, RESPAWN_JJIGI)
+	checkpoint_snapshot = {"sauce": sauce, "sodium": sodium}
+	if id != "" and not used_jjigi.has(id):
+		used_jjigi.append(id)
+	checkpoint_changed.emit(id)
 	heal(MAX_HEARTS)
+	jjigi_used.emit(id)
 	return true
 
 
-## Brings a dead 떡 back with full hearts, and with the sauce and 나트륨 of the checkpoint's
-## snapshot when it has one. Returns where to put him (the last checkpoint).
+func _set_respawn(id: String, at: Vector3, type: String) -> void:
+	checkpoint_id = id
+	checkpoint_position = at
+	respawn_type = type
+	checkpoint_snapshot = {}
+
+
+## Brings a dead 떡 back with full hearts, and with the sauce and 나트륨 of the respawn point's
+## snapshot when it has one. Returns where to put him. Never re-runs a 찜기's heal or save.
 func respawn() -> Vector3:
 	if hearts != MAX_HEARTS:
 		hearts = MAX_HEARTS
@@ -514,6 +560,15 @@ func to_dict() -> Dictionary:
 		"coat": coat,
 		"checkpoint_id": checkpoint_id,
 		"checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
+		"respawn_type": respawn_type,
+		"respawn_snapshot": checkpoint_snapshot.duplicate() if respawn_type == RESPAWN_JJIGI else {},
+		"used_jjigi": used_jjigi.duplicate(),
+		"reached_checkpoints": reached_checkpoints.duplicate(),
+		"current_map": current_map,
+		"tutorial_done": tutorial_done,
+		"tutorial_prompt_shown": tutorial_prompt_shown,
+		"skill_sources": skill_sources.duplicate(),
+		"ddeok": ddeok,
 		"sauce_type": sauce_type_id,
 		"defeated_enemies": defeated_enemies.duplicate(),
 		"prologue_intro_seen": prologue_intro_seen,
@@ -577,6 +632,30 @@ func from_dict(data: Dictionary) -> void:
 	# Added after save_version 1 shipped: older saves simply lack these keys.
 	prologue_intro_seen = data.get("prologue_intro_seen") is bool and data["prologue_intro_seen"]
 	prologue_complete = data.get("prologue_complete") is bool and data["prologue_complete"]
+	# Added with the real 찜기 (still save_version 1: new keys, defaults when absent).
+	respawn_type = RESPAWN_CHECKPOINT
+	if data.get("respawn_type") == RESPAWN_JJIGI:
+		respawn_type = RESPAWN_JJIGI
+	used_jjigi = _string_list(data.get("used_jjigi"))
+	reached_checkpoints = _string_list(data.get("reached_checkpoints"))
+	current_map = data["current_map"] if data.get("current_map") is String else ""
+	tutorial_done = data.get("tutorial_done") is bool and data["tutorial_done"]
+	tutorial_prompt_shown = data.get("tutorial_prompt_shown") is bool and data["tutorial_prompt_shown"]
+	ddeok = maxi(_to_int(data.get("ddeok"), 0), 0)
+	skill_sources = {}
+	var saved_sources: Variant = data.get("skill_sources")
+	if saved_sources is Dictionary:
+		for skill_id: Variant in saved_sources:
+			if skill_id is String and skills.has(skill_id) and saved_sources[skill_id] is String:
+				skill_sources[skill_id] = saved_sources[skill_id]
+	# The sauce and 나트륨 he had when he used the 찜기 he respawns at. (A data checkpoint's is not saved.)
+	checkpoint_snapshot = {}
+	var saved_snapshot: Variant = data.get("respawn_snapshot")
+	if respawn_type == RESPAWN_JJIGI and saved_snapshot is Dictionary:
+		checkpoint_snapshot = {
+		"sauce": clampi(_to_int(saved_snapshot.get("sauce"), sauce), 0, MAX_SAUCE),
+		"sodium": clampi(_to_int(saved_snapshot.get("sodium"), sodium), 0, MAX_SODIUM),
+		}
 	_emit_all()
 
 
@@ -586,6 +665,16 @@ func _emit_all() -> void:
 	hearts_changed.emit(hearts, MAX_HEARTS)
 	sauce_changed.emit(sauce, MAX_SAUCE)
 	sodium_changed.emit(sodium, MAX_SODIUM)
+
+
+## The strings of an array from a save, without duplicates; anything else gives an empty list.
+static func _string_list(value: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if value is Array:
+		for entry: Variant in value:
+			if entry is String and entry != "" and not out.has(entry):
+				out.append(entry)
+	return out
 
 
 ## JSON numbers arrive as floats, so accept int and float.

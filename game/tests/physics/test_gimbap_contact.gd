@@ -106,9 +106,18 @@ func test_a_roll_with_real_contact_breaks_the_line_and_the_single_slices_can_be_
 	check_eq(alive_slices(train).size(), count, "all %d are still there" % count)
 	for s: Node3D in alive_slices(train):
 		check(s.get("train") == null, "%s walks on its own now" % s.name)
-	# Pick one off: stand a few metres from a single slice and stomp it.
+	# The slices hop apart and may land on him: breaking the line must not cost him a heart (a short
+	# grace after the roll, in the tuning data). This was the flaky part: some runs he was hurt right here.
 	await frames(40)
+	check_eq(gs.hearts, 14, "the roll that broke the line cost him nothing: " + describe())
+	# Pick one off: stand a few metres from a single slice and stomp it. The others are done with and
+	# the one picked stands still, so the stomp has exactly one slice to land on (two slices overlapping
+	# under him made WHICH one the stomp hit change from run to run).
 	var victim: Node3D = alive_slices(train)[0]
+	for other: Node3D in alive_slices(train):
+		if other != victim:
+			other.call("debug_defeat")
+	victim.set_physics_process(false)
 	attacks.clear()
 	gs.set("i_frames_left", 0.0)
 	teleport(victim.global_position.x, victim.global_position.y + 3.5)

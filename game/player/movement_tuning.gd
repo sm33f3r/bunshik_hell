@@ -47,6 +47,9 @@ extends Resource
 
 @export_group("Damage")
 @export var i_frame_time: float = 0.0
+## A roll that breaks a 김밥 line: he cannot be hurt for this long afterwards (the slices hop apart
+## and may land on him). 🟡
+@export var roll_break_grace_s: float = 0.0
 @export var flash_interval: float = 0.0
 @export var knockback_horizontal: float = 0.0
 @export var knockback_vertical: float = 0.0

@@ -37,6 +37,9 @@ func _draw() -> void:
 	draw_polyline(closed, icon.outline_color, 2.0, true)
 	if icon.shape == "crystal":
 		draw_line(box * Vector2(0.5, 0.05), box * Vector2(0.5, 0.95), icon.outline_color, 1.5)
+	elif icon.shape == "disk":
+		draw_rect(Rect2(box * Vector2(0.24, 0.1), box * Vector2(0.44, 0.26)), icon.outline_color)
+		draw_rect(Rect2(box * Vector2(0.22, 0.56), box * Vector2(0.56, 0.3)), icon.outline_color, false, 2.0)
 	elif icon.shape == "jar":
 		draw_rect(Rect2(box * Vector2(0.28, 0.06), box * Vector2(0.44, 0.14)), icon.outline_color)
 
@@ -63,6 +66,9 @@ static func shape_points(shape: String, box: Vector2) -> PackedVector2Array:
 		"coat":
 			unit = PackedVector2Array([Vector2(0.12, 0.12), Vector2(0.5, 0.02), Vector2(0.88, 0.12),
 				Vector2(0.84, 0.58), Vector2(0.5, 0.98), Vector2(0.16, 0.58)])
+		"disk": # a floppy disk: a square with one corner cut off
+			unit = PackedVector2Array([Vector2(0.08, 0.08), Vector2(0.72, 0.08), Vector2(0.92, 0.28),
+				Vector2(0.92, 0.92), Vector2(0.08, 0.92)])
 		"jar":
 			unit = PackedVector2Array([Vector2(0.22, 0.2), Vector2(0.78, 0.2), Vector2(0.9, 0.34),
 				Vector2(0.9, 0.9), Vector2(0.1, 0.9), Vector2(0.1, 0.34)])

@@ -33,6 +33,24 @@ func find_checkpoint(checkpoint_id: String) -> Resource:
 	return null
 
 
+## The 찜기 placed with this id; null when there is none.
+func find_jjigi(jjigi_id: String) -> Resource:
+	for s: MapSectionScript in sections:
+		for j: Resource in s.jjigi:
+			if j.id == jjigi_id:
+				return j
+	return null
+
+
+## The section a respawn point (a checkpoint id or a 찜기 id) belongs to; null for neither.
+func section_of_respawn(point_id: String) -> MapSectionScript:
+	for s: MapSectionScript in sections:
+		for j: Resource in s.jjigi:
+			if j.id == point_id:
+				return s
+	return section_of_checkpoint(point_id)
+
+
 func section_of_checkpoint(checkpoint_id: String) -> MapSectionScript:
 	for s: MapSectionScript in sections:
 		for c: Resource in s.checkpoints:

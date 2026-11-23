@@ -4,7 +4,7 @@ extends Resource
 ## art later, set `texture` on the icon's .tres and nothing in the code changes.
 
 @export var id: String = ""
-## heart, drop, crystal, coat, jar, mound, swatch (see HudIconView.shape_points()).
+## heart, drop, crystal, coat, jar, mound, disk, swatch (see HudIconView.shape_points()).
 @export var shape: String = "swatch"
 @export var color: Color = Color(1, 1, 1, 1)
 @export var outline_color: Color = Color(0, 0, 0, 0.85)
