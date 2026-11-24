@@ -1,6 +1,8 @@
 extends Resource
 ## One thing a section puts on a platform: an enemy, a hazard zone, a pickup.
 
+const SpawnCandidateScript := preload("res://maps/layout/spawn_candidate.gd")
+
 @export var platform_id: String = ""
 ## The scene (our own content, so it may be referenced directly).
 @export var scene: PackedScene
@@ -38,3 +40,44 @@ extends Resource
 ## false it is the stretch where its flat body would be a step: the soft-lock check uses that.)
 @export var useful_from_m: float = 0.0
 @export var useful_to_m: float = 0.0
+
+@export_group("Spawn choice")
+## A "spawn choice": instead of one fixed spot (platform_id / along_m above) the thing has several candidate
+## spots and ONE is picked per new game, from the game's seed (GameState.spawn_pick). The pick is saved,
+## so reloads and respawns keep the spot; a new game picks again. `choice_id` names the choice.
+@export var choice_id: String = ""
+@export var candidates: Array[SpawnCandidateScript] = []
+## The thing's footprint for the layout checks of a choice (real cm): it must fit every candidate spot and
+## be one he can hop over. A test keeps these equal to the thing's own def.
+@export var choice_width_cm: float = 0.0
+@export var choice_height_cm: float = 0.0
+
+
+func has_choice() -> bool:
+	return choice_id != "" and not candidates.is_empty()
+
+
+func candidate_ids() -> Array[String]:
+	var out: Array[String] = []
+	for c: SpawnCandidateScript in candidates:
+		out.append(c.id)
+	return out
+
+
+func candidate(spot_id: String) -> SpawnCandidateScript:
+	for c: SpawnCandidateScript in candidates:
+		if c.id == spot_id:
+			return c
+	return null
+
+
+## This entry with the spot `spot_id` filled in (a copy: the data entry itself is never changed). An entry
+## without a choice, or an unknown spot, comes back as it is.
+func resolved(spot_id: String) -> Resource:
+	var c: SpawnCandidateScript = candidate(spot_id)
+	if c == null:
+		return self
+	var copy: Resource = duplicate()
+	copy.platform_id = c.platform_id
+	copy.along_m = c.along_m
+	return copy

@@ -6,6 +6,8 @@ const SpawnEntryScript := preload("res://maps/layout/spawn_entry.gd")
 const CheckpointDefScript := preload("res://maps/layout/checkpoint_def.gd")
 const PromptTriggerScript := preload("res://maps/layout/prompt_trigger.gd")
 const JjigiPlacementScript := preload("res://maps/layout/jjigi_placement.gd")
+const FixturePlacementScript := preload("res://maps/layout/fixture_placement.gd")
+const DoorwayDefScript := preload("res://maps/layout/doorway_def.gd")
 
 @export var id: String = ""
 ## Built and run by other code (the prologue): nothing to build from here.
@@ -15,6 +17,9 @@ const JjigiPlacementScript := preload("res://maps/layout/jjigi_placement.gd")
 @export var checkpoints: Array[CheckpointDefScript] = []
 ## The 찜기 standing in this section (each gives one heal and save, once).
 @export var jjigi: Array[JjigiPlacementScript] = []
+## Fixed props he may use (the 정수기), and the open doorways with their curtains (scenery, never locked).
+@export var fixtures: Array[FixturePlacementScript] = []
+@export var doorways: Array[DoorwayDefScript] = []
 @export var triggers: Array[PromptTriggerScript] = []
 ## Tutorial skipping: the skills granted, and the toast shown.
 @export var skip_grants: PackedStringArray = PackedStringArray()
@@ -24,3 +29,6 @@ const JjigiPlacementScript := preload("res://maps/layout/jjigi_placement.gd")
 @export var skip_to_checkpoint: String = ""
 ## A solid wall after the last platform, with this text on it (dev note: the map goes on here).
 @export var end_wall_text: String = ""
+## Where the end wall stands: after this platform (its id; a floor lane may be named) instead of after the
+## last table. "" = after the last table.
+@export var end_wall_after: String = ""

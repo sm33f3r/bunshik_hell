@@ -8,6 +8,9 @@
 [ext_resource type="Script" path="res://maps/layout/jjigi_placement.gd" id="s_jj"]
 [ext_resource type="Resource" path="res://data/jjigi/jjigi_map.tres" id="r_jjigi_map"]
 [ext_resource type="Script" path="res://maps/layout/prompt_trigger.gd" id="s_trig"]
+[ext_resource type="Script" path="res://maps/layout/spawn_candidate.gd" id="s_cand"]
+[ext_resource type="Script" path="res://maps/layout/fixture_placement.gd" id="s_fix"]
+[ext_resource type="Script" path="res://maps/layout/doorway_def.gd" id="s_door"]
 [ext_resource type="PackedScene" path="res://enemies/mandu.tscn" id="sc_mandu"]
 [ext_resource type="PackedScene" path="res://enemies/danmuji.tscn" id="sc_danmuji"]
 [ext_resource type="PackedScene" path="res://enemies/gimbap_train.tscn" id="sc_train"]
@@ -17,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://hazards/falling_zone.tscn" id="sc_fall"]
 [ext_resource type="PackedScene" path="res://items/natrium_pickup.tscn" id="sc_natrium"]
 [ext_resource type="PackedScene" path="res://items/sauce_drip.tscn" id="sc_drip"]
+[ext_resource type="PackedScene" path="res://items/ganjang_bottle.tscn" id="sc_bottle"]
 
 [sub_resource type="Resource" id="plat_prologue_exit_table"]
 script = ExtResource("s_plat")
@@ -974,11 +978,135 @@ id = "dining_room"
 platforms = Array[ExtResource("s_plat")]([SubResource("plat_r_t1"), SubResource("plat_r_t2"), SubResource("plat_r_t3"), SubResource("plat_r_t4"), SubResource("plat_box_a"), SubResource("plat_sill_a"), SubResource("plat_r_t5"), SubResource("plat_r_t6"), SubResource("plat_r_t7"), SubResource("plat_r_t8"), SubResource("plat_r_t9"), SubResource("plat_box_b"), SubResource("plat_sill_b"), SubResource("plat_r_t10"), SubResource("plat_r_t11"), SubResource("plat_box_req"), SubResource("plat_sill_req"), SubResource("plat_r_t12"), SubResource("plat_r_t13"), SubResource("plat_r_t14"), SubResource("plat_r_t15"), SubResource("plat_dining_floor"), SubResource("plat_chair_dining_3"), SubResource("plat_chair_r_t5"), SubResource("plat_chair_r_t8"), SubResource("plat_chair_r_t13")])
 spawns = Array[ExtResource("s_spawn")]([SubResource("sp_t1"), SubResource("sp_t2"), SubResource("sp_t3"), SubResource("sp_t4"), SubResource("sp_t5"), SubResource("sp_t6"), SubResource("sp_t7"), SubResource("sp_t8"), SubResource("sp_t9"), SubResource("sp_t10"), SubResource("sp_t11"), SubResource("sp_t12"), SubResource("sp_t13"), SubResource("sp_t14"), SubResource("sp_t15"), SubResource("sp_t16"), SubResource("sp_t17"), SubResource("sp_t18"), SubResource("sp_t19"), SubResource("sp_t20"), SubResource("sp_t21"), SubResource("sp_t22"), SubResource("sp_t23"), SubResource("sp_t24"), SubResource("sp_t25"), SubResource("sp_t26"), SubResource("sp_t27"), SubResource("sp_l28"), SubResource("sp_l29"), SubResource("sp_l30"), SubResource("sp_l31"), SubResource("sp_l32"), SubResource("sp_l33"), SubResource("sp_l34"), SubResource("sp_l35"), SubResource("sp_l36"), SubResource("sp_l37"), SubResource("sp_l38"), SubResource("sp_l39"), SubResource("sp_l40"), SubResource("sp_l41"), SubResource("sp_l42"), SubResource("sp_l43"), SubResource("sp_f1"), SubResource("sp_f2"), SubResource("sp_f3"), SubResource("sp_f4"), SubResource("sp_f5")])
 jjigi = Array[ExtResource("s_jj")]([SubResource("jj_mid")])
-end_wall_text = "[dev] Map 1 continues here (Task 3c: the first ramyeon)"
+
+; ---------------------------------------------------------------------------------------------------
+; Task 3c-i-a: the kitchen front. It goes on from the last dining table (the dining room's end wall is
+; gone): two more tables over a floor lane that runs on to the open kitchen doorway, a 정수기 in front of
+; the doorway, a short kitchen stub beyond it and a temporary end wall (the kitchen is built in 3c-ii).
+; The 간장 bottle has three candidate spots; one is picked per new game.
+; ---------------------------------------------------------------------------------------------------
+
+[sub_resource type="Resource" id="plat_kf_t1"]
+script = ExtResource("s_plat")
+id = "kf_t1"
+kind = "table"
+length_cm = 70
+gap_fraction = 0.6
+color = Color(0.541, 0.561, 0.416, 1)
+
+; The last dining table. The bottle may stand on it.
+[sub_resource type="Resource" id="plat_kf_t2"]
+script = ExtResource("s_plat")
+id = "kf_t2"
+kind = "table"
+length_cm = 80
+gap_fraction = 0.6
+color = Color(0.604, 0.627, 0.439, 1)
+
+[sub_resource type="Resource" id="plat_chair_kf_t2"]
+script = ExtResource("s_plat")
+id = "chair_kf_t2"
+kind = "stairs"
+length_cm = 14
+host = "kf_t2"
+along_cm = 0.5
+chain = false
+main_path = false
+color = Color(0.450, 0.330, 0.220, 1)
+steps = 9
+side = "right"
+top_drop_cm = 9.0
+bottom_rise_cm = 8.0
+thickness_cm = 2
+
+; The floor lane goes on from the dining room's (it starts under the last dining-room table, so the two
+; overlap) under the new tables, past the chair steps, to the kitchen doorway and the stub beyond it.
+[sub_resource type="Resource" id="plat_kitchen_floor"]
+script = ExtResource("s_plat")
+id = "kitchen_floor"
+kind = "floor"
+length_cm = 100
+thickness_cm = 30
+chain = false
+main_path = false
+color = Color(0.300, 0.260, 0.240, 1)
+span_from = "r_t15"
+span_to = "kf_t2"
+drop_from = "prologue_exit_table"
+drop_cm = 75.0
+span_extra_right_cm = 300.0
+
+[sub_resource type="Resource" id="spot_last_table"]
+script = ExtResource("s_cand")
+id = "last_table"
+platform_id = "kf_t2"
+along_m = 7.0
+
+[sub_resource type="Resource" id="spot_floor_before"]
+script = ExtResource("s_cand")
+id = "floor_before_dispenser"
+platform_id = "kitchen_floor"
+along_m = -28.0
+
+[sub_resource type="Resource" id="spot_floor_mid"]
+script = ExtResource("s_cand")
+id = "floor_mid"
+platform_id = "kitchen_floor"
+along_m = 24.0
+
+; The 간장 bottle: the 나트륨 source for the 라면 of Task 3c-i-b, so it is required_for_progress (it comes
+; back upright with all its squirts at every life, and when it has fallen off its table).
+[sub_resource type="Resource" id="sp_bottle"]
+script = ExtResource("s_spawn")
+scene = ExtResource("sc_bottle")
+group = "bottle"
+required_for_progress = true
+respawn_delay_s = 4.0
+out_below_m = 1.5
+choice_id = "ganjang_bottle"
+candidates = Array[ExtResource("s_cand")]([SubResource("spot_last_table"), SubResource("spot_floor_before"), SubResource("spot_floor_mid")])
+choice_width_cm = 3.5
+choice_height_cm = 8.0
+
+[sub_resource type="Resource" id="cp_kitchen"]
+script = ExtResource("s_cp")
+id = "kitchen_front_start"
+platform_id = "kf_t1"
+along_m = 2.0
+lift_m = 0.5
+
+[sub_resource type="Resource" id="fx_dispenser"]
+script = ExtResource("s_fix")
+id = "water_dispenser_1"
+kind = "water_dispenser"
+platform_id = "kitchen_floor"
+along_m = -22.0
+width_cm = 25.0
+height_cm = 60.0
+
+[sub_resource type="Resource" id="door_kitchen"]
+script = ExtResource("s_door")
+id = "kitchen_door"
+platform_id = "kitchen_floor"
+along_m = -14.0
+width_cm = 40.0
+height_cm = 40.0
+bottom_edge_cm = 12.0
+
+[sub_resource type="Resource" id="sec_kitchen_front"]
+script = ExtResource("s_section")
+id = "kitchen_front"
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_kf_t1"), SubResource("plat_kf_t2"), SubResource("plat_kitchen_floor"), SubResource("plat_chair_kf_t2")])
+spawns = Array[ExtResource("s_spawn")]([SubResource("sp_bottle")])
+checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_kitchen")])
+fixtures = Array[ExtResource("s_fix")]([SubResource("fx_dispenser")])
+doorways = Array[ExtResource("s_door")]([SubResource("door_kitchen")])
+end_wall_text = "[dev] Map 1 continues here (Task 3c-ii: the kitchen)"
+end_wall_after = "kitchen_floor"
 
 [resource]
 script = ExtResource("s_layout")
-sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining"), SubResource("sec_dining_room")])
+sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining"), SubResource("sec_dining_room"), SubResource("sec_kitchen_front")])
 prompt_accept_text = "튜토리얼 하기"
 prompt_cancel_text = "건너뛰기"
 fade_out_s = 0.35

@@ -161,7 +161,7 @@ func receive_attack(attack: String, hit_dir: float = 1.0, params: Dictionary = {
 	if not alive or def == null or reaction_table == null:
 		return {"reaction": ReactionTableScript.REACTION_ABSORB, "reactions": [ReactionTableScript.REACTION_ABSORB],
 			"damage": 0, "killed": false}
-	var cell: Array[Dictionary] = reaction_table.lookup_all(attack, def.material)
+	var cell: Array[Dictionary] = reaction_table.lookup_all(attack, material_key())
 	var names: Array[String] = []
 	for result: Dictionary in cell:
 		var reaction: String = result["reaction"]
@@ -201,6 +201,8 @@ func _apply_reaction(reaction: String, damage: int, hit_dir: float, params: Dict
 			_handle_spill()
 		ReactionTableScript.REACTION_BREAK_LINE:
 			_handle_break_line(hit_dir)
+		ReactionTableScript.REACTION_SQUIRT:
+			_handle_squirt(hit_dir)
 		ReactionTableScript.REACTION_ABSORB:
 			_play_slurp()
 		ReactionTableScript.REACTION_DETERIORATE:
@@ -318,6 +320,23 @@ func _handle_knock_over(_hit_dir: float) -> bool:
 ## Override: the enemy spills (landing on a 김밥 slice) and leaves a slippery patch.
 func _handle_spill() -> void:
 	pass
+
+
+## Override: the enemy squirts (a knocked-over 간장 bottle that is hit by a slam or a stomp).
+func _handle_squirt(_hit_dir: float) -> void:
+	pass
+
+
+## Override: the row of the reaction table this enemy reads right now. Normally its def's material; a
+## prop that changes with what happened to it (a bottle standing or lying) answers with the row of its state.
+func material_key() -> String:
+	return def.material if def != null else ""
+
+
+## Override: true for a prop that never hurts him, so touching its side costs nothing (and does not
+## knock him back). The attacks on it still run through the reaction table.
+func is_harmless() -> bool:
+	return false
 
 
 ## Override: a line of enemies scatters into single pieces (a roll through a 김밥 train).

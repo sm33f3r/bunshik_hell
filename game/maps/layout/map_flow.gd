@@ -93,6 +93,7 @@ func setup(p_player: DdeokScript, p_camera: Camera3D, p_game_state: GameStateScr
 	index_layout(anchor)
 	builder = SectionBuilderScript.new()
 	builder.name = "Layout"
+	builder.game_state = game_state
 	add_child(builder)
 	builder.build(layout, placed, m, data.dims().counter_depth_cm * m)
 	ui = TutorialUiScript.new()

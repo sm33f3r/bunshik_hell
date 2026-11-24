@@ -124,7 +124,7 @@ func test_every_wheel_the_tutorial_needs_is_marked_required_and_has_a_delay() ->
 	for entry: SpawnEntryScript in ProgressGraphScript.required_entries(layout):
 		required.append(entry.group)
 		check(entry.respawn_delay_s > 0.0, "%s has a respawn delay" % entry.group)
-	check_eq(required, ["c1", "c2"] as Array[String], "the two wheels of beat c (the bounce and the roll platform)")
+	check_eq(required, ["c1", "c2", "bottle"] as Array[String], "the two wheels of beat c (the bounce and the roll platform), and the 간장 bottle (3c-i-a)")
 	check_eq(_entry(layout, "c1").respawn_delay_s, 4.0, "c1 comes back after 4 s (data)")
 	check_eq(_entry(layout, "c2").respawn_delay_s, 4.0, "so does c2")
 	check(not _entry(layout, "c1").usable_when_flat, "a flat first wheel is spent: it springs back (rolling it must not cost the bounce)")

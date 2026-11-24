@@ -1,0 +1,16 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://items/bottle_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = "ganjang_bottle"
+material = "bottle_upright"
+max_hp = 1
+contact_damage_half_hearts = 0
+upright_material = "bottle_upright"
+fallen_material = "bottle_fallen"
+squirts_max = 5
+sodium_per_squirt = 3
+height_cm = 8.0
+width_cm = 3.5

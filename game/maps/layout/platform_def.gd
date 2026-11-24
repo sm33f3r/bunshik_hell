@@ -61,6 +61,8 @@ extends Resource
 @export var drop_from: String = ""
 @export var drop_cm: float = 0.0
 @export var wall_cm: float = 0.0
+## The lane runs this much further right than the margin says (a stub beyond the last table).
+@export var span_extra_right_cm: float = 0.0
 
 @export_group("Stairs")
 ## The way back up from the floor: `steps` blocks next to the `host` table, going down away from it

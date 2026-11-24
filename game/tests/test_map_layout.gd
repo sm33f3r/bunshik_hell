@@ -48,13 +48,14 @@ func test_the_layout_loads_with_its_three_sections() -> void:
 	var ids: Array[String] = []
 	for section: MapSectionScript in layout.sections:
 		ids.append(section.id)
-	check_eq(ids, ["prologue", "tutorial", "dining_room_start", "dining_room"] as Array[String], "sections in order")
+	check_eq(ids, ["prologue", "tutorial", "dining_room_start", "dining_room", "kitchen_front"] as Array[String], "sections in order")
 	check(layout.section("prologue").external, "the prologue is built by the prologue code, not from here")
 	check(layout.section("prologue").platforms.is_empty(), "so it lists nothing")
 	check(not layout.section("tutorial").platforms.is_empty(), "the tutorial has platforms")
 	check(not layout.section("dining_room_start").platforms.is_empty(), "so does the dining room start")
 	check_eq(layout.section("dining_room_start").end_wall_text, "", "the dining room start goes on into the dining room (Task 3b-ii)")
-	check(layout.section("dining_room").end_wall_text != "", "the dining room ends in a marked wall")
+	check_eq(layout.section("dining_room").end_wall_text, "", "the dining room goes on into the kitchen front (Task 3c-i-a)")
+	check(layout.section("kitchen_front").end_wall_text != "", "the kitchen front ends in a marked wall")
 
 
 func test_every_step_of_the_main_path_can_be_done_at_85_percent() -> void:
@@ -153,6 +154,8 @@ func test_everything_the_sections_name_exists() -> void:
 	var checkpoint_ids: Array[String] = []
 	for section: MapSectionScript in layout.sections:
 		for spawn in section.spawns:
+			if spawn.has_choice():
+				continue # a spawn choice names its platforms per candidate spot (test_kitchen_front.gd)
 			check(LayoutGeometryScript.find(placed, spawn.platform_id) != null, "spawn on %s: no such platform" % spawn.platform_id)
 			check(spawn.scene != null, "spawn on %s has a scene" % spawn.platform_id)
 			var at: Vector3 = LayoutGeometryScript.spawn_position(placed, spawn)

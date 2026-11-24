@@ -191,6 +191,7 @@ static func problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript
 	for entry: SpawnEntryScript in required_entries(layout):
 		if entry.respawn_delay_s <= 0.0:
 			out.append("%s on '%s': required_for_progress needs a respawn_delay_s above 0" % [_name(entry), entry.platform_id])
+	out.append_array(scenery_problems(layout, placed, reach))
 	for entry: SpawnEntryScript in wheel_entries(layout):
 		for mode: String in MODES:
 			var wasted: String = state_after(placed, reach, wheel, entry, mode)
@@ -204,6 +205,123 @@ static func problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript
 			var later: Array[String] = unreachable(layout, placed, reach, {entry: state_after_respawn(entry, wasted)})
 			if not later.is_empty():
 				out.append("%s: still no way on to %s after its respawn of %.1f s" % [label, ", ".join(later), entry.respawn_delay_s])
+	return out
+
+
+# --- Spawn choices, fixtures and doorways -----------------------------------------------------------
+
+## Every spawn entry that has a spawn choice (several candidate spots).
+static func choice_entries(layout: MapLayoutScript) -> Array[SpawnEntryScript]:
+	var out: Array[SpawnEntryScript] = []
+	for section: MapSectionScript in layout.sections:
+		for entry: SpawnEntryScript in section.spawns:
+			if entry.choice_id != "" or not entry.candidates.is_empty():
+				out.append(entry)
+	return out
+
+
+## One readable line per problem (empty = none) with what the map puts on its platforms besides enemies:
+##   - a spawn choice has at least two candidates with unique ids, and EVERY candidate is a spot he can get
+##     to (a table of the way through he can reach, or a floor lane with a reachable table over it), the
+##     thing fits there (inside the platform, not inside a fixture or a doorway, nothing solid lower than
+##     its top plus headroom), and it is one he can hop over (no taller than a plain jump at the margin);
+##   - a fixture or a doorway stands on a floor lane or a table he can get to, inside it;
+##   - a doorway has nothing solid in its opening (headroom all the way), so it is never blocked.
+static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript) -> Array[String]:
+	var out: Array[String] = []
+	var blocked: Array[String] = unreachable(layout, placed, reach, {})
+	var headroom: float = layout.headroom_m
+	for section: MapSectionScript in layout.sections:
+		if section.external:
+			continue
+		for entry: SpawnEntryScript in section.spawns:
+			if entry.choice_id == "" and entry.candidates.is_empty():
+				continue
+			var label: String = "spawn choice '%s'" % entry.choice_id
+			if entry.choice_id == "" or entry.candidates.size() < 2:
+				out.append("%s: needs an id and at least two candidate spots" % label)
+			var seen: Array[String] = []
+			var width: float = entry.choice_width_cm * reach.m_per_cm
+			var height: float = entry.choice_height_cm * reach.m_per_cm
+			if height > reach.max_rise("jump") + LayoutGeometryScript.EPS:
+				out.append("%s: %.2f m tall is more than he can hop over (%.2f m)" % [label, height, reach.max_rise("jump")])
+			for c: Resource in entry.candidates:
+				var spot: String = "%s, spot '%s'" % [label, c.id]
+				if c.id == "" or seen.has(c.id):
+					out.append("%s: the spot id is empty or used twice" % spot)
+				seen.append(c.id)
+				out.append_array(_spot_problems(layout, spot, c.platform_id, c.along_m, width, height, placed, reach, blocked, true))
+		for fixture: Resource in section.fixtures:
+			out.append_array(_spot_problems(layout, "fixture '%s'" % fixture.id, fixture.platform_id, fixture.along_m,
+				fixture.width_cm * reach.m_per_cm, 0.0, placed, reach, blocked, false))
+		for doorway: Resource in section.doorways:
+			var label: String = "doorway '%s'" % doorway.id
+			out.append_array(_spot_problems(layout, label, doorway.platform_id, doorway.along_m,
+				doorway.width_cm * reach.m_per_cm, 0.0, placed, reach, blocked, false))
+			var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
+			if lane == null:
+				continue
+			var x: float = LayoutGeometryScript.x_on(lane, doorway.along_m)
+			var half: float = doorway.width_cm * reach.m_per_cm * 0.5
+			for other: LayoutGeometryScript.Placed in placed:
+				if other == lane or other.def.kind == "floor" or other.right <= x - half or other.left >= x + half:
+					continue
+				if other.top - other.thickness - lane.top < layout.headroom_m:
+					out.append("%s: not open: '%s' is in the opening (only %.2f m under it, needs %.2f m)" % [
+						label, other.def.id, other.top - other.thickness - lane.top, layout.headroom_m])
+	return out
+
+
+## Problems with one spot (a platform, a place along it, a footprint). `is_thing`: a thing he can bump into
+## (a spawn choice's), as opposed to scenery; only a thing must keep clear of the fixtures and doorways.
+static func _spot_problems(layout: MapLayoutScript, label: String, platform_id: String, along_m: float, width: float, height: float,
+		placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript, blocked: Array[String], is_thing: bool) -> Array[String]:
+	var out: Array[String] = []
+	var host: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, platform_id)
+	if host == null:
+		out.append("%s: no platform '%s'" % [label, platform_id])
+		return out
+	var x: float = LayoutGeometryScript.x_on(host, along_m)
+	var half: float = width * 0.5
+	if x - half < host.left - LayoutGeometryScript.EPS or x + half > host.right + LayoutGeometryScript.EPS:
+		out.append("%s: does not fit on '%s' (%.2f..%.2f m is outside %.2f..%.2f m)" % [label, platform_id, x - half, x + half, host.left, host.right])
+	# He can get there.
+	if host.def.kind == "floor":
+		var table_over: bool = false
+		for p: LayoutGeometryScript.Placed in placed:
+			if p.def.kind == "table" and not blocked.has(p.def.id) and p.right > host.left and p.left < host.right:
+				table_over = true
+		if not table_over:
+			out.append("%s: the floor lane '%s' has no reachable table over it, so he cannot get down to it" % [label, platform_id])
+	elif not (host.chain and host.def.main_path):
+		out.append("%s: '%s' is not on the way through the map" % [label, platform_id])
+	elif blocked.has(platform_id):
+		out.append("%s: '%s' cannot be reached" % [label, platform_id])
+	if not is_thing:
+		return out
+	# Not inside a fixture or a doorway on the same platform.
+	for section: MapSectionScript in layout.sections:
+		for fixture: Resource in section.fixtures:
+			if fixture.platform_id == platform_id:
+				var fx: float = LayoutGeometryScript.x_on(host, fixture.along_m)
+				if absf(fx - x) < fixture.width_cm * reach.m_per_cm * 0.5 + half - LayoutGeometryScript.EPS:
+					out.append("%s: stands inside fixture '%s'" % [label, fixture.id])
+		for doorway: Resource in section.doorways:
+			if doorway.platform_id == platform_id:
+				var dx: float = LayoutGeometryScript.x_on(host, doorway.along_m)
+				if absf(dx - x) < doorway.width_cm * reach.m_per_cm * 0.5 + half - LayoutGeometryScript.EPS:
+					out.append("%s: stands in the doorway '%s'" % [label, doorway.id])
+	# Nothing solid in it or low over it: it must not touch anything above its top, and a floor spot needs
+	# standing room (headroom) over the top of the thing too.
+	for other: LayoutGeometryScript.Placed in placed:
+		if other == host or other.def.kind == "floor" or other.right <= x - half or other.left >= x + half:
+			continue
+		if other.top <= host.top + LayoutGeometryScript.EPS:
+			continue # lower than where it stands: not in its way
+		var underside: float = other.top - other.thickness
+		var needs: float = height + layout.headroom_m
+		if underside < host.top + needs - LayoutGeometryScript.EPS:
+			out.append("%s: '%s' is too close over it (its underside is %.2f m above, it needs %.2f m)" % [label, other.def.id, underside - host.top, needs])
 	return out
 
 

@@ -8,6 +8,9 @@ extends Node3D
 ##     lane and the chair steps
 ##   FloorWall_<id>   StaticBody3D, a low wall at the left end of a floor lane (it keeps him on it)
 ##   EndWall_<section>   StaticBody3D, a tall wall after the last table of a section, with a sign
+##   Fixture_<id>   Node3D in the group "fixtures": a prop he may use (the 정수기), NOT solid
+##   Doorway_<id>   Node3D: the frame of an open doorway (decor behind the lane, not solid), and under
+##     it Curtain_<id> (group "fixtures"): the swaying rubber strips, not solid either
 
 const MapLayoutScript := preload("res://maps/layout/map_layout.gd")
 const MapSectionScript := preload("res://maps/layout/map_section.gd")
@@ -16,6 +19,10 @@ const LayoutGeometryScript := preload("res://maps/layout/layout_geometry.gd")
 const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const Layers := preload("res://systems/layers.gd")
 const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
+const FixturePlacementScript := preload("res://maps/layout/fixture_placement.gd")
+const DoorwayDefScript := preload("res://maps/layout/doorway_def.gd")
+const DoorwayCurtainScript := preload("res://maps/layout/doorway_curtain.gd")
+const GameStateScript := preload("res://systems/game_state.gd")
 const STEAMER_SCENE: PackedScene = preload("res://items/steamer.tscn")
 
 const WALL_HEIGHT_M: float = 40.0
@@ -32,6 +39,12 @@ var platform_nodes: Dictionary = {}
 var end_walls: Dictionary = {}
 ## 찜기 placement id -> its node (Jjigi_<id>).
 var jjigi_nodes: Dictionary = {}
+## Fixture id -> its node; doorway id -> its frame node and its curtain node.
+var fixture_nodes: Dictionary = {}
+var doorway_nodes: Dictionary = {}
+var curtain_nodes: Dictionary = {}
+## Where a thing with a spawn choice gets its pick (and the pick is kept). null = always the first spot.
+var game_state: GameStateScript
 
 var _spawned: Dictionary = {}
 
@@ -55,12 +68,24 @@ func build(p_layout: MapLayoutScript, p_placed: Array[LayoutGeometryScript.Place
 			if steamer != null:
 				jjigi_nodes[placement.id] = steamer
 	for section: MapSectionScript in layout.sections:
+		if section.external:
+			continue
+		for fixture: FixturePlacementScript in section.fixtures:
+			var node: Node3D = _build_fixture(fixture)
+			if node != null:
+				fixture_nodes[fixture.id] = node
+		for doorway: DoorwayDefScript in section.doorways:
+			_build_doorway(doorway)
+	for section: MapSectionScript in layout.sections:
 		if section.external or section.end_wall_text == "":
 			continue
 		var last: LayoutGeometryScript.Placed = null
-		for p: LayoutGeometryScript.Placed in placed:
-			if p.section_id == section.id and p.chain and p.def.kind != "floor":
-				last = p
+		if section.end_wall_after != "":
+			last = LayoutGeometryScript.find(placed, section.end_wall_after)
+		else:
+			for p: LayoutGeometryScript.Placed in placed:
+				if p.section_id == section.id and p.chain and p.def.kind != "floor":
+					last = p
 		if last != null:
 			end_walls[section.id] = _build_end_wall(section, last)
 
@@ -76,6 +101,68 @@ func _build_jjigi(placement: Resource) -> Node3D:
 	add_child(node)
 	node.global_position = LayoutGeometryScript.jjigi_position(placed, placement)
 	return node
+
+
+## A prop he may use, standing on its platform: gray box, no collider (like the 찜기 it stands in the
+## lane, so it is a "fixtures" node the lane rules know). `kind` picks the picture.
+func _build_fixture(fixture: FixturePlacementScript) -> Node3D:
+	if LayoutGeometryScript.find(placed, fixture.platform_id) == null:
+		return null
+	var node: Node3D = Node3D.new()
+	node.name = "Fixture_%s" % fixture.id
+	node.add_to_group("fixtures")
+	node.set_meta("fixture_id", fixture.id)
+	node.set_meta("fixture_kind", fixture.kind)
+	add_child(node)
+	node.global_position = LayoutGeometryScript.place_on(placed, fixture.platform_id, fixture.along_m, fixture.lift_m)
+	var width: float = fixture.width_cm * m_per_cm
+	var height: float = fixture.height_cm * m_per_cm
+	var lane_depth: float = depth_m * 0.6
+	match fixture.kind:
+		"water_dispenser":
+			# A tall cabinet, a water tank on top (blue-gray) and a spout with a tray.
+			PrologueSetScript.add_mesh(node, "Cabinet", PrologueSetScript.box_mesh(Vector3(width, height * 0.7, lane_depth)),
+				fixture.color, Vector3(0.0, height * 0.35, 0.0))
+			PrologueSetScript.add_mesh(node, "Tank", PrologueSetScript.box_mesh(Vector3(width * 0.8, height * 0.3, lane_depth * 0.8)),
+				Color(0.62, 0.78, 0.9), Vector3(0.0, height * 0.85, 0.0))
+			PrologueSetScript.add_mesh(node, "Spout", PrologueSetScript.box_mesh(Vector3(width * 0.2, height * 0.06, lane_depth * 0.3)),
+				fixture.color.darkened(0.4), Vector3(-width * 0.5, height * 0.45, 0.0))
+			PrologueSetScript.add_mesh(node, "Tray", PrologueSetScript.box_mesh(Vector3(width * 0.5, height * 0.03, lane_depth * 0.5)),
+				fixture.color.darkened(0.55), Vector3(-width * 0.55, height * 0.2, 0.0))
+		_:
+			PrologueSetScript.add_mesh(node, "Box", PrologueSetScript.box_mesh(Vector3(width, height, lane_depth)),
+				fixture.color, Vector3(0.0, height * 0.5, 0.0))
+	return node
+
+
+## An open doorway: the frame is decor behind the character lane (never in his way, never a collider),
+## the curtain strips hang in the lane (no collider, they only sway).
+func _build_doorway(doorway: DoorwayDefScript) -> void:
+	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
+	if lane == null:
+		return
+	var at: Vector3 = LayoutGeometryScript.place_on(placed, doorway.platform_id, doorway.along_m)
+	var frame: Node3D = Node3D.new()
+	frame.name = "Doorway_%s" % doorway.id
+	add_child(frame)
+	frame.global_position = at
+	var width: float = doorway.width_cm * m_per_cm
+	var height: float = doorway.height_cm * m_per_cm
+	var post: float = doorway.frame_thickness_cm * m_per_cm
+	var z: float = LaneRulesScript.decor_z("behind", depth_m, 1.0 * m_per_cm, post)
+	PrologueSetScript.add_mesh(frame, "JambLeft", PrologueSetScript.box_mesh(Vector3(post, height, post)),
+		doorway.frame_color, Vector3(-(width + post) * 0.5, height * 0.5, z))
+	PrologueSetScript.add_mesh(frame, "JambRight", PrologueSetScript.box_mesh(Vector3(post, height, post)),
+		doorway.frame_color, Vector3((width + post) * 0.5, height * 0.5, z))
+	PrologueSetScript.add_mesh(frame, "Lintel", PrologueSetScript.box_mesh(Vector3(width + post * 2.0, post, post)),
+		doorway.frame_color, Vector3(0.0, height + post * 0.5, z))
+	var curtain: Node3D = DoorwayCurtainScript.new()
+	curtain.name = "Curtain_%s" % doorway.id
+	curtain.add_to_group("fixtures")
+	frame.add_child(curtain)
+	curtain.call("build", doorway, m_per_cm)
+	doorway_nodes[doorway.id] = frame
+	curtain_nodes[doorway.id] = curtain
 
 
 func _build_platform(p: LayoutGeometryScript.Placed) -> StaticBody3D:
@@ -189,11 +276,21 @@ func spawn_section(section_id: String) -> Array[Node3D]:
 		if entry.scene == null:
 			continue
 		index += 1
-		var node: Node3D = _make(entry, section_id, index)
+		var node: Node3D = _make(resolve_entry(entry), section_id, index)
 		if node != null:
 			out.append(node)
 	_spawned[section_id] = out
 	return out
+
+
+## The entry as it is built: one with a spawn choice gets the spot picked for this game (the first one
+## when there is no GameState to keep the pick); any other entry is itself.
+func resolve_entry(entry: SpawnEntryScript) -> SpawnEntryScript:
+	if not entry.has_choice():
+		return entry
+	var ids: Array[String] = entry.candidate_ids()
+	var spot: String = game_state.spawn_pick(entry.choice_id, ids) if game_state != null else ids[0]
+	return entry.resolved(spot) as SpawnEntryScript
 
 
 ## One spawn entry as a node in the tree.

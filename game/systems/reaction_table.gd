@@ -37,6 +37,8 @@ const REACTION_JAM: String = "jam"
 const REACTION_SWELL: String = "swell"
 ## Held in place for the pin time of the object that landed on it. Contact still hurts.
 const REACTION_PIN: String = "pin"
+## A knocked-over bottle squirts once (the 간장 bottle; see GanjangBottle). The bottle decides if it can.
+const REACTION_SQUIRT: String = "squirt"
 
 ## material -> attack -> {"reaction": String, "damage": int} or an Array of those
 @export var entries: Dictionary = {}

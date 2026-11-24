@@ -5,6 +5,74 @@
 [resource]
 script = ExtResource("1_yre74")
 entries = {
+"bottle_fallen": {
+"foot": {
+"damage": 0,
+"reaction": "absorb"
+},
+"heavy_object": {
+"damage": 0,
+"reaction": "absorb"
+},
+"landing": {
+"damage": 0,
+"reaction": "absorb"
+},
+"roll": {
+"damage": 0,
+"reaction": "absorb"
+},
+"sauce": {
+"damage": 0,
+"reaction": "absorb"
+},
+"slam": {
+"damage": 0,
+"reaction": "squirt"
+},
+"stomp": {
+"damage": 0,
+"reaction": "squirt"
+},
+"water": {
+"damage": 0,
+"reaction": "absorb"
+}
+},
+"bottle_upright": {
+"foot": {
+"damage": 0,
+"reaction": "absorb"
+},
+"heavy_object": {
+"damage": 0,
+"reaction": "absorb"
+},
+"landing": {
+"damage": 0,
+"reaction": "absorb"
+},
+"roll": {
+"damage": 0,
+"reaction": "knock_over"
+},
+"sauce": {
+"damage": 0,
+"reaction": "absorb"
+},
+"slam": {
+"damage": 0,
+"reaction": "absorb"
+},
+"stomp": {
+"damage": 0,
+"reaction": "absorb"
+},
+"water": {
+"damage": 0,
+"reaction": "absorb"
+}
+},
 "crunchy": {
 "foot": {
 "damage": 0,

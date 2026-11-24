@@ -133,7 +133,7 @@ func wiggle(count: int) -> void:
 
 # --- The tables -------------------------------------------------------------------------------------
 
-func test_a_scripted_run_along_the_tables_reaches_the_end_wall_over_the_required_sill() -> void:
+func test_a_scripted_run_along_the_tables_reaches_the_kitchen_front_over_the_required_sill() -> void:
 	await open_dining()
 	clear_enemies()
 	hazards_off(["chopsticks.gd", "giant_foot.gd", "gum_patch.gd"])
@@ -177,11 +177,11 @@ func test_a_scripted_run_along_the_tables_reaches_the_end_wall_over_the_required
 	check_eq(reached, tables.size(), "he stood on every table")
 	if reached == tables.size():
 		var last: LayoutGeometryScript.Placed = tables[tables.size() - 1]
-		await walk_to(last.right + 2.0, 300)
-		check(player.global_position.x < last.right + 0.01, "the end wall stops him: " + describe())
+		# The dining room's end wall is gone (Task 3c-i-a): the way goes on to the kitchen front's first table.
 		check(on_top_of(last.def.id), "on the last table")
+		check(await hop_to(last.right - 0.6, "kf_t1"), "and on to the kitchen front: " + describe())
 		check_eq(gs.hearts, 14, "and he took no damage on the way")
-	check_eq(gs.checkpoint_id, "map01_dining_start", "walking past the 찜기 does not use it: the respawn point is still the start")
+	check_eq(gs.checkpoint_id, "kitchen_front_start", "walking past the 찜기 does not use it; the only new respawn point is the kitchen front's checkpoint he reached at the end")
 	check(not gs.is_jjigi_used("map01_dining_mid"), "it is still unused")
 
 

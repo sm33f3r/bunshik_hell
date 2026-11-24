@@ -97,6 +97,8 @@ var _buffer_timer: float = 0.0
 var _invuln_timer: float = 0.0
 var _hurt_timer: float = 0.0
 var _roll_timer: float = 0.0
+## The stomp has landed and is over after the next contact check (see _after_move).
+var _stomp_landed: bool = false
 ## Letting go of jump cuts the rise only of a jump he made himself, never a bounce off an enemy.
 var _jump_cut_allowed: bool = true
 var _roll_cooldown: float = 0.0
@@ -648,9 +650,16 @@ func _after_move() -> void:
 	if grounded and not was_grounded:
 		landed.emit(absf(_last_vy))
 		if state == State.STOMP:
-			_set_state(State.IDLE)
+			# The stomp stays on for one more tick: overlaps are read at the start of the next one, so landing
+			# on something SOLID (the lying 간장 bottle) is a stomp on it, as sinking into an enemy is.
+			_stomp_landed = true
 		elif state == State.SLAM:
 			_slam_impact()
+	elif _stomp_landed and state == State.STOMP:
+		_stomp_landed = false
+		_set_state(State.IDLE)
+	if state != State.STOMP:
+		_stomp_landed = false
 
 
 ## One-way platforms live on their own layer. The player collides with it only while
@@ -707,6 +716,8 @@ func _handle_contact(enemy: EnemyBaseScript) -> void:
 			_roll_hits.append(id)
 			_hit_enemy(enemy, ReactionTableScript.ATTACK_ROLL)
 		return
+	if enemy.is_harmless():
+		return # a prop (the 간장 bottle): bumping into its side is nothing
 	hurt(enemy.contact_damage(), enemy.global_position.x)
 
 
@@ -720,13 +731,22 @@ func _hit_enemy(enemy: EnemyBaseScript, attack: String) -> void:
 	elif attack == ReactionTableScript.ATTACK_ROLL and (result["reactions"] as Array).has(ReactionTableScript.REACTION_BREAK_LINE):
 		# The slices hop apart and may land on him: a short grace, so breaking a line is not a trap.
 		_invuln_timer = maxf(_invuln_timer, tuning.roll_break_grace_s)
-	elif attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP:
+	elif (attack == ReactionTableScript.ATTACK_LANDING or attack == ReactionTableScript.ATTACK_STOMP) 			and not _only_absorbed(result):
 		velocity.y = tuning.bounce_velocity
 		_jump_cut_allowed = false # letting go of the button must not cut a bounce (the 단무지's throw to the ledge)
 		if (result["reactions"] as Array).has(ReactionTableScript.REACTION_BOUNCE_BOOST):
 			velocity.y *= tuning.bounce_boost_multiplier * enemy.bounce_multiplier()
 		grounded = false
 		_set_state(State.JUMP)
+
+
+## True when the table gave nothing but "absorb" (the pair is a no-op): he does not bounce off a thing
+## that does not react, so he can stand on top of it (the upright 간장 bottle).
+func _only_absorbed(result: Dictionary) -> bool:
+	for reaction: String in result["reactions"]:
+		if reaction != ReactionTableScript.REACTION_ABSORB:
+			return false
+	return true
 
 
 ## Slam landing: hits every living enemy within slam_radius of the landing point.

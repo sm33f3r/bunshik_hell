@@ -125,7 +125,7 @@ static func _place_floor(p: Placed, out: Array[Placed], reach: JumpReachScript) 
 		push_warning("floor '%s': span_from / span_to / drop_from must be platforms placed before it" % def.id)
 		return
 	p.left = from_p.left - def.span_margin_cm * reach.m_per_cm
-	p.right = to_p.right + def.span_margin_cm * reach.m_per_cm
+	p.right = to_p.right + (def.span_margin_cm + def.span_extra_right_cm) * reach.m_per_cm
 	p.top = drop_p.top - def.drop_cm * reach.m_per_cm
 	p.thickness = def.thickness_cm * reach.m_per_cm
 	p.chain = false
@@ -188,6 +188,14 @@ static func jjigi_position(placed: Array[Placed], placement: Resource) -> Vector
 	if p == null:
 		return Vector3.ZERO
 	return Vector3(x_on(p, placement.along_m), p.top + placement.lift_m, 0.0)
+
+
+## Where something placed on a platform by id stands: x along it, `lift_m` above its top.
+static func place_on(placed: Array[Placed], platform_id: String, along_m: float, lift_m: float = 0.0) -> Vector3:
+	var p: Placed = find(placed, platform_id)
+	if p == null:
+		return Vector3.ZERO
+	return Vector3(x_on(p, along_m), p.top + lift_m, 0.0)
 
 
 static func checkpoint_position(placed: Array[Placed], checkpoint: CheckpointDefScript) -> Vector3:
@@ -329,12 +337,12 @@ static func _validate_sills(placed: Array[Placed], reach: JumpReachScript, probl
 
 
 static func _validate_lane(placed: Array[Placed], reach: JumpReachScript, layout: MapLayoutScript, problems: Array[String]) -> void:
-	var lane: Placed = null
-	for p: Placed in placed:
-		if p.def.kind == "floor":
-			lane = p
-	if lane == null:
-		return
+	for lane: Placed in placed:
+		if lane.def.kind == "floor":
+			_validate_one_lane(lane, placed, reach, layout, problems)
+
+
+static func _validate_one_lane(lane: Placed, placed: Array[Placed], reach: JumpReachScript, layout: MapLayoutScript, problems: Array[String]) -> void:
 	var headroom: float = layout.headroom_m if layout != null else DEFAULT_HEADROOM_M
 	var spacing: float = layout.climb_spacing_max_m if layout != null else DEFAULT_CLIMB_SPACING_M
 	# Tables above the lane must be over it.
@@ -370,8 +378,8 @@ static func _validate_lane(placed: Array[Placed], reach: JumpReachScript, layout
 	while not queue.is_empty():
 		var a: Placed = queue.pop_front()
 		for b: Placed in placed:
-			if reached.has(b):
-				continue
+			if reached.has(b) or b.def.kind == "floor":
+				continue # another floor lane is not a way up
 			if can_hop(a, b, reach):
 				reached.append(b)
 				queue.append(b)

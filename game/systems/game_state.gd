@@ -29,6 +29,7 @@ const SauceTypeListScript := preload("res://systems/sauce_type_list.gd")
 const SauceTypeScript := preload("res://systems/sauce_type.gd")
 const DropRollerScript := preload("res://systems/drop_roller.gd")
 const EnemyDefScript := preload("res://enemies/enemy_def.gd")
+const SpawnPickScript := preload("res://systems/spawn_pick.gd")
 
 const SAUCE_TYPES_PATH: String = "res://data/sauce_types.tres"
 const DEFAULT_SAUCE_TYPE: String = "gochujang"
@@ -104,6 +105,16 @@ var prologue_complete: bool = false
 var tutorial_prompt_shown: bool = false
 ## Which source gave each skill ("tutorial", a boss...), for skills unlocked with a source id. Saved.
 var skill_sources: Dictionary[String, String] = {}
+## The seed of this game (0 = not made yet: the first pick makes one). A new game has a new seed, so a
+## "spawn choice" (a thing with several candidate spots, see SpawnEntry) may come out differently.
+## Saved (additive key; save_version stays 1).
+var game_seed: int = 0
+## Spawn choice id -> the candidate spot id picked for this game. Made once, from the seed; saved, so
+## reloads and respawns keep the spot. A new game starts with none.
+var spawn_picks: Dictionary[String, String] = {}
+## DEBUG / TESTS ONLY, never saved: choice id -> a spot id to use instead of the pick (see SpawnPick for
+## the command-line way).
+var debug_spawn_overrides: Dictionary[String, String] = {}
 ## What he carried when he reached the current checkpoint or used the current 찜기 ({"sauce",
 ## "sodium"}); empty = none taken. Respawning puts these back. Saved only for a 찜기 (saves are
 ## made there); a data checkpoint's is not saved.
@@ -139,7 +150,29 @@ func reset() -> void:
 	tutorial_prompt_shown = false
 	skill_sources = {}
 	checkpoint_snapshot = {}
+	game_seed = 0
+	spawn_picks = {}
+	debug_spawn_overrides = {}
 	_emit_all()
+
+
+## The spot of a spawn choice for this game: a debug override, else the one picked before (saved), else
+## a new pick from the game's seed (kept from then on). `spot_ids` are the candidate ids of the choice.
+## A saved pick that is no longer a candidate is picked again.
+func spawn_pick(choice_id: String, spot_ids: Array[String]) -> String:
+	if spot_ids.is_empty():
+		return ""
+	var forced: String = debug_spawn_overrides.get(choice_id, SpawnPickScript.cmdline_override(choice_id))
+	if forced != "" and spot_ids.has(forced):
+		return forced
+	var kept: String = spawn_picks.get(choice_id, "")
+	if kept != "" and spot_ids.has(kept):
+		return kept
+	if game_seed == 0:
+		game_seed = SpawnPickScript.new_seed()
+	var picked: String = spot_ids[SpawnPickScript.pick_index(game_seed, choice_id, spot_ids.size())]
+	spawn_picks[choice_id] = picked
+	return picked
 
 
 ## One kill BY THE 떡 of this enemy type. Returns the drops it earns from the every-Nth-kill
@@ -573,6 +606,8 @@ func to_dict() -> Dictionary:
 		"defeated_enemies": defeated_enemies.duplicate(),
 		"prologue_intro_seen": prologue_intro_seen,
 		"prologue_complete": prologue_complete,
+		"game_seed": game_seed,
+		"spawn_picks": spawn_picks.duplicate(),
 	}
 
 
@@ -648,6 +683,15 @@ func from_dict(data: Dictionary) -> void:
 		for skill_id: Variant in saved_sources:
 			if skill_id is String and skills.has(skill_id) and saved_sources[skill_id] is String:
 				skill_sources[skill_id] = saved_sources[skill_id]
+	# Added with the spawn choices (still save_version 1: new keys, defaults when absent). The squirts of the
+	# 간장 bottle and whether it lies down are NOT saved: that starts over with every life.
+	game_seed = maxi(_to_int(data.get("game_seed"), 0), 0)
+	spawn_picks = {}
+	var saved_picks: Variant = data.get("spawn_picks")
+	if saved_picks is Dictionary:
+		for choice_id: Variant in saved_picks:
+			if choice_id is String and choice_id != "" and saved_picks[choice_id] is String and saved_picks[choice_id] != "":
+				spawn_picks[choice_id] = saved_picks[choice_id]
 	# The sauce and 나트륨 he had when he used the 찜기 he respawns at. (A data checkpoint's is not saved.)
 	checkpoint_snapshot = {}
 	var saved_snapshot: Variant = data.get("respawn_snapshot")

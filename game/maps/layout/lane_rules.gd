@@ -44,8 +44,8 @@ static func offenders(root: Node, lane_depth_m: float, front_top_limit_y: float 
 
 static func _meshes(node: Node) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []
-	# A 찜기 is a prop he uses on purpose, like a pickup: it stands in the lane.
-	if node.is_in_group("enemies") or node.is_in_group("hazards") or node.is_in_group("dropped_loot") 			or node.is_in_group("jjigi") or node is CharacterBody3D:
+	# A 찜기 (or a fixture: the 정수기, the curtain strips) is a prop he uses on purpose, like a pickup: it stands in the lane.
+	if node.is_in_group("enemies") or node.is_in_group("hazards") or node.is_in_group("dropped_loot") 			or node.is_in_group("jjigi") or node.is_in_group("fixtures") or node is CharacterBody3D:
 		return out
 	var mesh: MeshInstance3D = node as MeshInstance3D
 	if mesh != null and mesh.visible and mesh.mesh != null:
