@@ -4,7 +4,7 @@ extends RefCounted
 ## that force a spot. No state of its own: GameState keeps the seed and the picks (and saves them).
 
 ## A debug build can force a spot from the command line: godot --path game -- --spawn-pick=<choice>:<spot>
-## (e.g. --spawn-pick=ganjang_bottle:kitchen_table). Not read in an exported release build.
+## (e.g. --spawn-pick=ganjang_bottle:under_last_table_left). Not read in an exported release build.
 const ARG_PREFIX: String = "--spawn-pick="
 
 const FNV_OFFSET: int = 2166136261

@@ -15,6 +15,17 @@ const MapSectionScript := preload("res://maps/layout/map_section.gd")
 ## underside, and every point of a floor lane must be within this many metres of a way back up.
 @export var headroom_m: float = 0.9
 @export var climb_spacing_max_m: float = 60.0
+## Validation: no spot of a spawn choice may be nearer than this (along x) to a 정수기's spout.
+@export var spout_clearance_m: float = 10.0
+
+
+## The fixture placed with this id; null when there is none.
+func find_fixture(fixture_id: String) -> Resource:
+	for s: MapSectionScript in sections:
+		for f: Resource in s.fixtures:
+			if f.id == fixture_id:
+				return f
+	return null
 
 
 func section(section_id: String) -> MapSectionScript:

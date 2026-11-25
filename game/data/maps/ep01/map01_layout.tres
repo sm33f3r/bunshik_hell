@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://maps/layout/spawn_candidate.gd" id="s_cand"]
 [ext_resource type="Script" path="res://maps/layout/fixture_placement.gd" id="s_fix"]
 [ext_resource type="Script" path="res://maps/layout/doorway_def.gd" id="s_door"]
+[ext_resource type="Script" path="res://maps/layout/marker_def.gd" id="s_mark"]
 [ext_resource type="PackedScene" path="res://enemies/mandu.tscn" id="sc_mandu"]
 [ext_resource type="PackedScene" path="res://enemies/danmuji.tscn" id="sc_danmuji"]
 [ext_resource type="PackedScene" path="res://enemies/gimbap_train.tscn" id="sc_train"]
@@ -983,7 +984,9 @@ jjigi = Array[ExtResource("s_jj")]([SubResource("jj_mid")])
 ; Task 3c-i-a: the kitchen front. It goes on from the last dining table (the dining room's end wall is
 ; gone): two more tables over a floor lane that runs on to the open kitchen doorway, a 정수기 in front of
 ; the doorway, a short kitchen stub beyond it and a temporary end wall (the kitchen is built in 3c-ii).
-; The 간장 bottle has three candidate spots; one is picked per new game.
+; Distances (🟡), each measured with from_id: the 정수기's spout 20 m past the last chair step, the doorway
+; 8 m past the spout, ramen_start_1 4 m past the spout. Between the stairs and the doorway: open floor.
+; The 간장 bottle has two candidate spots, under the last table; one is picked per new game.
 ; ---------------------------------------------------------------------------------------------------
 
 [sub_resource type="Resource" id="plat_kf_t1"]
@@ -994,7 +997,7 @@ length_cm = 70
 gap_fraction = 0.6
 color = Color(0.541, 0.561, 0.416, 1)
 
-; The last dining table. The bottle may stand on it.
+; The last dining table. The bottle stands on the floor under it.
 [sub_resource type="Resource" id="plat_kf_t2"]
 script = ExtResource("s_plat")
 id = "kf_t2"
@@ -1034,25 +1037,22 @@ span_from = "r_t15"
 span_to = "kf_t2"
 drop_from = "prologue_exit_table"
 drop_cm = 75.0
-span_extra_right_cm = 300.0
+span_extra_right_cm = 370.0
 
-[sub_resource type="Resource" id="spot_last_table"]
+; Under the last table (13.96 m long), clear of its legs (behind the lane) and of the chair steps.
+[sub_resource type="Resource" id="spot_under_left"]
 script = ExtResource("s_cand")
-id = "last_table"
-platform_id = "kf_t2"
-along_m = 7.0
-
-[sub_resource type="Resource" id="spot_floor_before"]
-script = ExtResource("s_cand")
-id = "floor_before_dispenser"
+id = "under_last_table_left"
 platform_id = "kitchen_floor"
-along_m = -28.0
+from_id = "kf_t2"
+along_m = -12.0
 
-[sub_resource type="Resource" id="spot_floor_mid"]
+[sub_resource type="Resource" id="spot_under_right"]
 script = ExtResource("s_cand")
-id = "floor_mid"
+id = "under_last_table_right"
 platform_id = "kitchen_floor"
-along_m = 24.0
+from_id = "kf_t2"
+along_m = -2.0
 
 ; The 간장 bottle: the 나트륨 source for the 라면 of Task 3c-i-b, so it is required_for_progress (it comes
 ; back upright with all its squirts at every life, and when it has fallen off its table).
@@ -1064,7 +1064,7 @@ required_for_progress = true
 respawn_delay_s = 4.0
 out_below_m = 1.5
 choice_id = "ganjang_bottle"
-candidates = Array[ExtResource("s_cand")]([SubResource("spot_last_table"), SubResource("spot_floor_before"), SubResource("spot_floor_mid")])
+candidates = Array[ExtResource("s_cand")]([SubResource("spot_under_left"), SubResource("spot_under_right")])
 choice_width_cm = 3.5
 choice_height_cm = 8.0
 
@@ -1080,18 +1080,30 @@ script = ExtResource("s_fix")
 id = "water_dispenser_1"
 kind = "water_dispenser"
 platform_id = "kitchen_floor"
-along_m = -22.0
+from_id = "chair_kf_t2_9"
+along_m = 20.0
 width_cm = 25.0
-height_cm = 60.0
+height_cm = 30.0
+mount_cm = 18.0
+params = {"pour_zone_width_m": 2.0, "sodium_cost": 1}
 
 [sub_resource type="Resource" id="door_kitchen"]
 script = ExtResource("s_door")
 id = "kitchen_door"
 platform_id = "kitchen_floor"
-along_m = -14.0
+from_id = "water_dispenser_1"
+along_m = 8.0
 width_cm = 40.0
 height_cm = 40.0
 bottom_edge_cm = 12.0
+
+; Where the first 라면 will stand (Task 3c-i-b). Data only.
+[sub_resource type="Resource" id="mark_ramen_1"]
+script = ExtResource("s_mark")
+id = "ramen_start_1"
+platform_id = "kitchen_floor"
+from_id = "water_dispenser_1"
+along_m = 4.0
 
 [sub_resource type="Resource" id="sec_kitchen_front"]
 script = ExtResource("s_section")
@@ -1101,6 +1113,7 @@ spawns = Array[ExtResource("s_spawn")]([SubResource("sp_bottle")])
 checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_kitchen")])
 fixtures = Array[ExtResource("s_fix")]([SubResource("fx_dispenser")])
 doorways = Array[ExtResource("s_door")]([SubResource("door_kitchen")])
+markers = Array[ExtResource("s_mark")]([SubResource("mark_ramen_1")])
 end_wall_text = "[dev] Map 1 continues here (Task 3c-ii: the kitchen)"
 end_wall_after = "kitchen_floor"
 
@@ -1114,3 +1127,4 @@ fade_in_s = 0.35
 fall_depth_m = 4.0
 headroom_m = 0.9
 climb_spacing_max_m = 60.0
+spout_clearance_m = 10.0

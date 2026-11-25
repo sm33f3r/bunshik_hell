@@ -182,6 +182,33 @@ static func x_on(p: Placed, along_m: float) -> float:
 	return p.left + along_m if along_m >= 0.0 else p.right + along_m
 
 
+## The x of anything placed with platform_id / along_m / from_id (a fixture, a doorway, a marker, a spawn
+## or a spawn candidate). Without from_id: along its platform. With it: along_m metres from the right end
+## of that platform, or from the middle of that fixture (which needs `layout`). NAN when what it names is
+## not there.
+static func item_x(placed: Array[Placed], item: Resource, layout: MapLayoutScript = null) -> float:
+	var from_id: String = item.from_id
+	if from_id == "":
+		var own: Placed = find(placed, item.platform_id)
+		return x_on(own, item.along_m) if own != null else NAN
+	var anchor: Placed = find(placed, from_id)
+	if anchor != null:
+		return anchor.right + item.along_m
+	var fixture: Resource = layout.find_fixture(from_id) if layout != null else null
+	if fixture == null or fixture == item or fixture.from_id == fixture.id:
+		return NAN
+	return item_x(placed, fixture, layout) + item.along_m
+
+
+## ... and as a position: on its platform's top, `lift_m` above it.
+static func item_position(placed: Array[Placed], item: Resource, layout: MapLayoutScript = null, lift_m: float = 0.0) -> Vector3:
+	var p: Placed = find(placed, item.platform_id)
+	var x: float = item_x(placed, item, layout)
+	if p == null or is_nan(x):
+		return Vector3.ZERO
+	return Vector3(x, p.top + lift_m, 0.0)
+
+
 ## Where a 찜기 stands: on its platform's top (plus its lift).
 static func jjigi_position(placed: Array[Placed], placement: Resource) -> Vector3:
 	var p: Placed = find(placed, placement.platform_id)
@@ -210,7 +237,7 @@ static func spawn_position(placed: Array[Placed], entry: SpawnEntryScript) -> Ve
 	var p: Placed = find(placed, entry.platform_id)
 	if p == null:
 		return Vector3.ZERO
-	return Vector3(x_on(p, entry.along_m), p.top + 0.02, 0.0)
+	return Vector3(item_x(placed, entry), p.top + 0.02, 0.0)
 
 
 ## The world rectangle of a trigger: position = (left x, bottom y).

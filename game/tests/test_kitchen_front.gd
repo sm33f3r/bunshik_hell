@@ -30,7 +30,7 @@ const BOTTLE_DEF_PATH: String = "res://data/props/ganjang_bottle.tres"
 const TABLE_PATH: String = "res://data/reaction_table.tres"
 const TEMP_DIR := "user://test_tmp_kitchen"
 const CHOICE: String = "ganjang_bottle"
-const SPOTS: Array[String] = ["last_table", "floor_before_dispenser", "floor_mid"]
+const SPOTS: Array[String] = ["under_last_table_left", "under_last_table_right"]
 
 var _nodes: Array[Object] = []
 
@@ -158,7 +158,7 @@ func test_the_floor_lane_runs_on_to_the_doorway_and_a_stub_beyond_it() -> void:
 	check(lane.left <= dining_lane.right and lane.right > dining_lane.right, "overlapping it, so he walks from one onto the other")
 	var table: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kf_t2")
 	var door: Resource = _kitchen().doorways[0]
-	var door_x: float = LayoutGeometryScript.x_on(lane, door.along_m)
+	var door_x: float = LayoutGeometryScript.item_x(placed, door, _layout())
 	var half: float = door.width_cm * _data().m_per_cm() * 0.5
 	check(door_x - half > table.right, "the doorway is beyond the last table")
 	check(lane.right > door_x + half + 5.0, "and a stub of floor goes on beyond it (%.1f m)" % (lane.right - door_x - half))
@@ -213,11 +213,11 @@ func test_the_dispenser_is_a_gray_box_prop_with_an_id_that_is_not_solid() -> voi
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, fixture.platform_id)
 	check_eq(lane.def.kind, "floor", "on the floor")
 	var door: Resource = _kitchen().doorways[0]
-	var dispenser_x: float = LayoutGeometryScript.x_on(lane, fixture.along_m)
-	var door_x: float = LayoutGeometryScript.x_on(lane, door.along_m)
+	var dispenser_x: float = LayoutGeometryScript.item_x(placed, fixture, _layout())
+	var door_x: float = LayoutGeometryScript.item_x(placed, door, _layout())
 	var m: float = _data().m_per_cm()
 	check(dispenser_x + fixture.width_cm * m * 0.5 < door_x - door.width_cm * m * 0.5, "directly in front of the doorway (before it, not in it)")
-	check(door_x - dispenser_x < 12.0 * 1.745 * 2.0, "close to it (%.1f m)" % (door_x - dispenser_x))
+	check(door_x - dispenser_x < 12.0, "close to it (%.1f m)" % (door_x - dispenser_x))
 	var builder: SectionBuilderScript = await _built()
 	var node: Node3D = builder.fixture_nodes.get(fixture.id)
 	check(node != null and node.name == "Fixture_water_dispenser_1", "built as a node named after its id")
@@ -290,7 +290,9 @@ func test_the_curtain_sways_when_he_passes_and_settles_again() -> void:
 func test_the_doorway_check_fails_when_something_solid_is_in_the_opening() -> void:
 	var layout: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
 		# The doorway moved to where the last chair step is, and people need more room to get by.
-		l.section("kitchen_front").doorways[0].along_m = -30.0
+		var door: Resource = l.section("kitchen_front").doorways[0]
+		door.from_id = "chair_kf_t2_9"
+		door.along_m = -1.0
 		l.headroom_m = 1.5)
 	var problems: Array[String] = ProgressGraphScript.scenery_problems(layout, _placed(layout), _reach())
 	check(_mentions(problems, "not open"), "a chair step in the opening is found: " + str(problems))
@@ -401,6 +403,18 @@ func test_the_sodium_cap_still_holds() -> void:
 	check_eq(bottle.get("sodium_given"), 15, "while the bottle gave all 15")
 
 
+## Documents the rule (Task 3c-i-a-fix, option C): a squirt adds up to +3, what is over the cap is lost.
+func test_a_squirt_into_a_nearly_full_bar_loses_the_overflow_but_still_counts() -> void:
+	var gs: GameStateScript = _state()
+	var bottle: Node3D = _bottle(gs)
+	_hit(bottle, "roll")
+	gs.sodium = 6
+	_hit(bottle, "slam")
+	check_eq(gs.sodium, GameStateScript.MAX_SODIUM, "6 + 3 is capped at 7")
+	check_eq(bottle.get("squirts_done"), 1, "the squirt still counts")
+	check_eq(bottle.get("squirts_left"), 4, "and is used up")
+
+
 func test_starting_the_life_over_stands_the_bottle_up_with_five_squirts() -> void:
 	var gs: GameStateScript = _state()
 	var bottle: Node3D = _bottle(gs)
@@ -426,7 +440,7 @@ func test_nothing_of_the_bottle_is_saved() -> void:
 
 # --- The spawn choice -------------------------------------------------------------------------------
 
-func test_the_bottle_has_at_least_the_table_and_the_floor_before_the_dispenser() -> void:
+func test_the_bottle_has_two_spots_under_the_last_table() -> void:
 	var entry: SpawnEntryScript = _bottle_entry()
 	check_eq(entry.choice_id, CHOICE, "the choice id")
 	check_eq(entry.candidate_ids(), SPOTS, "the candidate spots, by stable id")
@@ -435,15 +449,94 @@ func test_the_bottle_has_at_least_the_table_and_the_floor_before_the_dispenser()
 	for p: LayoutGeometryScript.Placed in placed:
 		if p.def.kind == "table":
 			last_table = p
-	check_eq(entry.candidate("last_table").platform_id, last_table.def.id, "(a) on the last dining table")
-	var before: Resource = entry.candidate("floor_before_dispenser")
-	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, before.platform_id)
-	check_eq(lane.def.kind, "floor", "(b) on the floor lane")
-	var dispenser: Resource = _kitchen().fixtures[0]
-	check(LayoutGeometryScript.x_on(lane, before.along_m) < LayoutGeometryScript.x_on(lane, dispenser.along_m), "before the 정수기")
-	var resolved: SpawnEntryScript = entry.resolved("floor_mid") as SpawnEntryScript
+	var stairs: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "chair_kf_t2_1")
+	var half: float = entry.choice_height_cm * _data().m_per_cm() * 0.5 # lying, it is as long as it was tall
+	var xs: Array[float] = []
+	for spot: String in SPOTS:
+		var c: Resource = entry.candidate(spot)
+		check_eq(LayoutGeometryScript.find(placed, c.platform_id).def.kind, "floor", spot + ": on the floor lane")
+		var x: float = LayoutGeometryScript.item_x(placed, c)
+		xs.append(x)
+		check(x - half > last_table.left and x + half < last_table.right, spot + ": under the last dining table")
+		check(x + half < stairs.left, spot + ": not in the chair stairs")
+		for leg: float in [0.06, 0.94]:
+			var leg_x: float = last_table.left + leg * last_table.length()
+			check(absf(x - leg_x) > half, "%s: clear of the table leg at %.1f (spot %.1f)" % [spot, leg_x, x])
+	check(xs[0] < last_table.center_x() and xs[1] > last_table.center_x(), "one at the left end, one at the right")
+	var resolved: SpawnEntryScript = entry.resolved("under_last_table_left") as SpawnEntryScript
 	check_eq(resolved.platform_id, "kitchen_floor", "a resolved copy names the spot's platform")
+	check_eq(resolved.from_id, "kf_t2", "and what it is measured from")
 	check_eq(entry.platform_id, "", "and the data entry itself is left alone")
+
+
+func test_the_spout_doorway_and_ramen_marker_stand_at_the_data_distances() -> void:
+	var layout: MapLayoutScript = _layout()
+	var placed: Array[LayoutGeometryScript.Placed] = _placed()
+	var section: MapSectionScript = _kitchen()
+	var last_step: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "chair_kf_t2_9")
+	check(LayoutGeometryScript.find(placed, "chair_kf_t2_10") == null, "chair_kf_t2_9 is the last chair step")
+	var spout: Resource = section.fixtures[0]
+	var door: Resource = section.doorways[0]
+	check_eq(section.markers.size(), 1, "one marker")
+	var marker: Resource = section.markers[0]
+	check_eq(marker.id, "ramen_start_1", "its id")
+	check_eq(spout.from_id, "chair_kf_t2_9", "the spout is measured from the last stair")
+	check_eq(door.from_id, spout.id, "the doorway from the spout")
+	check_eq(marker.from_id, spout.id, "the marker from the spout")
+	var spout_x: float = LayoutGeometryScript.item_x(placed, spout, layout)
+	var door_x: float = LayoutGeometryScript.item_x(placed, door, layout)
+	var ramen_x: float = LayoutGeometryScript.item_x(placed, marker, layout)
+	check(absf(spout_x - last_step.right - 20.0) < 0.5, "the spout about 20 m past the last stair (%.2f m)" % (spout_x - last_step.right))
+	check(absf(door_x - spout_x - 8.0) < 0.5, "the doorway about 8 m past the spout (%.2f m)" % (door_x - spout_x))
+	check(absf(ramen_x - spout_x - 4.0) < 0.5, "ramen_start_1 about 4 m past the spout (%.2f m)" % (ramen_x - spout_x))
+	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
+	var door_right: float = door_x + door.width_cm * _data().m_per_cm() * 0.5
+	check(lane.right - door_right > 5.0 and lane.right - door_right < 15.0, "a short stub beyond the doorway (%.1f m)" % (lane.right - door_right))
+	# Open floor: no platform but the lane itself from the last stair on to the end of the stub.
+	for p: LayoutGeometryScript.Placed in placed:
+		if p != lane:
+			check(p.right <= last_step.right + 0.001, "no platform in the fight space: " + p.def.id)
+	for c: Resource in _bottle_entry().candidates:
+		check(LayoutGeometryScript.item_x(placed, c) < last_step.right, "no bottle spot in it either: " + c.id)
+
+
+func test_the_dispenser_hangs_on_the_back_wall_with_its_pour_data() -> void:
+	var fixture: Resource = _kitchen().fixtures[0]
+	check_eq(fixture.params.get("pour_zone_width_m"), 2.0, "pour_zone_width_m")
+	check_eq(fixture.params.get("sodium_cost"), 1, "sodium_cost")
+	var builder: SectionBuilderScript = await _built()
+	var node: Node3D = builder.fixture_nodes.get(fixture.id)
+	var spout_x: float = LayoutGeometryScript.item_x(_placed(), fixture, _layout())
+	check(absf(float(node.get_meta("spout_x")) - spout_x) < 0.01, "spout_x on the node")
+	check_eq(node.get_meta("pour_zone_width_m"), 2.0, "the zone on the node")
+	check_eq(node.get_meta("sodium_cost"), 1, "the cost on the node")
+	var half_lane: float = _lane_depth() * 0.5
+	for part: String in ["BackWall", "Unit", "Tank"]:
+		var mesh: MeshInstance3D = node.get_node(part) as MeshInstance3D
+		check((mesh.global_transform * mesh.get_aabb()).end.z <= -half_lane + 0.001, part + " is behind the lane")
+	var spout: MeshInstance3D = node.get_node("Spout") as MeshInstance3D
+	check(absf(spout.global_position.x - spout_x) < 0.01 and absf(spout.global_position.z) < 0.01, "the spout hangs over the lane")
+	check(spout.global_position.y - node.global_position.y > 1.5, "above head height")
+	var patch: MeshInstance3D = node.get_node("WetPatch") as MeshInstance3D
+	check(absf((patch.mesh as BoxMesh).size.x - 2.0) < 0.001, "the wet patch is as wide as the pour zone")
+	check(node.get_node_or_null("DripTray") != null, "a drip tray")
+
+
+func test_a_bottle_spot_near_the_spout_is_rejected() -> void:
+	check_eq(_layout().spout_clearance_m, 10.0, "10 m by default, in the data")
+	var near: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		var c: Resource = _bottle_entry(l).candidate("under_last_table_left")
+		c.from_id = "water_dispenser_1"
+		c.along_m = -9.0)
+	check(_mentions(ProgressGraphScript.scenery_problems(near, _placed(near), _reach()), "from the spout"), "9 m before it: too near")
+	var far: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		var c: Resource = _bottle_entry(l).candidate("under_last_table_left")
+		c.from_id = "water_dispenser_1"
+		c.along_m = -11.0)
+	check(not _mentions(ProgressGraphScript.scenery_problems(far, _placed(far), _reach()), "from the spout"), "11 m is far enough")
+	var unknown: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		l.section("kitchen_front").markers[0].from_id = "no_such")
+	check(_mentions(ProgressGraphScript.scenery_problems(unknown, _placed(unknown), _reach()), "to measure from"), "a bad anchor is found")
 
 
 func test_every_candidate_is_reachable_and_legal() -> void:
@@ -451,15 +544,22 @@ func test_every_candidate_is_reachable_and_legal() -> void:
 	check(problems.is_empty(), "scenery problems:\n        " + "\n        ".join(problems))
 	# The check is not asleep: break each rule on a copy.
 	var under_stairs: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_bottle_entry(l).candidate("floor_before_dispenser").along_m = -31.0) # under the bottom chair step
+		var c: Resource = _bottle_entry(l).candidate("under_last_table_right")
+		c.from_id = "chair_kf_t2_9"
+		c.along_m = -1.0) # under the bottom chair step
 	check(_mentions(ProgressGraphScript.scenery_problems(under_stairs, _placed(under_stairs), _reach()), "too close over it"),
 		"a spot under the chair steps is found")
 	var off_table: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_bottle_entry(l).candidate("last_table").along_m = 20.0)
+		var c: Resource = _bottle_entry(l).candidate("under_last_table_left")
+		c.platform_id = "kf_t2"
+		c.from_id = ""
+		c.along_m = 20.0)
 	check(_mentions(ProgressGraphScript.scenery_problems(off_table, _placed(off_table), _reach()), "does not fit"),
 		"a spot off its table is found")
 	var in_dispenser: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_bottle_entry(l).candidate("floor_before_dispenser").along_m = -22.0)
+		var c: Resource = _bottle_entry(l).candidate("under_last_table_left")
+		c.from_id = "water_dispenser_1"
+		c.along_m = 0.0)
 	check(_mentions(ProgressGraphScript.scenery_problems(in_dispenser, _placed(in_dispenser), _reach()), "inside fixture"),
 		"a spot inside the 정수기 is found")
 	var too_tall: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
@@ -472,7 +572,7 @@ func test_every_candidate_is_reachable_and_legal() -> void:
 	check(_mentions(ProgressGraphScript.scenery_problems(lonely, _placed(lonely), _reach()), "at least two"),
 		"a choice of one is found")
 	var nowhere: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_bottle_entry(l).candidate("floor_mid").platform_id = "no_such")
+		_bottle_entry(l).candidate("under_last_table_left").platform_id = "no_such")
 	check(_mentions(ProgressGraphScript.scenery_problems(nowhere, _placed(nowhere), _reach()), "no platform"),
 		"a spot on a platform that is not there is found")
 
@@ -480,10 +580,10 @@ func test_every_candidate_is_reachable_and_legal() -> void:
 func test_the_same_seed_gives_the_same_spot_and_every_spot_can_come_up() -> void:
 	var seen: Dictionary = {}
 	for seed_value: int in range(1, 200):
-		var a: int = SpawnPickScript.pick_index(seed_value, CHOICE, 3)
-		check_eq(SpawnPickScript.pick_index(seed_value, CHOICE, 3), a, "seed %d: same seed, same index" % seed_value)
+		var a: int = SpawnPickScript.pick_index(seed_value, CHOICE, 2)
+		check_eq(SpawnPickScript.pick_index(seed_value, CHOICE, 2), a, "seed %d: same seed, same index" % seed_value)
 		seen[a] = int(seen.get(a, 0)) + 1
-	check_eq(seen.size(), 3, "all three spots come up over many seeds: " + str(seen))
+	check_eq(seen.size(), 2, "both spots come up over many seeds: " + str(seen))
 	for count: int in seen.values():
 		check(count > 30, "and none is rare (%d of 199)" % count)
 	check_eq(SpawnPickScript.pick_index(5, CHOICE, 1), 0, "one spot: index 0")
@@ -545,7 +645,7 @@ func test_the_builder_puts_the_bottle_on_the_picked_spot_each_time() -> void:
 		var nodes: Array[Node3D] = builder.spawn_section("kitchen_front")
 		check_eq(nodes.size(), 1, "%s: one bottle" % spot)
 		var c: Resource = entry.candidate(spot)
-		var want: Vector3 = LayoutGeometryScript.place_on(placed, c.platform_id, c.along_m, 0.02)
+		var want: Vector3 = LayoutGeometryScript.item_position(placed, c, null, 0.02)
 		check(nodes[0].global_position.distance_to(want) < 0.01, "%s: at its spot (%s, wanted %s)" % [spot, str(nodes[0].global_position), str(want)])
 		check_eq((nodes[0].get_meta("entry") as SpawnEntryScript).platform_id, c.platform_id, "%s: the entry it carries is the resolved one" % spot)
 		var again: Array[Node3D] = builder.spawn_section("kitchen_front")
@@ -595,7 +695,7 @@ func test_an_older_save_without_the_keys_loads_and_picks_a_spot() -> void:
 	f.store_string(JSON.stringify({"save_version": 1, "game": {"hearts": 10}}))
 	f.close()
 	var gs: GameStateScript = _state()
-	gs.spawn_picks = {CHOICE: "last_table"}
+	gs.spawn_picks = {CHOICE: SPOTS[0]}
 	gs.game_seed = 9
 	check(s.load_game(gs), "loaded")
 	check_eq(gs.hearts, 10, "the rest is read")
@@ -603,6 +703,25 @@ func test_an_older_save_without_the_keys_loads_and_picks_a_spot() -> void:
 	check_eq(gs.spawn_picks.size(), 0, "no picks")
 	check(SPOTS.has(gs.spawn_pick(CHOICE, SPOTS)), "and the choice is simply made now")
 	_clean(s)
+
+
+func test_a_save_holding_a_removed_spot_name_gets_a_fresh_pick() -> void:
+	for old_spot: String in ["last_table", "floor_before_dispenser", "floor_mid"]:
+		var s: SaveSystemScript = _save()
+		DirAccess.make_dir_recursive_absolute(TEMP_DIR)
+		var f: FileAccess = FileAccess.open(s.save_path, FileAccess.WRITE)
+		f.store_string(JSON.stringify({"save_version": 1, "game": {"game_seed": 31, "spawn_picks": {CHOICE: old_spot}}}))
+		f.close()
+		var gs: GameStateScript = _state()
+		check(s.load_game(gs), old_spot + ": loaded")
+		var builder: SectionBuilderScript = await _built(gs)
+		var nodes: Array[Node3D] = builder.spawn_section("kitchen_front")
+		check_eq(nodes.size(), 1, old_spot + ": the bottle is built")
+		var picked: String = gs.spawn_picks.get(CHOICE, "")
+		check(SPOTS.has(picked), "%s: a fresh pick replaces it: '%s'" % [old_spot, picked])
+		check_eq(gs.game_seed, 31, old_spot + ": the seed stays")
+		builder.queue_free()
+		_clean(s)
 
 
 func test_bad_values_in_the_new_keys_fall_back_to_defaults() -> void:

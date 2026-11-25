@@ -8,6 +8,10 @@ const SpawnCandidateScript := preload("res://maps/layout/spawn_candidate.gd")
 @export var scene: PackedScene
 ## Metres from the platform's left edge. Negative: from its right edge.
 @export var along_m: float = 2.0
+## "" = along_m is on platform_id, the usual way. Else along_m is metres from the RIGHT end of this
+## platform, or from the middle of this fixture (negative: back from it). platform_id still says what it
+## stands on. See LayoutGeometry.item_x.
+@export var from_id: String = ""
 ## Real centimetres; 0 = the thing's own size (the 단무지 sizes itself from its EnemyDef). For a
 ## hazard zone it is the width of the zone.
 @export var size_cm: float = 0.0
@@ -80,4 +84,5 @@ func resolved(spot_id: String) -> Resource:
 	var copy: Resource = duplicate()
 	copy.platform_id = c.platform_id
 	copy.along_m = c.along_m
+	copy.from_id = c.from_id
 	return copy

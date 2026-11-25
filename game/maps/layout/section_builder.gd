@@ -114,25 +114,53 @@ func _build_fixture(fixture: FixturePlacementScript) -> Node3D:
 	node.set_meta("fixture_id", fixture.id)
 	node.set_meta("fixture_kind", fixture.kind)
 	add_child(node)
-	node.global_position = LayoutGeometryScript.place_on(placed, fixture.platform_id, fixture.along_m, fixture.lift_m)
+	node.global_position = LayoutGeometryScript.item_position(placed, fixture, layout, fixture.lift_m)
 	var width: float = fixture.width_cm * m_per_cm
 	var height: float = fixture.height_cm * m_per_cm
 	var lane_depth: float = depth_m * 0.6
 	match fixture.kind:
 		"water_dispenser":
-			# A tall cabinet, a water tank on top (blue-gray) and a spout with a tray.
-			PrologueSetScript.add_mesh(node, "Cabinet", PrologueSetScript.box_mesh(Vector3(width, height * 0.7, lane_depth)),
-				fixture.color, Vector3(0.0, height * 0.35, 0.0))
-			PrologueSetScript.add_mesh(node, "Tank", PrologueSetScript.box_mesh(Vector3(width * 0.8, height * 0.3, lane_depth * 0.8)),
-				Color(0.62, 0.78, 0.9), Vector3(0.0, height * 0.85, 0.0))
-			PrologueSetScript.add_mesh(node, "Spout", PrologueSetScript.box_mesh(Vector3(width * 0.2, height * 0.06, lane_depth * 0.3)),
-				fixture.color.darkened(0.4), Vector3(-width * 0.5, height * 0.45, 0.0))
-			PrologueSetScript.add_mesh(node, "Tray", PrologueSetScript.box_mesh(Vector3(width * 0.5, height * 0.03, lane_depth * 0.5)),
-				fixture.color.darkened(0.55), Vector3(-width * 0.55, height * 0.2, 0.0))
+			_build_water_dispenser(node, fixture, width, height)
 		_:
 			PrologueSetScript.add_mesh(node, "Box", PrologueSetScript.box_mesh(Vector3(width, height, lane_depth)),
 				fixture.color, Vector3(0.0, height * 0.5, 0.0))
 	return node
+
+
+## The 정수기: a unit hung on the back wall (behind the character lane), its spout reaching out over the
+## lane, and a drip tray with a wet patch on the floor that shows the pour zone. All gray box, nothing
+## solid. The node's x is the spout's. The data a later task reads is kept as meta on the node.
+func _build_water_dispenser(node: Node3D, fixture: FixturePlacementScript, width: float, height: float) -> void:
+	var zone: float = float(fixture.params.get("pour_zone_width_m", 2.0))
+	node.set_meta("spout_x", node.global_position.x)
+	node.set_meta("pour_zone_width_m", zone)
+	node.set_meta("sodium_cost", int(fixture.params.get("sodium_cost", 1)))
+	var mount: float = fixture.mount_cm * m_per_cm
+	var unit_depth: float = 6.0 * m_per_cm
+	var wall_depth: float = 1.0 * m_per_cm
+	# The unit's front is just behind the lane, the wall behind the unit.
+	var front_z: float = -depth_m * 0.5 - 1.0 * m_per_cm
+	var unit_z: float = front_z - unit_depth * 0.5
+	var wall_z: float = front_z - unit_depth - wall_depth * 0.5
+	var wall_height: float = mount + height + 6.0 * m_per_cm
+	PrologueSetScript.add_mesh(node, "BackWall", PrologueSetScript.box_mesh(Vector3(width * 1.5, wall_height, wall_depth)),
+		fixture.color.lightened(0.35), Vector3(0.0, wall_height * 0.5, wall_z))
+	PrologueSetScript.add_mesh(node, "Unit", PrologueSetScript.box_mesh(Vector3(width, height * 0.65, unit_depth)),
+		fixture.color, Vector3(0.0, mount + height * 0.325, unit_z))
+	PrologueSetScript.add_mesh(node, "Tank", PrologueSetScript.box_mesh(Vector3(width * 0.8, height * 0.35, unit_depth * 0.8)),
+		Color(0.62, 0.78, 0.9), Vector3(0.0, mount + height * 0.825, unit_z))
+	# The spout: an arm from the unit's front to the middle of the lane, and the nozzle hanging from it.
+	var arm: float = 2.0 * m_per_cm
+	var arm_length: float = -front_z + arm * 0.5
+	PrologueSetScript.add_mesh(node, "SpoutArm", PrologueSetScript.box_mesh(Vector3(arm, arm, arm_length)),
+		fixture.color.darkened(0.4), Vector3(0.0, mount + arm * 0.5, front_z + arm_length * 0.5))
+	PrologueSetScript.add_mesh(node, "Spout", PrologueSetScript.box_mesh(Vector3(arm * 0.7, arm, arm * 0.7)),
+		fixture.color.darkened(0.55), Vector3(0.0, mount - arm * 0.5, 0.0))
+	# Flat marks on the floor (a hair above it): the wet patch as wide as the pour zone, the tray on it.
+	PrologueSetScript.add_mesh(node, "WetPatch", PrologueSetScript.box_mesh(Vector3(zone, 0.02, depth_m * 0.8)),
+		Color(0.35, 0.55, 0.75), Vector3(0.0, 0.011, 0.0))
+	PrologueSetScript.add_mesh(node, "DripTray", PrologueSetScript.box_mesh(Vector3(zone * 0.5, 0.03, depth_m * 0.4)),
+		fixture.color.darkened(0.55), Vector3(0.0, 0.025, 0.0))
 
 
 ## An open doorway: the frame is decor behind the character lane (never in his way, never a collider),
@@ -141,7 +169,7 @@ func _build_doorway(doorway: DoorwayDefScript) -> void:
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
 	if lane == null:
 		return
-	var at: Vector3 = LayoutGeometryScript.place_on(placed, doorway.platform_id, doorway.along_m)
+	var at: Vector3 = LayoutGeometryScript.item_position(placed, doorway, layout)
 	var frame: Node3D = Node3D.new()
 	frame.name = "Doorway_%s" % doorway.id
 	add_child(frame)

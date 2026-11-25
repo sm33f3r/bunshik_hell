@@ -2,12 +2,12 @@ extends "res://tests/map1_base.gd"
 ## Task 3c-i-a, real Map 1 scene, REAL input (nothing here calls receive_attack or a bottle function): the
 ## 간장 bottle (a roll knocks it over; slams and stomps on the lying bottle squirt five times, +3 나트륨 each,
 ## then nothing; slam and stomp on the standing one do nothing; dying puts it back upright with five), the
-## curtain strips he walks under into the kitchen stub, and that he can reach the bottle at every candidate
-## spot. The bottle is placed by its spawn choice: a test forces a spot with GameState.debug_spawn_overrides
+## curtain strips he walks under into the kitchen stub, the walk from the last table to the doorway, and
+## reaching, knocking over and squirting the bottle at each candidate spot. The bottle is placed by its spawn choice: a test forces a spot with GameState.debug_spawn_overrides
 ## and builds the section again (flow.reset_sections()).
 
 const CHOICE: String = "ganjang_bottle"
-const SPOTS: Array[String] = ["last_table", "floor_before_dispenser", "floor_mid"]
+const SPOTS: Array[String] = ["under_last_table_left", "under_last_table_right"]
 ## Plain tuning facts: a slam / a stomp is made from this high above the bottle's top.
 const DROP_HEIGHT_M: float = 3.5
 
@@ -89,28 +89,6 @@ func die_and_come_back() -> void:
 	await frames(6)
 
 
-## Runs right and jumps at `edge_x`, until he stands on `to_id`. Returns whether he did.
-func hop_to(edge_x: float, to_id: String, max_frames: int = 240) -> bool:
-	Input.action_press("move_right")
-	var jumped: bool = false
-	var jump_frame: int = 0
-	var landed: bool = false
-	for i: int in max_frames:
-		await tree.physics_frame
-		if not jumped and player.global_position.x >= edge_x:
-			Input.action_press("jump")
-			jumped = true
-			jump_frame = i
-		if jumped and i - jump_frame == 26:
-			Input.action_release("jump")
-		if on_top_of(to_id):
-			landed = true
-			break
-	Input.action_release("move_right")
-	Input.action_release("jump")
-	return landed
-
-
 func blasts() -> int:
 	return tree.get_nodes_in_group("ganjang_blasts").size()
 
@@ -119,7 +97,7 @@ func blasts() -> int:
 
 func test_a_roll_into_the_standing_bottle_knocks_it_over_and_it_stays_over() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	check(b != null and not b.get("fallen"), "it stands")
 	watch_attacks()
@@ -137,7 +115,7 @@ func test_a_roll_into_the_standing_bottle_knocks_it_over_and_it_stays_over() -> 
 
 func test_walking_into_the_standing_bottle_is_harmless_and_he_can_hop_onto_it() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	var hearts: int = gs.hearts
 	await stand_by(-2.0)
@@ -159,7 +137,7 @@ func test_walking_into_the_standing_bottle_is_harmless_and_he_can_hop_onto_it() 
 
 func test_slam_and_stomp_on_the_standing_bottle_do_nothing() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	watch_attacks()
 	var hearts: int = gs.hearts
@@ -179,7 +157,7 @@ func test_slam_and_stomp_on_the_standing_bottle_do_nothing() -> void:
 
 func test_five_slams_and_stomps_squirt_fifteen_sodium_and_the_sixth_does_nothing() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	await knock_over()
 	check(b.get("fallen"), "it lies down first: " + describe())
@@ -210,7 +188,7 @@ func test_five_slams_and_stomps_squirt_fifteen_sodium_and_the_sixth_does_nothing
 
 func test_a_squirt_shows_a_blast_from_the_nozzle() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	await knock_over()
 	var b_x: float = b.global_position.x
@@ -236,7 +214,7 @@ func test_a_squirt_shows_a_blast_from_the_nozzle() -> void:
 
 func test_the_bottle_gives_nothing_to_a_hit_that_is_not_a_slam_or_a_stomp() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	var b: Node3D = bottle()
 	await knock_over()
 	var sodium: int = gs.sodium
@@ -258,7 +236,7 @@ func test_the_bottle_gives_nothing_to_a_hit_that_is_not_a_slam_or_a_stomp() -> v
 
 func test_dying_and_respawning_puts_the_bottle_back_upright_with_five_squirts_on_the_same_spot() -> void:
 	await open_dining()
-	await force_spot("floor_before_dispenser")
+	await force_spot("under_last_table_left")
 	# He reaches the section's checkpoint, so he comes back there (not at the dining room start).
 	await put_on("kf_t1", 2.0)
 	check(await until(func() -> bool: return gs.checkpoint_id == "kitchen_front_start", 60), "the data checkpoint is reached: " + gs.checkpoint_id)
@@ -299,17 +277,17 @@ func test_the_spot_is_the_picked_one_and_stays_after_a_respawn_without_a_forced_
 
 func test_he_walks_the_floor_under_the_curtain_strips_into_the_kitchen_stub() -> void:
 	await open_dining()
-	await force_spot("last_table") # the floor is clear
+	await force_spot("under_last_table_left") # the floor is clear
 	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
 	var fixture: Resource = flow.layout.section("kitchen_front").fixtures[0]
 	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
 	var m: float = flow.reach.m_per_cm
-	var door_x: float = LayoutGeometryScript.x_on(lane, door.along_m)
-	var dispenser_x: float = LayoutGeometryScript.x_on(lane, fixture.along_m)
+	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
+	var dispenser_x: float = LayoutGeometryScript.item_x(flow.placed, fixture, flow.layout)
 	var curtain: Node3D = flow.builder.curtain_nodes.get(door.id)
 	check(curtain != null, "the curtain is built")
 	# He drops onto the floor under the first new table and walks right.
-	teleport(lane.left + 26.0, lane.top + 0.5)
+	teleport(plat("chair_kf_t2_9").right + 1.0, lane.top + 0.5) # past the last stair: the open fight space
 	await until(func() -> bool: return player.get("grounded"), 90)
 	var hearts: int = gs.hearts
 	check(feet_y() < lane.top + 0.2, "on the floor: " + describe())
@@ -340,10 +318,10 @@ func test_he_walks_the_floor_under_the_curtain_strips_into_the_kitchen_stub() ->
 
 func test_he_can_also_jump_through_the_curtain_without_it_stopping_him() -> void:
 	await open_dining()
-	await force_spot("last_table")
+	await force_spot("under_last_table_left")
 	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
 	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
-	var door_x: float = LayoutGeometryScript.x_on(lane, door.along_m)
+	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
 	teleport(door_x - 3.0, lane.top + 0.5)
 	await until(func() -> bool: return player.get("grounded"), 90)
 	Input.action_press("move_right")
@@ -355,38 +333,19 @@ func test_he_can_also_jump_through_the_curtain_without_it_stopping_him() -> void
 	check(player.global_position.x > door_x + 3.0, "straight through the strips, jumping: " + describe())
 
 
-# --- Reaching the bottle at every candidate spot -----------------------------------------------------
+# --- Helpers for the long walks ----------------------------------------------------------------------
 
-## From the section's first table, with real input, to a spot next to the bottle. Floor spots: walks off the
-## table onto the floor and along it. The table spot: hops to the last table and walks to the bottle.
-func walk_to_bottle(spot: String) -> void:
-	var b: Node3D = bottle()
-	if spot == "floor_mid":
-		await put_on("r_t15", plat("r_t15").length() - 2.0) # off the end of the last dining-room table, onto the floor
-	else:
-		await put_on("kf_t1", 1.0)
-	if spot == "last_table":
-		check(await hop_to(plat("kf_t1").right - 0.6, "kf_t2"), "to the last table: " + describe())
-		var target: float = b.global_position.x - 1.5
-		Input.action_press("move_right")
-		await until(func() -> bool: return player.global_position.x >= target, 300)
-		Input.action_release("move_right")
-	else:
-		# Off the end of the table he is on, down onto the floor, and along it.
-		var target: float = b.global_position.x - 1.5
-		Input.action_press("move_right")
-		await until(func() -> bool: return player.get("grounded") and feet_y() < 1.0 and player.global_position.x >= target, 1500)
-		Input.action_release("move_right")
-	await frames(10)
+func on_floor() -> bool:
+	return player.get("grounded") and feet_y() < plat("kitchen_floor").top + 0.2
 
 
-## Jumps over the standing bottle (right) and lands beyond it.
+## Jumps over the standing bottle (rightwards) and lands beyond it.
 func hop_over_bottle() -> bool:
 	var b: Node3D = bottle()
 	var beyond: float = b.global_position.x + 1.2
 	Input.action_press("move_right")
 	var jumped: bool = false
-	for i: int in 240:
+	for i: int in 900:
 		await tree.physics_frame
 		if not jumped and player.global_position.x >= b.global_position.x - 1.6:
 			Input.action_press("jump")
@@ -398,32 +357,125 @@ func hop_over_bottle() -> bool:
 	return player.global_position.x > beyond
 
 
-func test_he_reaches_the_bottle_at_the_last_table() -> void:
-	await open_dining()
-	await force_spot("last_table")
-	await walk_to_bottle("last_table")
+## Walks (real input) until he stands about `distance` m from the bottle's middle, on the side he is already on.
+## Returns the action that walks from there toward the bottle.
+func walk_beside_bottle(distance: float) -> String:
 	var b: Node3D = bottle()
-	check(absf(player.global_position.x - b.global_position.x) < 2.2, "next to it: " + describe())
-	check(on_top_of("kf_t2"), "on its table")
-	check(await hop_over_bottle(), "and over it: " + describe())
-	check(on_top_of("kf_t2"), "still on the table (it does not fall off): " + describe())
+	var side: float = -1.0 if player.global_position.x < b.global_position.x else 1.0
+	var target: float = b.global_position.x + side * distance
+	for i: int in 900:
+		var off: float = target - player.global_position.x
+		if absf(off) < 0.3:
+			break
+		Input.action_release("move_left" if off > 0.0 else "move_right")
+		Input.action_press("move_right" if off > 0.0 else "move_left")
+		await tree.physics_frame
+	Input.action_release("move_left")
+	Input.action_release("move_right")
+	await frames(30)
+	var toward: String = "move_right" if side < 0.0 else "move_left"
+	# A tap toward it, so he faces it.
+	Input.action_press(toward)
+	await frames(2)
+	Input.action_release(toward)
+	await frames(20)
+	return toward
 
 
-func test_he_reaches_the_bottle_on_the_floor_before_the_dispenser() -> void:
-	await open_dining()
-	await force_spot("floor_before_dispenser")
-	await walk_to_bottle("floor_before_dispenser")
+## A real jump from beside the lying bottle onto it, with the attack button once he is over it.
+func jump_attack(action: String) -> void:
 	var b: Node3D = bottle()
-	check(absf(player.global_position.x - b.global_position.x) < 2.2, "next to it: " + describe())
-	check(feet_y() < 1.0, "on the floor: " + describe())
-	check(await hop_over_bottle(), "and over it, on toward the 정수기: " + describe())
+	var done: int = b.get("squirts_done")
+	var toward: String = await walk_beside_bottle(2.4)
+	var side: float = 1.0 if toward == "move_right" else -1.0
+	Input.action_press(toward)
+	Input.action_press("jump")
+	for i: int in 240:
+		await tree.physics_frame
+		if (b.global_position.x - player.global_position.x) * side <= 0.2:
+			break
+	Input.action_release(toward)
+	await tap(action)
+	Input.action_release("jump")
+	await until(func() -> bool: return b.get("squirts_done") > done and player.get("grounded"), 180)
+	await frames(30)
 
 
-func test_he_reaches_the_bottle_on_the_floor_under_the_first_table() -> void:
+# --- From the last table to the doorway --------------------------------------------------------------
+
+## All real input: off the last table to the floor, past the bottle, across the open fight space, through
+## the pour zone under the spout and under the curtains.
+func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and_under_the_curtains() -> void:
 	await open_dining()
-	await force_spot("floor_mid")
-	await walk_to_bottle("floor_mid")
+	await force_spot("under_last_table_right")
+	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
+	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
+	var spout_x: float = flow.builder.fixture_nodes.get("water_dispenser_1").get_meta("spout_x")
+	var stairs_end: float = plat("chair_kf_t2_9").right
+	var curtain: Node3D = flow.builder.curtain_nodes.get(door.id)
+	await put_on("kf_t2", 3.0)
+	var hearts: int = gs.hearts
+	# Off the left end of the table, down to the floor under it.
+	Input.action_press("move_left")
+	await until(func() -> bool: return player.global_position.x < plat("kf_t2").left - 0.3, 600)
+	Input.action_release("move_left")
+	check(await until(on_floor, 300), "down on the floor: " + describe())
+	check(await hop_over_bottle(), "over the bottle under the table: " + describe())
+	var in_zone: bool = false
+	var airborne: int = 0
+	var swayed: float = 0.0
+	Input.action_press("move_right")
+	for i: int in 1800:
+		await tree.physics_frame
+		var x: float = player.global_position.x
+		if x > stairs_end and x < door_x and not player.get("grounded"):
+			airborne += 1
+		if absf(x - spout_x) < 1.0 and on_floor():
+			in_zone = true
+		swayed = maxf(swayed, float(curtain.call("sway_amount")))
+		if x > door_x + 5.0:
+			break
+	Input.action_release("move_right")
+	check(in_zone, "he walks through the pour zone, on the floor")
+	check_eq(airborne, 0, "open floor: never off the ground between the stairs and the doorway")
+	check(player.global_position.x > door_x + 4.0, "under the curtains into the stub: " + describe())
+	check(swayed > 0.1, "the strips swayed (%.2f rad)" % swayed)
+	check_eq(gs.hearts, hearts, "no damage")
+
+
+# --- Reaching, knocking over and squirting the bottle at each spot -----------------------------------
+
+## From the section's first table with real input: down to the floor, along it to the bottle, roll into it,
+## then a jump with a slam and a jump with a stomp.
+func reach_knock_over_and_squirt(spot: String) -> void:
+	await open_dining()
+	await force_spot(spot)
 	var b: Node3D = bottle()
-	check(absf(player.global_position.x - b.global_position.x) < 2.2, "next to it: " + describe())
-	check(feet_y() < 1.0, "on the floor: " + describe())
-	check(await hop_over_bottle(), "and over it: " + describe())
+	await put_on("kf_t1", 1.0)
+	Input.action_press("move_right")
+	await until(on_floor, 900)
+	Input.action_release("move_right")
+	await frames(6)
+	check(on_floor(), spot + ": on the floor: " + describe())
+	# (Off the end of the first table he may land beyond the left spot: then he walks back to it.)
+	await walk_beside_bottle(2.0)
+	check(on_floor(), spot + ": still on the floor: " + describe())
+	check(absf(player.global_position.x - b.global_position.x) < 2.5, spot + ": next to it: " + describe())
+	check(not b.get("fallen"), spot + ": walking up to it leaves it standing")
+	await roll_into_it()
+	check(b.get("fallen"), spot + ": the roll knocked it over: " + describe())
+	gs.set("sodium", 0)
+	await jump_attack("roll") # the roll button in the air: a slam
+	check_eq(b.get("squirts_done"), 1, spot + ": a jump and a slam squirts: " + describe())
+	check_eq(gs.sodium, 3, spot + ": +3")
+	await jump_attack("look_down") # a stomp
+	check_eq(b.get("squirts_done"), 2, spot + ": a jump and a stomp squirts: " + describe())
+	check_eq(gs.sodium, 6, spot + ": +3 more")
+
+
+func test_he_reaches_knocks_over_and_squirts_the_bottle_at_the_left_spot() -> void:
+	await reach_knock_over_and_squirt("under_last_table_left")
+
+
+func test_he_reaches_knocks_over_and_squirts_the_bottle_at_the_right_spot() -> void:
+	await reach_knock_over_and_squirt("under_last_table_right")

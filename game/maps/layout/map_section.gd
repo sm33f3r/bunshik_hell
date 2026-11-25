@@ -8,6 +8,7 @@ const PromptTriggerScript := preload("res://maps/layout/prompt_trigger.gd")
 const JjigiPlacementScript := preload("res://maps/layout/jjigi_placement.gd")
 const FixturePlacementScript := preload("res://maps/layout/fixture_placement.gd")
 const DoorwayDefScript := preload("res://maps/layout/doorway_def.gd")
+const MarkerDefScript := preload("res://maps/layout/marker_def.gd")
 
 @export var id: String = ""
 ## Built and run by other code (the prologue): nothing to build from here.
@@ -20,6 +21,8 @@ const DoorwayDefScript := preload("res://maps/layout/doorway_def.gd")
 ## Fixed props he may use (the 정수기), and the open doorways with their curtains (scenery, never locked).
 @export var fixtures: Array[FixturePlacementScript] = []
 @export var doorways: Array[DoorwayDefScript] = []
+## Named spots, data only (nothing is built).
+@export var markers: Array[MarkerDefScript] = []
 @export var triggers: Array[PromptTriggerScript] = []
 ## Tutorial skipping: the skills granted, and the toast shown.
 @export var skip_grants: PackedStringArray = PackedStringArray()

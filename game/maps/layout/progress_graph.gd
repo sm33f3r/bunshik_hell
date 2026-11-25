@@ -225,7 +225,8 @@ static func choice_entries(layout: MapLayoutScript) -> Array[SpawnEntryScript]:
 ##     to (a table of the way through he can reach, or a floor lane with a reachable table over it), the
 ##     thing fits there (inside the platform, not inside a fixture or a doorway, nothing solid lower than
 ##     its top plus headroom), and it is one he can hop over (no taller than a plain jump at the margin);
-##   - a fixture or a doorway stands on a floor lane or a table he can get to, inside it;
+##     No spot of a choice is nearer than the layout's spout_clearance_m to a 정수기's spout;
+##   - a fixture, a doorway or a marker stands on a floor lane or a table he can get to, inside it;
 ##   - a doorway has nothing solid in its opening (headroom all the way), so it is never blocked.
 static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript) -> Array[String]:
 	var out: Array[String] = []
@@ -250,18 +251,21 @@ static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeomet
 				if c.id == "" or seen.has(c.id):
 					out.append("%s: the spot id is empty or used twice" % spot)
 				seen.append(c.id)
-				out.append_array(_spot_problems(layout, spot, c.platform_id, c.along_m, width, height, placed, reach, blocked, true))
+				out.append_array(_spot_problems(layout, spot, c, width, height, placed, reach, blocked, true))
+				out.append_array(_spout_problems(layout, spot, c, placed))
 		for fixture: Resource in section.fixtures:
-			out.append_array(_spot_problems(layout, "fixture '%s'" % fixture.id, fixture.platform_id, fixture.along_m,
+			out.append_array(_spot_problems(layout, "fixture '%s'" % fixture.id, fixture,
 				fixture.width_cm * reach.m_per_cm, 0.0, placed, reach, blocked, false))
+		for marker: Resource in section.markers:
+			out.append_array(_spot_problems(layout, "marker '%s'" % marker.id, marker, 0.0, 0.0, placed, reach, blocked, false))
 		for doorway: Resource in section.doorways:
 			var label: String = "doorway '%s'" % doorway.id
-			out.append_array(_spot_problems(layout, label, doorway.platform_id, doorway.along_m,
+			out.append_array(_spot_problems(layout, label, doorway,
 				doorway.width_cm * reach.m_per_cm, 0.0, placed, reach, blocked, false))
 			var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
-			if lane == null:
+			var x: float = LayoutGeometryScript.item_x(placed, doorway, layout)
+			if lane == null or is_nan(x):
 				continue
-			var x: float = LayoutGeometryScript.x_on(lane, doorway.along_m)
 			var half: float = doorway.width_cm * reach.m_per_cm * 0.5
 			for other: LayoutGeometryScript.Placed in placed:
 				if other == lane or other.def.kind == "floor" or other.right <= x - half or other.left >= x + half:
@@ -272,16 +276,35 @@ static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeomet
 	return out
 
 
-## Problems with one spot (a platform, a place along it, a footprint). `is_thing`: a thing he can bump into
+## A spot of a spawn choice too near a 정수기's spout (the pour zone is kept clear of things).
+static func _spout_problems(layout: MapLayoutScript, label: String, item: Resource,
+		placed: Array[LayoutGeometryScript.Placed]) -> Array[String]:
+	var out: Array[String] = []
+	var x: float = LayoutGeometryScript.item_x(placed, item, layout)
+	for section: MapSectionScript in layout.sections:
+		for fixture: Resource in section.fixtures:
+			if fixture.kind != "water_dispenser":
+				continue
+			var away: float = absf(LayoutGeometryScript.item_x(placed, fixture, layout) - x)
+			if away < layout.spout_clearance_m - LayoutGeometryScript.EPS:
+				out.append("%s: only %.1f m from the spout of '%s' (at least %.1f m)" % [label, away, fixture.id, layout.spout_clearance_m])
+	return out
+
+
+## Problems with one spot (a placed item: its platform and x; a footprint). `is_thing`: a thing he can bump into
 ## (a spawn choice's), as opposed to scenery; only a thing must keep clear of the fixtures and doorways.
-static func _spot_problems(layout: MapLayoutScript, label: String, platform_id: String, along_m: float, width: float, height: float,
+static func _spot_problems(layout: MapLayoutScript, label: String, item: Resource, width: float, height: float,
 		placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript, blocked: Array[String], is_thing: bool) -> Array[String]:
 	var out: Array[String] = []
+	var platform_id: String = item.platform_id
 	var host: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, platform_id)
 	if host == null:
 		out.append("%s: no platform '%s'" % [label, platform_id])
 		return out
-	var x: float = LayoutGeometryScript.x_on(host, along_m)
+	var x: float = LayoutGeometryScript.item_x(placed, item, layout)
+	if is_nan(x):
+		out.append("%s: nothing called '%s' to measure from" % [label, item.from_id])
+		return out
 	var half: float = width * 0.5
 	if x - half < host.left - LayoutGeometryScript.EPS or x + half > host.right + LayoutGeometryScript.EPS:
 		out.append("%s: does not fit on '%s' (%.2f..%.2f m is outside %.2f..%.2f m)" % [label, platform_id, x - half, x + half, host.left, host.right])
@@ -303,12 +326,12 @@ static func _spot_problems(layout: MapLayoutScript, label: String, platform_id: 
 	for section: MapSectionScript in layout.sections:
 		for fixture: Resource in section.fixtures:
 			if fixture.platform_id == platform_id:
-				var fx: float = LayoutGeometryScript.x_on(host, fixture.along_m)
+				var fx: float = LayoutGeometryScript.item_x(placed, fixture, layout)
 				if absf(fx - x) < fixture.width_cm * reach.m_per_cm * 0.5 + half - LayoutGeometryScript.EPS:
 					out.append("%s: stands inside fixture '%s'" % [label, fixture.id])
 		for doorway: Resource in section.doorways:
 			if doorway.platform_id == platform_id:
-				var dx: float = LayoutGeometryScript.x_on(host, doorway.along_m)
+				var dx: float = LayoutGeometryScript.item_x(placed, doorway, layout)
 				if absf(dx - x) < doorway.width_cm * reach.m_per_cm * 0.5 + half - LayoutGeometryScript.EPS:
 					out.append("%s: stands in the doorway '%s'" % [label, doorway.id])
 	# Nothing solid in it or low over it: it must not touch anything above its top, and a floor spot needs

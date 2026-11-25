@@ -8,6 +8,10 @@ extends Resource
 ## the right edge).
 @export var platform_id: String = ""
 @export var along_m: float = 0.0
+## "" = along_m is on platform_id, the usual way. Else along_m is metres from the RIGHT end of this
+## platform, or from the middle of this fixture (negative: back from it). platform_id still says what it
+## stands on. See LayoutGeometry.item_x.
+@export var from_id: String = ""
 ## Real centimetres (times the world scale): the opening's width and height (the strips hang from the top).
 @export var width_cm: float = 40.0
 @export var height_cm: float = 40.0
