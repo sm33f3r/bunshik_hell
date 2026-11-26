@@ -242,12 +242,14 @@ func _collision_objects(node: Node) -> Array[Node]:
 
 # --- The doorway and its curtain --------------------------------------------------------------------
 
-func test_the_doorway_is_open_and_its_curtain_hangs_above_his_head_by_default() -> void:
+func test_the_doorway_is_open_and_its_curtain_hangs_down_over_him() -> void:
 	var door: Resource = _kitchen().doorways[0]
 	var m: float = _data().m_per_cm()
-	var head: float = 0.96 # his capsule (player/ddeok.tscn); body_half_height * 2
-	check(door.bottom_edge_cm * m > head, "the bottom edge (%.2f m) is above his head (%.2f m)" % [door.bottom_edge_cm * m, head])
-	check(load("res://maps/layout/doorway_def.gd").new().bottom_edge_cm * m > head, "the def's own default too")
+	var head: float = 0.64 # the top of his capsule above the floor (it lies on its side)
+	check(door.bottom_edge_cm * m < head, "the strips (to %.2f m) reach down over him (%.2f m)" % [door.bottom_edge_cm * m, head])
+	check(door.height_cm * m > head * 3.0, "and start well above him")
+	check(door.strip_color.a < 0.6, "see-through")
+	check(door.width_cm * m * door.strip_fill / door.strips < 0.3, "narrow strips")
 	check(door.height_cm > door.bottom_edge_cm, "the strips hang from the top, down to the bottom edge")
 	var builder: SectionBuilderScript = await _built()
 	var frame: Node3D = builder.doorway_nodes.get(door.id)
@@ -259,6 +261,41 @@ func test_the_doorway_is_open_and_its_curtain_hangs_above_his_head_by_default() 
 	check(absf(float(curtain.call("bottom_edge_y")) - (lane.top + door.bottom_edge_cm * m)) < 0.001, "its bottom edge is the data's")
 	var offenders: Array[String] = LaneRulesScript.offenders(builder, _lane_depth())
 	check(offenders.is_empty(), "the lane rules are fine with the frame, the curtain and the dispenser:\n        " + "\n        ".join(offenders))
+
+
+func test_the_doorway_depths_in_the_data_put_the_frame_behind_and_the_curtain_just_in_front() -> void:
+	var door: Resource = _kitchen().doorways[0]
+	var half_strip: float = door.strip_thickness_m * 0.5
+	check(door.frame_clearance_m >= 0.32, "the frame is behind the lane plane and behind his body")
+	check(door.strip_z_near_m - half_strip > 0.42, "the strips hang in front of him (his eyes reach 0.41 m), not through him")
+	check(door.strip_z_far_m >= door.strip_z_near_m, "a depth range")
+	check(door.strip_z_far_m + half_strip <= door.CURTAIN_FRONT_MAX_M, "a small one")
+	var frame_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		l.section("kitchen_front").doorways[0].frame_clearance_m = -0.1)
+	check(_mentions(ProgressGraphScript.scenery_problems(frame_bad, _placed(frame_bad), _reach()), "nearer the camera"), "a frame in front is found")
+	var strips_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		l.section("kitchen_front").doorways[0].strip_z_far_m = 3.0)
+	check(_mentions(ProgressGraphScript.scenery_problems(strips_bad, _placed(strips_bad), _reach()), "curtain strips"), "strips too far forward are found")
+
+
+func test_no_doorway_part_but_the_curtain_is_nearer_the_camera_than_the_lane() -> void:
+	var builder: SectionBuilderScript = await _built()
+	var door: Resource = _kitchen().doorways[0]
+	var frame: Node3D = builder.doorway_nodes.get(door.id)
+	var offenders: Array[String] = LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M)
+	check(offenders.is_empty(), "doorway depths:\n        " + "\n        ".join(offenders))
+	var before: MeshInstance3D = frame.get_node("WallBefore") as MeshInstance3D
+	var after: MeshInstance3D = frame.get_node("WallAfter") as MeshInstance3D
+	var half: float = door.width_cm * _data().m_per_cm() * 0.5
+	check(absf((before.global_transform * before.get_aabb()).end.x - (frame.global_position.x - half)) < 0.01, "the dining wall ends at the opening")
+	check(absf((after.global_transform * after.get_aabb()).position.x - (frame.global_position.x + half)) < 0.01, "the kitchen wall starts on the other side")
+	check(door.wall_color_before != door.wall_color_after, "in another gray")
+	# The check is not asleep: pull a jamb forward, and push a strip too far.
+	(frame.get_node("JambLeft") as Node3D).position.z = 1.0
+	check(_mentions(LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M), "JambLeft"), "a jamb in front is found")
+	var curtain: Node3D = builder.curtain_nodes.get(door.id)
+	(curtain.get_node("Strip0") as Node3D).position.z = 2.0
+	check(_mentions(LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M), "Strip0"), "a strip too far forward is found")
 
 
 func test_the_curtain_sways_when_he_passes_and_settles_again() -> void:
@@ -487,7 +524,10 @@ func test_the_spout_doorway_and_ramen_marker_stand_at_the_data_distances() -> vo
 	var door_x: float = LayoutGeometryScript.item_x(placed, door, layout)
 	var ramen_x: float = LayoutGeometryScript.item_x(placed, marker, layout)
 	check(absf(spout_x - last_step.right - 20.0) < 0.5, "the spout about 20 m past the last stair (%.2f m)" % (spout_x - last_step.right))
-	check(absf(door_x - spout_x - 8.0) < 0.5, "the doorway about 8 m past the spout (%.2f m)" % (door_x - spout_x))
+	var width: float = door.width_cm * _data().m_per_cm()
+	check(absf(width - 3.0) < 0.1, "the doorway about 3 m wide (%.2f m)" % width)
+	var near_edge: float = door_x - width * 0.5
+	check(absf(near_edge - spout_x - 8.0) < 0.1, "its near edge 8 m past the spout (%.2f m)" % (near_edge - spout_x))
 	check(absf(ramen_x - spout_x - 4.0) < 0.5, "ramen_start_1 about 4 m past the spout (%.2f m)" % (ramen_x - spout_x))
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
 	var door_right: float = door_x + door.width_cm * _data().m_per_cm() * 0.5

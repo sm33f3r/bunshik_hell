@@ -227,7 +227,8 @@ static func choice_entries(layout: MapLayoutScript) -> Array[SpawnEntryScript]:
 ##     its top plus headroom), and it is one he can hop over (no taller than a plain jump at the margin);
 ##     No spot of a choice is nearer than the layout's spout_clearance_m to a 정수기's spout;
 ##   - a fixture, a doorway or a marker stands on a floor lane or a table he can get to, inside it;
-##   - a doorway has nothing solid in its opening (headroom all the way), so it is never blocked.
+##   - a doorway has nothing solid in its opening (headroom all the way), so it is never blocked, and its
+##     depths are legal: the frame at or behind z = 0, the strips just in front of it.
 static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript) -> Array[String]:
 	var out: Array[String] = []
 	var blocked: Array[String] = unreachable(layout, placed, reach, {})
@@ -260,6 +261,12 @@ static func scenery_problems(layout: MapLayoutScript, placed: Array[LayoutGeomet
 			out.append_array(_spot_problems(layout, "marker '%s'" % marker.id, marker, 0.0, 0.0, placed, reach, blocked, false))
 		for doorway: Resource in section.doorways:
 			var label: String = "doorway '%s'" % doorway.id
+			if doorway.frame_clearance_m < 0.0:
+				out.append("%s: the frame is nearer the camera than the lane" % label)
+			var half_strip: float = doorway.strip_thickness_m * 0.5
+			if doorway.strip_z_near_m - half_strip < 0.0 or doorway.strip_z_far_m < doorway.strip_z_near_m \
+					or doorway.strip_z_far_m + half_strip > doorway.CURTAIN_FRONT_MAX_M:
+				out.append("%s: the curtain strips must hang between 0 and %.1f m in front of the lane" % [label, doorway.CURTAIN_FRONT_MAX_M])
 			out.append_array(_spot_problems(layout, label, doorway,
 				doorway.width_cm * reach.m_per_cm, 0.0, placed, reach, blocked, false))
 			var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)

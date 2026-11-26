@@ -984,8 +984,8 @@ jjigi = Array[ExtResource("s_jj")]([SubResource("jj_mid")])
 ; Task 3c-i-a: the kitchen front. It goes on from the last dining table (the dining room's end wall is
 ; gone): two more tables over a floor lane that runs on to the open kitchen doorway, a 정수기 in front of
 ; the doorway, a short kitchen stub beyond it and a temporary end wall (the kitchen is built in 3c-ii).
-; Distances (🟡), each measured with from_id: the 정수기's spout 20 m past the last chair step, the doorway
-; 8 m past the spout, ramen_start_1 4 m past the spout. Between the stairs and the doorway: open floor.
+; Distances (🟡), each measured with from_id: the 정수기's spout 20 m past the last chair step, the doorway's
+; near edge 8 m past the spout (3 m wide, so its middle is 9.5 m past), ramen_start_1 4 m past the spout. Between the stairs and the doorway: open floor.
 ; The 간장 bottle has two candidate spots, under the last table; one is picked per new game.
 ; ---------------------------------------------------------------------------------------------------
 
@@ -1037,7 +1037,7 @@ span_from = "r_t15"
 span_to = "kf_t2"
 drop_from = "prologue_exit_table"
 drop_cm = 75.0
-span_extra_right_cm = 370.0
+span_extra_right_cm = 375.0
 
 ; Under the last table (13.96 m long), clear of its legs (behind the lane) and of the chair steps.
 [sub_resource type="Resource" id="spot_under_left"]
@@ -1092,10 +1092,19 @@ script = ExtResource("s_door")
 id = "kitchen_door"
 platform_id = "kitchen_floor"
 from_id = "water_dispenser_1"
-along_m = 8.0
-width_cm = 40.0
-height_cm = 40.0
-bottom_edge_cm = 12.0
+along_m = 9.5
+width_cm = 17.2
+height_cm = 18.0
+bottom_edge_cm = 1.5
+strips = 9
+strip_fill = 0.7
+strip_z_near_m = 0.5
+strip_z_far_m = 0.7
+frame_thickness_cm = 2.0
+frame_clearance_m = 0.4
+wall_gap_cm = 9.0
+wall_height_cm = 70.0
+wall_before_cm = 160.0
 
 ; Where the first 라면 will stand (Task 3c-i-b). Data only.
 [sub_resource type="Resource" id="mark_ramen_1"]

@@ -1,6 +1,6 @@
 extends Node3D
-## The rubber curtain strips of a doorway (DoorwayDef): thin gray boxes hung from the top of the opening
-## by their top edge. No collider at all. When he is under them (or jumps through) the strips near him
+## The rubber curtain strips of a doorway (DoorwayDef): thin see-through boxes hung from the top of the
+## opening by their top edge, a little in front of him. No collider at all. When he is under them (or jumps through) the strips near him
 ## swing away from the way he moves and settle again like a damped spring. Visual only.
 
 const PrologueSetScript := preload("res://prologue/prologue_set.gd")
@@ -28,10 +28,13 @@ func build(p_def: DoorwayDefScript, p_m_per_cm: float) -> void:
 	for i: int in maxi(doorway.strips, 1):
 		var pivot: Node3D = Node3D.new()
 		pivot.name = "Strip%d" % i
-		pivot.position = Vector3(-width * 0.5 + slot * (float(i) + 0.5), top, 0.0)
+		var z: float = doorway.strip_z_near_m if i % 2 == 0 else doorway.strip_z_far_m
+		pivot.position = Vector3(-width * 0.5 + slot * (float(i) + 0.5), top, z)
 		add_child(pivot)
-		PrologueSetScript.add_mesh(pivot, "Mesh", PrologueSetScript.box_mesh(Vector3(slot * doorway.strip_fill, length, 0.05)),
+		var mesh: MeshInstance3D = PrologueSetScript.add_mesh(pivot, "Mesh",
+			PrologueSetScript.box_mesh(Vector3(slot * doorway.strip_fill, length, doorway.strip_thickness_m)),
 			doorway.strip_color, Vector3(0.0, -length * 0.5, 0.0))
+		(mesh.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_pivots.append(pivot)
 		_angle.append(0.0)
 		_speed.append(0.0)

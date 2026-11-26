@@ -424,10 +424,15 @@ func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and
 	var in_zone: bool = false
 	var airborne: int = 0
 	var swayed: float = 0.0
+	var behind_curtain: bool = false
+	var strip: Node3D = curtain.get_node("Strip4/Mesh") as Node3D # the middle one
 	Input.action_press("move_right")
 	for i: int in 1800:
 		await tree.physics_frame
 		var x: float = player.global_position.x
+		if absf(x - door_x) < 0.5 and strip.global_position.z > player.global_position.z \
+				and float(curtain.call("bottom_edge_y")) < player.global_position.y:
+			behind_curtain = true
 		if x > stairs_end and x < door_x and not player.get("grounded"):
 			airborne += 1
 		if absf(x - spout_x) < 1.0 and on_floor():
@@ -438,6 +443,7 @@ func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and
 	Input.action_release("move_right")
 	check(in_zone, "he walks through the pour zone, on the floor")
 	check_eq(airborne, 0, "open floor: never off the ground between the stairs and the doorway")
+	check(behind_curtain, "in the doorway the strips hang in front of him, down past his middle")
 	check(player.global_position.x > door_x + 4.0, "under the curtains into the stub: " + describe())
 	check(swayed > 0.1, "the strips swayed (%.2f rad)" % swayed)
 	check_eq(gs.hearts, hearts, "no damage")
