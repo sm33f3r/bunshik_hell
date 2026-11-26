@@ -99,7 +99,7 @@ func _process(delta: float) -> void:
 			lines.append("")
 			lines.append_array(node.call("debug_lines"))
 	if OS.is_debug_build():
-		lines.append("1 unlock roll+slam  2 relock + clear inventory  3 respawn dummies, items, oil, objects  4 -1 heart  5 unlock flick  6 defeat noodle dummy  7 give container  0 load save  9 hide / show this text")
+		lines.append("1 unlock roll+slam  2 relock + clear inventory  3 respawn dummies, items, oil, objects  4 -1 heart  5 unlock flick  6 defeat noodle dummy  7 give container  0 load save  9 hide / show this text  M music on/off  N beep")
 	_label.text = "\n".join(lines)
 
 

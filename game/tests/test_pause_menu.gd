@@ -17,9 +17,12 @@ var gs: GameStateScript
 var settings: SettingsScript
 var _quit_spy: Array[int] = []
 var _extra: Array[Node] = []
+## The audio buses as they were before the test.
+var _buses: AudioBusLayout
 
 
 func _make(with_inventory: bool = false, inventory_first: bool = true) -> void:
+	_buses = AudioServer.generate_bus_layout()
 	gs = GameStateScript.new()
 	settings = SettingsScript.new()
 	settings.settings_path = TEMP_PATH
@@ -48,6 +51,9 @@ func after_each() -> void:
 		Input.action_release(action)
 	tree.paused = false
 	GameplayInputScript.clear()
+	if _buses != null:
+		AudioServer.set_bus_layout(_buses)
+		_buses = null
 	if menu != null and is_instance_valid(menu):
 		menu.free()
 	for node: Node in _extra:
@@ -209,8 +215,10 @@ func test_settings_change_save_and_load() -> void:
 	await press(["ui_accept"] as Array[String]) # fullscreen toggles
 	check(settings.fullscreen, "fullscreen on")
 	await press(["look_down"] as Array[String])
+	await press(["ui_accept"] as Array[String]) # Audio page; master volume is its first row
 	await press(["move_left"] as Array[String])
 	check(absf(settings.master_volume - 0.9) < 0.001, "volume down a step")
+	await press(["ui_cancel"] as Array[String]) # back on the Audio row
 	await press(["look_down"] as Array[String])
 	await press(["move_right"] as Array[String])
 	check(settings.heal_default != "lowest", "heal default moved on")
@@ -224,6 +232,133 @@ func test_settings_change_save_and_load() -> void:
 	fresh.free()
 	settings.fullscreen = false # leave the real window alone
 	settings.apply_to_system()
+
+
+## Pause -> Settings -> Audio, by presses only.
+func _open_audio_page() -> void:
+	await press(["pause"] as Array[String])
+	await press(["look_down"] as Array[String])
+	await press(["look_down"] as Array[String])
+	await press(["ui_accept"] as Array[String])
+	await press(["look_down"] as Array[String])
+	await press(["ui_accept"] as Array[String])
+
+
+func _saved() -> SettingsScript:
+	var fresh: SettingsScript = SettingsScript.new()
+	fresh.settings_path = TEMP_PATH
+	check(fresh.load_settings(), "the settings file loads")
+	return fresh
+
+
+func _bus_db(bus_name: String) -> float:
+	return AudioServer.get_bus_volume_db(AudioServer.get_bus_index(bus_name))
+
+
+func _bus_muted(bus_name: String) -> bool:
+	return AudioServer.is_bus_mute(AudioServer.get_bus_index(bus_name))
+
+
+func test_the_audio_page_changes_every_row_and_saves_at_once() -> void:
+	await _make()
+	await press(["pause"] as Array[String])
+	await press(["look_down"] as Array[String])
+	await press(["look_down"] as Array[String])
+	await press(["ui_accept"] as Array[String])
+	check(menu.screen_text().contains("Audio ▸"), "Settings lists Audio")
+	check(not menu.screen_text().contains("Master volume"), "master volume moved to the Audio page")
+	await press(["look_down"] as Array[String])
+	await press(["move_right"] as Array[String])
+	check_eq(menu.screen, PauseMenuScript.Screen.SETTINGS, "right does not open it")
+	await press(["ui_accept"] as Array[String])
+	check_eq(menu.screen, PauseMenuScript.Screen.AUDIO, "the audio page")
+	for row: String in ["> Master volume: 100%", "Music volume: 100%", "Music: ON", "SFX volume: 100%", "SFX: ON", "Back"]:
+		check(menu.screen_text().contains(row), "row " + row)
+
+	# Master volume.
+	await press(["move_left"] as Array[String])
+	await press(["ui_left"] as Array[String])
+	check(absf(settings.master_volume - 0.8) < 0.001, "master down two steps")
+	await press(["ui_accept"] as Array[String])
+	check(absf(settings.master_volume - 0.9) < 0.001, "confirm steps up")
+	check(is_equal_approx(_bus_db("Master"), linear_to_db(settings.master_volume)), "Master bus applied")
+
+	# Music volume.
+	await press(["look_down"] as Array[String])
+	await press(["move_left"] as Array[String])
+	await press(["move_left"] as Array[String])
+	check(menu.screen_text().contains("> Music volume: 80%"), "music label")
+	check(is_equal_approx(_bus_db("Music"), linear_to_db(settings.music_volume)), "Music bus applied")
+	var fresh: SettingsScript = _saved()
+	check(absf(fresh.music_volume - 0.8) < 0.001, "music volume saved at once")
+	fresh.free()
+	await press(["move_right"] as Array[String])
+	check(absf(settings.music_volume - 0.9) < 0.001, "and right goes up")
+
+	# Music on / off: left, right and confirm all toggle.
+	await press(["look_down"] as Array[String])
+	await press(["move_left"] as Array[String])
+	check(not settings.music_enabled and _bus_muted("Music"), "left turns music off and mutes the bus")
+	check(menu.screen_text().contains("> Music: OFF"), "label OFF")
+	await press(["move_right"] as Array[String])
+	check(settings.music_enabled and not _bus_muted("Music"), "right turns it on")
+	await press(["ui_accept"] as Array[String])
+	check(not settings.music_enabled, "confirm toggles it")
+
+	# SFX volume.
+	await press(["look_down"] as Array[String])
+	await press(["move_left"] as Array[String])
+	check(menu.screen_text().contains("> SFX volume: 90%"), "sfx label")
+	check(is_equal_approx(_bus_db("SFX"), linear_to_db(settings.sfx_volume)), "SFX bus applied")
+
+	# SFX on / off.
+	await press(["look_down"] as Array[String])
+	await press(["ui_accept"] as Array[String])
+	check(not settings.sfx_enabled and _bus_muted("SFX"), "confirm turns sfx off")
+	check(menu.screen_text().contains("> SFX: OFF"), "label OFF")
+
+	fresh = _saved()
+	check(absf(fresh.master_volume - 0.9) < 0.001, "master saved")
+	check(absf(fresh.music_volume - 0.9) < 0.001, "music saved")
+	check(absf(fresh.sfx_volume - 0.9) < 0.001, "sfx saved")
+	check_eq(fresh.music_enabled, false, "music off saved")
+	check_eq(fresh.sfx_enabled, false, "sfx off saved")
+	fresh.free()
+
+	# Back row: left / right do nothing, confirm returns to Settings; and the list wraps.
+	await press(["look_down"] as Array[String])
+	check_eq(menu.selected, PauseMenuScript.AUDIO_BACK, "Back row")
+	await press(["move_left"] as Array[String])
+	check_eq(menu.screen, PauseMenuScript.Screen.AUDIO, "still here")
+	await press(["look_down"] as Array[String])
+	check_eq(menu.selected, PauseMenuScript.AUDIO_MASTER_VOLUME, "wraps down")
+	await press(["ui_up"] as Array[String])
+	await press(["ui_accept"] as Array[String])
+	check_eq(menu.screen, PauseMenuScript.Screen.SETTINGS, "Back returns to Settings")
+	check_eq(menu.selected, PauseMenuScript.SETTING_AUDIO, "on the Audio row")
+
+
+func test_cancel_circle_and_options_leave_the_audio_page_one_level_at_a_time() -> void:
+	await _make()
+	await _open_audio_page()
+	for back: Array in [["ui_cancel"], ["pause"], ["pause", "ui_cancel"]]:
+		check_eq(menu.screen, PauseMenuScript.Screen.AUDIO, "on the audio page")
+		var actions: Array[String] = []
+		actions.assign(back)
+		await press(actions)
+		check_eq(menu.screen, PauseMenuScript.Screen.SETTINGS, "%s returns to Settings" % str(back))
+		check_eq(menu.selected, PauseMenuScript.SETTING_AUDIO, "on the Audio row")
+		check(tree.paused, "still paused")
+		await press(["ui_accept"] as Array[String])
+	await press(["ui_cancel"] as Array[String])
+	await press(["ui_cancel"] as Array[String])
+	check_eq(menu.screen, PauseMenuScript.Screen.MAIN, "then the main menu")
+	Input.action_press("ui_cancel")
+	await tree.process_frame
+	check(not menu.is_open() and not tree.paused, "then closed")
+	check(GameplayInputScript.is_blocked(), "the closing press is swallowed")
+	check(not GameplayInputScript.just_pressed(&"roll"), "no roll leaks into the game")
+	Input.action_release("ui_cancel")
 
 
 func test_esc_while_the_inventory_is_open_closes_it_and_does_not_pause() -> void:

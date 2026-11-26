@@ -5,7 +5,7 @@ extends CanvasLayer
 ## is open, so the cutscene, the wiggle and every stab freeze and then carry on where they were.
 ##
 ## Input is polled, like the inventory, so scripted tests can drive it with Input.action_press():
-##   up / down: W, S, the arrows, the d-pad, the stick.  left / right: A, D, the arrows (settings).
+##   up / down: W, S, the arrows, the d-pad, the stick.  left / right: A, D, the arrows (settings, audio).
 ##   confirm: Enter, Space, ✕ (ui_accept).  back: Esc, Options, ○ (ui_cancel).
 ## The inventory and the "container is full" popup own the game while they are open: Esc then
 ## closes THEM and never opens this menu. Whatever closes a menu must not reach the game (see
@@ -18,7 +18,7 @@ signal restart_requested
 signal opened
 signal closed
 
-enum Screen { NONE, MAIN, SETTINGS, CONFIRM_QUIT, CONTROLS }
+enum Screen { NONE, MAIN, SETTINGS, CONFIRM_QUIT, CONTROLS, AUDIO }
 
 const GameStateScript := preload("res://systems/game_state.gd")
 const SettingsScript := preload("res://systems/settings.gd")
@@ -36,10 +36,17 @@ const ITEM_RESTART: int = 1
 const ITEM_SETTINGS: int = 2
 const ITEM_QUIT: int = 3
 const SETTING_FULLSCREEN: int = 0
-const SETTING_VOLUME: int = 1
+const SETTING_AUDIO: int = 1
 const SETTING_HEAL: int = 2
 const SETTING_CONTROLS: int = 3
 const SETTING_BACK: int = 4
+const AUDIO_ITEMS: int = 6
+const AUDIO_MASTER_VOLUME: int = 0
+const AUDIO_MUSIC_VOLUME: int = 1
+const AUDIO_MUSIC_ENABLED: int = 2
+const AUDIO_SFX_VOLUME: int = 3
+const AUDIO_SFX_ENABLED: int = 4
+const AUDIO_BACK: int = 5
 
 ## Injected by tests; fall back to the autoloads in _ready().
 var game_state: GameStateScript
@@ -112,6 +119,8 @@ func _process(_delta: float) -> void:
 			_process_confirm()
 		Screen.CONTROLS:
 			_process_controls()
+		Screen.AUDIO:
+			_process_audio()
 
 
 ## Not while something else owns the game: the inventory and the popup pause the tree, and a press
@@ -200,6 +209,8 @@ func _process_settings() -> void:
 			_go(Screen.MAIN, ITEM_SETTINGS)
 		elif selected == SETTING_CONTROLS:
 			_go(Screen.CONTROLS)
+		elif selected == SETTING_AUDIO:
+			_go(Screen.AUDIO)
 		else:
 			change_setting(selected, 1)
 
@@ -211,15 +222,63 @@ func change_setting(item: int, step: int) -> void:
 	match item:
 		SETTING_FULLSCREEN:
 			settings.set_fullscreen(not settings.fullscreen)
-		SETTING_VOLUME:
-			settings.set_master_volume(snappedf(settings.master_volume + VOLUME_STEP * float(step), 0.01))
 		SETTING_HEAL:
 			settings.cycle_heal_default(step)
 		_:
 			return
+	_apply_and_save()
+
+
+func _apply_and_save() -> void:
 	settings.apply_to_system()
 	settings.save_settings()
 	_refresh()
+
+
+# --- Audio screen -------------------------------------------------------------------------------
+
+func _process_audio() -> void:
+	if _back_pressed():
+		_go(Screen.SETTINGS, SETTING_AUDIO)
+	elif _up_pressed():
+		selected = posmod(selected - 1, AUDIO_ITEMS)
+		_refresh()
+	elif _down_pressed():
+		selected = posmod(selected + 1, AUDIO_ITEMS)
+		_refresh()
+	elif _left_pressed():
+		change_audio(selected, -1)
+	elif _right_pressed():
+		change_audio(selected, 1)
+	elif Input.is_action_just_pressed("ui_accept"):
+		if selected == AUDIO_BACK:
+			_go(Screen.SETTINGS, SETTING_AUDIO)
+		else:
+			change_audio(selected, 1)
+
+
+## Steps a volume (-1 / +1) or flips a switch, applies it, and saves it.
+func change_audio(item: int, step: int) -> void:
+	if settings == null:
+		return
+	match item:
+		AUDIO_MASTER_VOLUME:
+			settings.set_master_volume(_stepped(settings.master_volume, step))
+		AUDIO_MUSIC_VOLUME:
+			settings.set_music_volume(_stepped(settings.music_volume, step))
+		AUDIO_MUSIC_ENABLED:
+			settings.set_music_enabled(not settings.music_enabled)
+		AUDIO_SFX_VOLUME:
+			settings.set_sfx_volume(_stepped(settings.sfx_volume, step))
+		AUDIO_SFX_ENABLED:
+			settings.set_sfx_enabled(not settings.sfx_enabled)
+		_:
+			return
+	_apply_and_save()
+
+
+func _stepped(volume: float, step: int) -> float:
+	return snappedf(volume + VOLUME_STEP * float(step), 0.01)
 
 
 # --- Controls page (read-only) -----------------------------------------------------------------
@@ -288,6 +347,23 @@ func _heal_label(id: String) -> String:
 	return def.display_name if def != null else id
 
 
+## In AUDIO_* order.
+func _audio_rows() -> Array[String]:
+	var master: float = settings.master_volume if settings != null else 1.0
+	var music: float = settings.music_volume if settings != null else 1.0
+	var sfx: float = settings.sfx_volume if settings != null else 1.0
+	var music_on: bool = settings.music_enabled if settings != null else true
+	var sfx_on: bool = settings.sfx_enabled if settings != null else true
+	return [
+		"%s: %d%%" % [tr("Master volume"), int(roundf(master * 100.0))],
+		"%s: %d%%" % [tr("Music volume"), int(roundf(music * 100.0))],
+		"%s: %s" % [tr("Music"), tr("ON") if music_on else tr("OFF")],
+		"%s: %d%%" % [tr("SFX volume"), int(roundf(sfx * 100.0))],
+		"%s: %s" % [tr("SFX"), tr("ON") if sfx_on else tr("OFF")],
+		tr("Back"),
+	]
+
+
 func screen_text() -> String:
 	var lines: Array[String] = []
 	match screen:
@@ -303,17 +379,24 @@ func screen_text() -> String:
 			lines.append(tr("SETTINGS"))
 			lines.append("")
 			var on_off: String = tr("on") if settings != null and settings.fullscreen else tr("off")
-			var percent: int = int(roundf((settings.master_volume if settings != null else 1.0) * 100.0))
 			var heal: String = _heal_label(settings.heal_default) if settings != null else ""
 			var rows: Array[String] = [
 				"%s: %s" % [tr("Fullscreen"), on_off],
-				"%s: %d%%" % [tr("Master volume"), percent],
+				"%s ▸" % tr("Audio"),
 				"%s: %s" % [tr("Heal default"), heal],
 				tr("Controls"),
 				tr("Back"),
 			]
 			for i: int in rows.size():
 				lines.append("%s %s" % [">" if i == selected else " ", rows[i]])
+			lines.append("")
+			lines.append(tr("Left / right: change    Back: return"))
+		Screen.AUDIO:
+			lines.append(tr("AUDIO"))
+			lines.append("")
+			var audio_rows: Array[String] = _audio_rows()
+			for i: int in audio_rows.size():
+				lines.append("%s %s" % [">" if i == selected else " ", audio_rows[i]])
 			lines.append("")
 			lines.append(tr("Left / right: change    Back: return"))
 		Screen.CONTROLS:

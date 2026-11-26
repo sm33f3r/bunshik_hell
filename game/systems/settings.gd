@@ -12,6 +12,11 @@ var heal_default: String = "lowest"
 var fullscreen: bool = false
 ## Master volume, 0.0 (silent) to 1.0 (full).
 var master_volume: float = 1.0
+## Music and SFX bus volumes, 0.0 to 1.0, and their on/off switches (off = the bus is muted).
+var music_volume: float = 1.0
+var sfx_volume: float = 1.0
+var music_enabled: bool = true
+var sfx_enabled: bool = true
 var on_chain: bool = false
 var last_error: String = ""
 
@@ -59,21 +64,52 @@ func set_master_volume(value: float) -> void:
 	master_volume = clampf(value, 0.0, 1.0)
 
 
-## Pushes fullscreen and volume to the window and the audio bus. Not called by the setters, so
+func set_music_volume(value: float) -> void:
+	music_volume = clampf(value, 0.0, 1.0)
+
+
+func set_sfx_volume(value: float) -> void:
+	sfx_volume = clampf(value, 0.0, 1.0)
+
+
+func set_music_enabled(value: bool) -> void:
+	music_enabled = value
+
+
+func set_sfx_enabled(value: bool) -> void:
+	sfx_enabled = value
+
+
+## Pushes fullscreen and volumes to the window and the audio buses. Not called by the setters, so
 ## tests (and a settings file read at start-up) can change values without touching the system.
 func apply_to_system() -> void:
 	var mode: DisplayServer.WindowMode = DisplayServer.WINDOW_MODE_WINDOWED
 	if fullscreen:
 		mode = DisplayServer.WINDOW_MODE_FULLSCREEN
 	DisplayServer.window_set_mode(mode)
-	var bus: int = AudioServer.get_bus_index("Master")
+	_apply_bus_volume("Master", master_volume)
+	_apply_bus_volume("Music", music_volume)
+	_apply_bus_volume("SFX", sfx_volume)
+	_apply_bus_enabled("Music", music_enabled)
+	_apply_bus_enabled("SFX", sfx_enabled)
+
+
+func _apply_bus_volume(bus_name: String, volume: float) -> void:
+	var bus: int = AudioServer.get_bus_index(bus_name)
 	if bus >= 0:
-		AudioServer.set_bus_volume_db(bus, -80.0 if master_volume <= 0.0 else linear_to_db(master_volume))
+		AudioServer.set_bus_volume_db(bus, -80.0 if volume <= 0.0 else linear_to_db(volume))
+
+
+func _apply_bus_enabled(bus_name: String, enabled: bool) -> void:
+	var bus: int = AudioServer.get_bus_index(bus_name)
+	if bus >= 0:
+		AudioServer.set_bus_mute(bus, not enabled)
 
 
 func to_dict() -> Dictionary:
 	return {"heal_default": heal_default, "on_chain": on_chain, "fullscreen": fullscreen,
-		"master_volume": master_volume}
+		"master_volume": master_volume, "music_volume": music_volume, "sfx_volume": sfx_volume,
+		"music_enabled": music_enabled, "sfx_enabled": sfx_enabled}
 
 
 func save_settings() -> bool:
@@ -103,6 +139,14 @@ func load_settings() -> bool:
 		set_fullscreen(data["fullscreen"])
 	if data.get("master_volume") is float or data.get("master_volume") is int:
 		set_master_volume(float(data["master_volume"]))
+	if data.get("music_volume") is float or data.get("music_volume") is int:
+		set_music_volume(float(data["music_volume"]))
+	if data.get("sfx_volume") is float or data.get("sfx_volume") is int:
+		set_sfx_volume(float(data["sfx_volume"]))
+	if data.get("music_enabled") is bool:
+		set_music_enabled(data["music_enabled"])
+	if data.get("sfx_enabled") is bool:
+		set_sfx_enabled(data["sfx_enabled"])
 	if data.get("on_chain") is bool:
 		set_on_chain(data["on_chain"])
 	return true

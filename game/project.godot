@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 GameState="*res://systems/game_state.gd"
 SaveSystem="*res://systems/save_system.gd"
 Settings="*res://systems/settings.gd"
+AudioManager="*res://systems/audio_manager.gd"
 ChainBridge="*res://systems/chain_bridge.gd"
 
 [display]
