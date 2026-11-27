@@ -217,7 +217,8 @@ func test_the_dispenser_is_a_gray_box_prop_with_an_id_that_is_not_solid() -> voi
 	var door_x: float = LayoutGeometryScript.item_x(placed, door, _layout())
 	var m: float = _data().m_per_cm()
 	check(dispenser_x + fixture.width_cm * m * 0.5 < door_x - door.width_cm * m * 0.5, "directly in front of the doorway (before it, not in it)")
-	check(door_x - dispenser_x < 12.0, "close to it (%.1f m)" % (door_x - dispenser_x))
+	var near_edge: float = door_x - door.width_cm * m * 0.5
+	check(near_edge - dispenser_x < 12.0, "close to it (%.1f m)" % (near_edge - dispenser_x))
 	var builder: SectionBuilderScript = await _built()
 	var node: Node3D = builder.fixture_nodes.get(fixture.id)
 	check(node != null and node.name == "Fixture_water_dispenser_1", "built as a node named after its id")
@@ -266,10 +267,14 @@ func test_the_doorway_is_open_and_its_curtain_hangs_down_over_him() -> void:
 func test_the_doorway_depths_in_the_data_put_the_frame_behind_and_the_curtain_just_in_front() -> void:
 	var door: Resource = _kitchen().doorways[0]
 	var half_strip: float = door.strip_thickness_m * 0.5
-	check(door.frame_clearance_m >= 0.32, "the frame is behind the lane plane and behind his body")
-	check(door.strip_z_near_m - half_strip > 0.42, "the strips hang in front of him (his eyes reach 0.41 m), not through him")
+	check(door.frame_clearance_m >= 0.0, "the frame is not in front of the lane plane")
+	check(door.frame_clearance_m + door.frame_depth_m <= 0.3 + 0.001, "and within 0.3 m behind it")
+	check(door.strip_z_near_m - half_strip >= 0.0, "the strips hang in front of the lane plane")
 	check(door.strip_z_far_m >= door.strip_z_near_m, "a depth range")
-	check(door.strip_z_far_m + half_strip <= door.CURTAIN_FRONT_MAX_M, "a small one")
+	check(door.strip_z_far_m + half_strip <= 0.3 + 0.001, "within 0.3 m in front of it")
+	var deep_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		l.section("kitchen_front").doorways[0].frame_depth_m = 5.0)
+	check(_mentions(ProgressGraphScript.scenery_problems(deep_bad, _placed(deep_bad), _reach()), "behind the lane"), "a deep frame is found")
 	var frame_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
 		l.section("kitchen_front").doorways[0].frame_clearance_m = -0.1)
 	check(_mentions(ProgressGraphScript.scenery_problems(frame_bad, _placed(frame_bad), _reach()), "nearer the camera"), "a frame in front is found")
@@ -287,8 +292,10 @@ func test_no_doorway_part_but_the_curtain_is_nearer_the_camera_than_the_lane() -
 	var before: MeshInstance3D = frame.get_node("WallBefore") as MeshInstance3D
 	var after: MeshInstance3D = frame.get_node("WallAfter") as MeshInstance3D
 	var half: float = door.width_cm * _data().m_per_cm() * 0.5
-	check(absf((before.global_transform * before.get_aabb()).end.x - (frame.global_position.x - half)) < 0.01, "the dining wall ends at the opening")
-	check(absf((after.global_transform * after.get_aabb()).position.x - (frame.global_position.x + half)) < 0.01, "the kitchen wall starts on the other side")
+	check(absf((before.global_transform * before.get_aabb()).end.x - frame.global_position.x) < 0.01, "the dining wall ends behind the middle of the opening")
+	check(absf((after.global_transform * after.get_aabb()).position.x - frame.global_position.x) < 0.01, "where the kitchen wall starts")
+	check((before.global_transform * before.get_aabb()).position.x < frame.global_position.x - half - 5.0, "the dining wall is left of the doorway")
+	check((after.global_transform * after.get_aabb()).end.x > frame.global_position.x + half + 5.0, "the kitchen wall right of it")
 	check(door.wall_color_before != door.wall_color_after, "in another gray")
 	# The check is not asleep: pull a jamb forward, and push a strip too far.
 	(frame.get_node("JambLeft") as Node3D).position.z = 1.0
@@ -333,6 +340,54 @@ func test_the_doorway_check_fails_when_something_solid_is_in_the_opening() -> vo
 		l.headroom_m = 1.5)
 	var problems: Array[String] = ProgressGraphScript.scenery_problems(layout, _placed(layout), _reach())
 	check(_mentions(problems, "not open"), "a chair step in the opening is found: " + str(problems))
+
+
+func test_the_doorway_is_as_wide_as_the_last_dining_table() -> void:
+	var placed: Array[LayoutGeometryScript.Placed] = _placed()
+	var last_table: LayoutGeometryScript.Placed = null
+	for p: LayoutGeometryScript.Placed in placed:
+		if p.def.kind == "table":
+			last_table = p
+	var door: Resource = _kitchen().doorways[0]
+	check_eq(door.width_cm, last_table.def.length_cm, "the data's width is the last table's length ('%s')" % last_table.def.id)
+	var builder: SectionBuilderScript = await _built()
+	var frame: Node3D = builder.doorway_nodes.get(door.id)
+	var opening: float = _box(frame.get_node("JambRight")).position.x - _box(frame.get_node("JambLeft")).end.x
+	check(absf(opening - last_table.length()) < 0.01, "the built opening: %.2f m, the table %.2f m" % [opening, last_table.length()])
+
+
+func test_the_strips_are_fixed_to_the_lintel_with_no_depth_gap() -> void:
+	var door: Resource = _kitchen().doorways[0]
+	var builder: SectionBuilderScript = await _built()
+	var frame: Node3D = builder.doorway_nodes.get(door.id)
+	var lintel: AABB = _box(frame.get_node("Lintel"))
+	for part: String in ["JambLeft", "JambRight", "Lintel", "WallAbove"]:
+		var box: AABB = _box(frame.get_node(part))
+		check(box.end.z <= 0.001 and box.position.z >= -0.3 - 0.001, "%s: z %.3f..%.3f within 0.3 m behind the lane plane" % [part, box.position.z, box.end.z])
+	check(absf(_box(frame.get_node("WallAbove")).position.y - lintel.end.y) < 0.001, "the header wall stands on the lintel")
+	var curtain: Node3D = builder.curtain_nodes.get(door.id)
+	for strip: Node in curtain.get_children():
+		var mesh: AABB = _box(strip.get_node("Mesh"))
+		var flap: AABB = _box(strip.get_node("Flap"))
+		check(mesh.position.z >= -0.001 and mesh.end.z <= 0.3 + 0.001, "%s: within 0.3 m in front (z %.3f..%.3f)" % [strip.name, mesh.position.z, mesh.end.z])
+		check(absf(mesh.end.y - lintel.position.y) < 0.001, "%s: hangs from the lintel's underside" % strip.name)
+		check(absf(flap.position.z - lintel.end.z) < 0.001, "%s: its flap starts at the lintel's face" % strip.name)
+		check(flap.end.z >= mesh.position.z - 0.001, "%s: and reaches the strip" % strip.name)
+
+
+func test_the_lintel_and_header_are_inside_the_view_from_the_floor() -> void:
+	var door: Resource = _kitchen().doorways[0]
+	var m: float = _data().m_per_cm()
+	# The unchanged side camera: over his middle (0.32 m above the floor) by the offset, fov 50, looking level.
+	var offset: Vector3 = _data().stab_camera_offset
+	var view_top: float = 0.32 + offset.y + offset.z * tan(deg_to_rad(25.0))
+	var lintel_top: float = (door.height_cm + door.frame_thickness_cm) * m
+	check(lintel_top < view_top - 0.5, "lintel top %.2f m, view top %.2f m: some header wall shows above it" % [lintel_top, view_top])
+
+
+func _box(node: Node) -> AABB:
+	var mesh: MeshInstance3D = node as MeshInstance3D
+	return mesh.global_transform * mesh.get_aabb()
 
 
 # --- The bottle: def and table rows -----------------------------------------------------------------
@@ -525,7 +580,7 @@ func test_the_spout_doorway_and_ramen_marker_stand_at_the_data_distances() -> vo
 	var ramen_x: float = LayoutGeometryScript.item_x(placed, marker, layout)
 	check(absf(spout_x - last_step.right - 20.0) < 0.5, "the spout about 20 m past the last stair (%.2f m)" % (spout_x - last_step.right))
 	var width: float = door.width_cm * _data().m_per_cm()
-	check(absf(width - 3.0) < 0.1, "the doorway about 3 m wide (%.2f m)" % width)
+	check(absf(width - LayoutGeometryScript.find(placed, "kf_t2").length()) < 0.01, "the doorway as wide as the last table (%.2f m)" % width)
 	var near_edge: float = door_x - width * 0.5
 	check(absf(near_edge - spout_x - 8.0) < 0.1, "its near edge 8 m past the spout (%.2f m)" % (near_edge - spout_x))
 	check(absf(ramen_x - spout_x - 4.0) < 0.5, "ramen_start_1 about 4 m past the spout (%.2f m)" % (ramen_x - spout_x))

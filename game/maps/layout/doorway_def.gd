@@ -1,11 +1,13 @@
 extends Resource
-## A doorway between two rooms, as data. It is OPEN: never locked, never solid. The frame and a partition
-## stand just behind the plane he walks in (z = 0), running back to the two rooms' back walls. Only the
-## rubber curtain strips hang a little in front of him: thin, see-through, not solid, they sway when he
-## passes. Visual only.
+## A doorway between two rooms, as data. It is OPEN: never locked, never solid. He walks through it along
+## the lane: the frame (jambs, lintel, header wall) is a thin slab just behind the plane he walks in
+## (z = 0), and the curtain strips hang from the lintel just in front of it. The strips are thin,
+## see-through, not solid, and sway when he passes. Visual only.
 
 ## The furthest toward the camera a curtain strip may reach (metres in front of z = 0). 🟡
-const CURTAIN_FRONT_MAX_M: float = 1.0
+const CURTAIN_FRONT_MAX_M: float = 0.3
+## The furthest back the frame may reach (metres behind z = 0). 🟡
+const FRAME_BACK_MAX_M: float = 0.3
 
 @export var id: String = ""
 ## The floor it stands on, and the metres from its left edge to the middle of the opening (negative: from
@@ -29,18 +31,23 @@ const CURTAIN_FRONT_MAX_M: float = 1.0
 @export var strip_color: Color = Color(0.7, 0.82, 0.85, 0.4)
 ## The depths the strips hang at, metres in front of z = 0 (they alternate between the two), and how
 ## thick a strip is. The whole strip stays between 0 and CURTAIN_FRONT_MAX_M.
-@export var strip_z_near_m: float = 0.5
-@export var strip_z_far_m: float = 0.7
-@export var strip_thickness_m: float = 0.03
+@export var strip_z_near_m: float = 0.27
+@export var strip_z_far_m: float = 0.285
+@export var strip_thickness_m: float = 0.02
+## The height of the flap at the top of each strip that reaches back to the lintel's face (no gap).
+@export var strip_flap_m: float = 0.12
 
 @export_group("Frame and walls")
 @export var frame_color: Color = Color(0.55, 0.5, 0.45, 1)
 @export var frame_thickness_cm: float = 2.0
-## The front face of the frame and partition is this far behind z = 0 (metres): behind his body.
-@export var frame_clearance_m: float = 0.4
+## The frame's front face is this far behind z = 0 (metres), and how deep the frame and header are.
+@export var frame_clearance_m: float = 0.0
+@export var frame_depth_m: float = 0.25
 ## The rooms' back walls: how far behind the lane strip their front face is, how high they reach from
-## the floor, and how far the first room's wall reaches back from the opening. The second room's wall runs
-## from the opening to the right end of the floor.
+## the floor, and how far the first room's wall reaches back from the opening. The two walls meet behind the
+## MIDDLE of the opening: being further from the camera than the frame they shift against it as he moves,
+## and from there the seam only ever shows through the opening, never beside it. The second room's wall
+## runs on to the right end of the floor.
 @export var wall_gap_cm: float = 9.0
 @export var wall_height_cm: float = 70.0
 @export var wall_before_cm: float = 160.0

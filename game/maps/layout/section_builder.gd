@@ -9,9 +9,8 @@ extends Node3D
 ##   FloorWall_<id>   StaticBody3D, a low wall at the left end of a floor lane (it keeps him on it)
 ##   EndWall_<section>   StaticBody3D, a tall wall after the last table of a section, with a sign
 ##   Fixture_<id>   Node3D in the group "fixtures": a prop he may use (the 정수기), NOT solid
-##   Doorway_<id>   Node3D: an open doorway (nothing solid): the two rooms' back walls (behind the lane),
-##     the frame and partition (group "doorway_partition", just behind the plane he walks in), and under
-##     it Curtain_<id> (group "fixtures"): the swaying rubber strips, a little in front of him
+##   Doorway_<id>   Node3D: an open doorway (nothing solid): the two rooms' back walls (behind the lane), the thin frame and header (group "doorway_partition", just behind the
+##     plane he walks in), and under it Curtain_<id> (group "fixtures"): the swaying strips on the lintel
 
 const MapLayoutScript := preload("res://maps/layout/map_layout.gd")
 const MapSectionScript := preload("res://maps/layout/map_section.gd")
@@ -164,9 +163,10 @@ func _build_water_dispenser(node: Node3D, fixture: FixturePlacementScript, width
 		fixture.color.darkened(0.55), Vector3(0.0, 0.025, 0.0))
 
 
-## An open doorway, never a collider. The first room's back wall ends at the opening and the other
-## room's begins; the frame (jambs, lintel and the wall above it) is a partition that runs from those walls
-## forward to just behind the plane he walks in. Only the curtain strips hang in front of him.
+## An open doorway, never a collider. The first room's back wall ends behind the middle of the opening
+## and the other room's begins there. The frame (jambs, lintel and the header
+## wall above it) is a thin slab just behind the plane he walks in; the curtain strips hang from the lintel
+## just in front of it.
 func _build_doorway(doorway: DoorwayDefScript) -> void:
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
 	if lane == null:
@@ -184,13 +184,13 @@ func _build_doorway(doorway: DoorwayDefScript) -> void:
 	var wall_front: float = -depth_m * 0.5 - doorway.wall_gap_cm * m_per_cm
 	var wall_z: float = wall_front - wall_thickness * 0.5
 	var before: float = doorway.wall_before_cm * m_per_cm
-	var after: float = maxf(lane.right - at.x - width * 0.5, 0.05)
-	PrologueSetScript.add_mesh(frame, "WallBefore", PrologueSetScript.box_mesh(Vector3(before, wall_height, wall_thickness)),
-		doorway.wall_color_before, Vector3(-(width + before) * 0.5, wall_height * 0.5, wall_z))
+	var after: float = maxf(lane.right - at.x, 0.05)
+	PrologueSetScript.add_mesh(frame, "WallBefore", PrologueSetScript.box_mesh(Vector3(before + width * 0.5, wall_height, wall_thickness)),
+		doorway.wall_color_before, Vector3(-(width * 0.5 + before) * 0.5, wall_height * 0.5, wall_z))
 	PrologueSetScript.add_mesh(frame, "WallAfter", PrologueSetScript.box_mesh(Vector3(after, wall_height, wall_thickness)),
-		doorway.wall_color_after, Vector3((width + after) * 0.5, wall_height * 0.5, wall_z))
-	var span: float = -doorway.frame_clearance_m - wall_front
-	var z: float = wall_front + span * 0.5
+		doorway.wall_color_after, Vector3(after * 0.5, wall_height * 0.5, wall_z))
+	var span: float = doorway.frame_depth_m
+	var z: float = -doorway.frame_clearance_m - span * 0.5
 	var above: float = maxf(wall_height - height - post, 0.05)
 	var parts: Array[MeshInstance3D] = [
 		PrologueSetScript.add_mesh(frame, "JambLeft", PrologueSetScript.box_mesh(Vector3(post, height, span)),

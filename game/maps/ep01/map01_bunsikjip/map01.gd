@@ -18,6 +18,7 @@ const ReactionTableScript := preload("res://systems/reaction_table.gd")
 const EnemyBaseScript := preload("res://enemies/enemy_base.gd")
 const ManduRespawnScript := preload("res://prologue/mandu_respawn.gd")
 const MapFlowScript := preload("res://maps/layout/map_flow.gd")
+const DebugStartScript := preload("res://systems/debug_start.gd")
 ## The id this map has in MapCatalog and in the save.
 const MAP_ID: String = "map01"
 const MANDU_SCENE: PackedScene = preload("res://enemies/mandu.tscn")
@@ -96,6 +97,15 @@ func _ready() -> void:
 	player.respawned.connect(flow.on_player_respawned)
 
 	_set_world_open(false)
+	# Debug builds only: --start-at / --screenshot (see systems/debug_start.gd).
+	var debug: Dictionary = DebugStartScript.take_request(flow.layout)
+	if debug["error"] != "":
+		printerr(debug["error"])
+		if debug["screenshot"] != "":
+			get_tree().quit(1)
+	elif debug["id"] != "":
+		DebugStartScript.apply(game_state, flow, debug["id"])
+		game_state.current_map = MAP_ID
 	director.begin()
 	if director.state == DirectorScript.State.COMPLETE:
 		# Loaded after the prologue was done: no stabbing, the way on is open.
@@ -103,6 +113,10 @@ func _ready() -> void:
 		flow.resume()
 		player.global_position = game_state.checkpoint_position
 		player.reset_physics_interpolation()
+		if debug["id"] != "" and camera != null:
+			camera.global_position = player.global_position + (camera.get("offset") as Vector3)
+			if debug["screenshot"] != "":
+				DebugStartScript.screenshot_and_quit(get_tree(), debug["screenshot"])
 		return
 	if _mandu.is_empty():
 		_respawn_mandu() # in the cutscene they are already on her plate

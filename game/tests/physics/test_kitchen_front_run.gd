@@ -322,15 +322,16 @@ func test_he_can_also_jump_through_the_curtain_without_it_stopping_him() -> void
 	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
 	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
 	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
-	teleport(door_x - 3.0, lane.top + 0.5)
+	var half: float = door.width_cm * flow.reach.m_per_cm * 0.5
+	teleport(door_x - half - 1.0, lane.top + 0.5)
 	await until(func() -> bool: return player.get("grounded"), 90)
 	Input.action_press("move_right")
 	Input.action_press("jump")
 	await frames(30)
 	Input.action_release("jump")
-	await until(func() -> bool: return player.global_position.x > door_x + 3.0, 200)
+	await until(func() -> bool: return player.global_position.x > door_x + half + 2.0, 400)
 	Input.action_release("move_right")
-	check(player.global_position.x > door_x + 3.0, "straight through the strips, jumping: " + describe())
+	check(player.global_position.x > door_x + half + 1.0, "straight through the strips, jumping: " + describe())
 
 
 # --- Helpers for the long walks ----------------------------------------------------------------------
@@ -425,7 +426,8 @@ func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and
 	var airborne: int = 0
 	var swayed: float = 0.0
 	var behind_curtain: bool = false
-	var strip: Node3D = curtain.get_node("Strip4/Mesh") as Node3D # the middle one
+	var strip: Node3D = curtain.get_node("Strip%d/Mesh" % (door.strips / 2)) as Node3D # a middle one
+	var door_half: float = door.width_cm * flow.reach.m_per_cm * 0.5
 	Input.action_press("move_right")
 	for i: int in 1800:
 		await tree.physics_frame
@@ -438,13 +440,13 @@ func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and
 		if absf(x - spout_x) < 1.0 and on_floor():
 			in_zone = true
 		swayed = maxf(swayed, float(curtain.call("sway_amount")))
-		if x > door_x + 5.0:
+		if x > door_x + door_half + 3.0:
 			break
 	Input.action_release("move_right")
 	check(in_zone, "he walks through the pour zone, on the floor")
 	check_eq(airborne, 0, "open floor: never off the ground between the stairs and the doorway")
 	check(behind_curtain, "in the doorway the strips hang in front of him, down past his middle")
-	check(player.global_position.x > door_x + 4.0, "under the curtains into the stub: " + describe())
+	check(player.global_position.x > door_x + door_half + 2.0, "through the whole doorway into the stub: " + describe())
 	check(swayed > 0.1, "the strips swayed (%.2f rad)" % swayed)
 	check_eq(gs.hearts, hearts, "no damage")
 

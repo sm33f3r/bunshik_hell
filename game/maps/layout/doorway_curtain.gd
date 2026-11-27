@@ -1,6 +1,7 @@
 extends Node3D
 ## The rubber curtain strips of a doorway (DoorwayDef): thin see-through boxes hung from the top of the
-## opening by their top edge, a little in front of him. No collider at all. When he is under them (or jumps through) the strips near him
+## opening by their top edge, a little in front of him. Each strip has a flap at its top that reaches back
+## to the lintel's front face, so it is fixed to the lintel with no depth gap. No collider at all. When he is under them (or jumps through) the strips near him
 ## swing away from the way he moves and settle again like a damped spring. Visual only.
 
 const PrologueSetScript := preload("res://prologue/prologue_set.gd")
@@ -35,6 +36,12 @@ func build(p_def: DoorwayDefScript, p_m_per_cm: float) -> void:
 			PrologueSetScript.box_mesh(Vector3(slot * doorway.strip_fill, length, doorway.strip_thickness_m)),
 			doorway.strip_color, Vector3(0.0, -length * 0.5, 0.0))
 		(mesh.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		# The flap: from the lintel's front face forward to this strip.
+		var back: float = -doorway.frame_clearance_m
+		var front: float = z + doorway.strip_thickness_m * 0.5
+		PrologueSetScript.add_mesh(pivot, "Flap",
+			PrologueSetScript.box_mesh(Vector3(slot * doorway.strip_fill, doorway.strip_flap_m, front - back)),
+			doorway.frame_color, Vector3(0.0, -doorway.strip_flap_m * 0.5, (front + back) * 0.5 - z))
 		_pivots.append(pivot)
 		_angle.append(0.0)
 		_speed.append(0.0)
