@@ -566,6 +566,21 @@ func test_her_lines_are_exactly_as_written() -> void:
 	check_eq(lines.get_line("no_such_line"), "", "unknown key: empty")
 
 
+func test_beginning_past_the_prologue_says_nothing() -> void:
+	var gs: GameStateScript = GameStateScript.new()
+	gs.prologue_complete = true
+	var d: DirectorScript = DirectorScript.new(_data(), gs)
+	var shown: Array[String] = []
+	d.line_shown.connect(func(key: String, _text: String) -> void: shown.append(key))
+	d.begin()
+	d.step(0.1)
+	check_eq(shown, [] as Array[String], "no line")
+	check_eq(d.line_text, "", "nothing on screen")
+	check_eq(d.stage, 3, "the last anger stage")
+	check_eq(d.count, d.data.stab_target, "the full count")
+	gs.free()
+
+
 func test_each_line_appears_at_its_trigger() -> void:
 	var d: DirectorScript = _in_stab_phase()
 	var shown: Array[String] = []

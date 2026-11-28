@@ -169,7 +169,8 @@ func begin() -> void:
 	if gs.prologue_complete:
 		exit_open = true
 		count = data.stab_target
-		_update_stage()
+		# Set, not _update_stage(): entering a stage makes her say its line, and nothing is played here.
+		stage = stage_for(count + 1)
 		_set_state(State.COMPLETE)
 		return
 	if not gs.prologue_intro_seen and not data.shots.is_empty():

@@ -10,6 +10,7 @@ const GameStateScript := preload("res://systems/game_state.gd")
 const SaveSystemScript := preload("res://systems/save_system.gd")
 const JjigiDefScript := preload("res://items/jjigi_def.gd")
 const Layers := preload("res://systems/layers.gd")
+const GameplayInputScript := preload("res://systems/gameplay_input.gd")
 
 ## Unique and stable: the save remembers "used" by this id.
 @export var steamer_id: String = ""
@@ -32,6 +33,9 @@ var _tween: Tween
 
 
 func _ready() -> void:
+	# Not while the game is paused: W is also "up" in the menus. (The map builds it under MapFlow,
+	# which always runs.)
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("jjigi")
 	if def == null:
 		def = JjigiDefScript.new()
@@ -77,7 +81,7 @@ func _physics_process(_delta: float) -> void:
 			break
 	if _prompt != null:
 		_prompt.visible = near and not is_spent()
-	if near and Input.is_action_just_pressed("look_up"):
+	if near and GameplayInputScript.just_pressed(&"look_up"):
 		activate(game_state)
 
 
