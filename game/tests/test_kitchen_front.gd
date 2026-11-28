@@ -1,6 +1,6 @@
 extends "res://tests/base_test.gd"
-## Task 3c-i-a, fast checks (no physics): the kitchen front section as layout data (tables, the floor lane
-## to the open doorway, the 정수기, the stub and the end wall, the data checkpoint), the 간장 bottle's def
+## Task 3c-i-a, fast checks (no physics): the kitchen front section as layout data (tables, the floor lane,
+## the 정수기, the data checkpoint; the kitchen door is in test_kitchen_door.gd), the 간장 bottle's def
 ## and rows, its behaviour on a fresh instance (roll, squirts, empty, reset), the spawn choice (same seed,
 ## same spot; saved and restored; a new game may differ), the save round trip of the new keys, and the
 ## progress graph + lane rules for the new section. The real-input versions are in
@@ -14,7 +14,6 @@ const JumpReachScript := preload("res://maps/layout/jump_reach.gd")
 const ProgressGraphScript := preload("res://maps/layout/progress_graph.gd")
 const SectionBuilderScript := preload("res://maps/layout/section_builder.gd")
 const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
-const DoorwayCurtainScript := preload("res://maps/layout/doorway_curtain.gd")
 const MovementTuningScript := preload("res://player/movement_tuning.gd")
 const EnemyDefScript := preload("res://enemies/enemy_def.gd")
 const BottleDefScript := preload("res://items/bottle_def.gd")
@@ -136,7 +135,7 @@ func test_the_kitchen_front_goes_on_from_the_last_dining_table_and_the_whole_map
 	var ids: Array[String] = []
 	for section: MapSectionScript in layout.sections:
 		ids.append(section.id)
-	check_eq(ids.back(), "kitchen_front", "the kitchen front is the last section")
+	check_eq(ids.slice(-2), ["kitchen_front", "kitchen"] as Array[String], "the kitchen front, then the kitchen behind its door")
 	check_eq(layout.section("dining_room").end_wall_text, "", "the dining room's end wall is gone")
 	var first: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kf_t1")
 	var last_dining: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "r_t15")
@@ -145,29 +144,21 @@ func test_the_kitchen_front_goes_on_from_the_last_dining_table_and_the_whole_map
 	var problems: Array[String] = LayoutGeometryScript.validate(placed, reach, layout)
 	check(problems.is_empty(), "layout problems:\n        " + "\n        ".join(problems))
 	var stuck: Array[String] = ProgressGraphScript.problems(layout, placed, reach, _wheel())
-	check(stuck.is_empty(), "progress problems (the whole map, kitchen front and stub included):\n        " + "\n        ".join(stuck))
+	check(stuck.is_empty(), "progress problems (the whole map, kitchen included):\n        " + "\n        ".join(stuck))
 	check(ProgressGraphScript.unreachable(layout, placed, reach, {}).is_empty(), "every table of the way is reachable")
 
 
-func test_the_floor_lane_runs_on_to_the_doorway_and_a_stub_beyond_it() -> void:
+func test_the_floor_lane_goes_on_from_the_dining_floor() -> void:
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
 	var dining_lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "dining_floor")
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
 	check(lane != null and lane.def.kind == "floor", "a second floor lane")
 	check_eq(lane.top, dining_lane.top, "at the same height as the dining floor")
 	check(lane.left <= dining_lane.right and lane.right > dining_lane.right, "overlapping it, so he walks from one onto the other")
-	var table: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kf_t2")
-	var door: Resource = _kitchen().doorways[0]
-	var door_x: float = LayoutGeometryScript.item_x(placed, door, _layout())
-	var half: float = door.width_cm * _data().m_per_cm() * 0.5
-	check(door_x - half > table.right, "the doorway is beyond the last table")
-	check(lane.right > door_x + half + 5.0, "and a stub of floor goes on beyond it (%.1f m)" % (lane.right - door_x - half))
-	var wall_after: String = _kitchen().end_wall_after
-	check_eq(wall_after, "kitchen_floor", "the temporary end wall stands at the end of the stub")
 	var builder: SectionBuilderScript = await _built()
 	var wall: Node3D = builder.end_walls.get("kitchen_front")
-	check(wall != null, "it is built")
-	check(absf(wall.global_position.x - (lane.right + SectionBuilderScript.WALL_THICKNESS_M * 0.5)) < 0.01, "right at the end of the lane")
+	check(wall != null, "an end wall is built")
+	check(absf(wall.global_position.x - (lane.right + SectionBuilderScript.PLAIN_END_WALL_THICKNESS_M * 0.5)) < 0.01, "right at the end of the lane")
 	check(builder.end_walls.get("dining_room") == null, "and the dining room has none")
 
 
@@ -212,13 +203,11 @@ func test_the_dispenser_is_a_gray_box_prop_with_an_id_that_is_not_solid() -> voi
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, fixture.platform_id)
 	check_eq(lane.def.kind, "floor", "on the floor")
-	var door: Resource = _kitchen().doorways[0]
+	var door: Resource = _kitchen().fixtures[1]
 	var dispenser_x: float = LayoutGeometryScript.item_x(placed, fixture, _layout())
 	var door_x: float = LayoutGeometryScript.item_x(placed, door, _layout())
 	var m: float = _data().m_per_cm()
-	check(dispenser_x + fixture.width_cm * m * 0.5 < door_x - door.width_cm * m * 0.5, "directly in front of the doorway (before it, not in it)")
-	var near_edge: float = door_x - door.width_cm * m * 0.5
-	check(near_edge - dispenser_x < 12.0, "close to it (%.1f m)" % (near_edge - dispenser_x))
+	check(dispenser_x + fixture.width_cm * m * 0.5 < door_x - door.width_cm * m * 0.5, "the kitchen door is just right of it")
 	var builder: SectionBuilderScript = await _built()
 	var node: Node3D = builder.fixture_nodes.get(fixture.id)
 	check(node != null and node.name == "Fixture_water_dispenser_1", "built as a node named after its id")
@@ -239,155 +228,6 @@ func _collision_objects(node: Node) -> Array[Node]:
 	for child: Node in node.get_children():
 		out.append_array(_collision_objects(child))
 	return out
-
-
-# --- The doorway and its curtain --------------------------------------------------------------------
-
-func test_the_doorway_is_open_and_its_curtain_hangs_down_over_him() -> void:
-	var door: Resource = _kitchen().doorways[0]
-	var m: float = _data().m_per_cm()
-	var head: float = 0.64 # the top of his capsule above the floor (it lies on its side)
-	check(door.bottom_edge_cm * m < head, "the strips (to %.2f m) reach down over him (%.2f m)" % [door.bottom_edge_cm * m, head])
-	check(door.height_cm * m > head * 3.0, "and start well above him")
-	check(door.strip_color.a < 0.6, "see-through")
-	check(door.width_cm * m * door.strip_fill / door.strips < 0.3, "narrow strips")
-	check(door.height_cm > door.bottom_edge_cm, "the strips hang from the top, down to the bottom edge")
-	var builder: SectionBuilderScript = await _built()
-	var frame: Node3D = builder.doorway_nodes.get(door.id)
-	var curtain: Node3D = builder.curtain_nodes.get(door.id)
-	check(frame != null and curtain != null, "both are built")
-	check(_collision_objects(frame).is_empty(), "no collider anywhere in the doorway: it is open, never locked")
-	check_eq(curtain.call("strip_count"), door.strips, "the strips")
-	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(_placed(), door.platform_id)
-	check(absf(float(curtain.call("bottom_edge_y")) - (lane.top + door.bottom_edge_cm * m)) < 0.001, "its bottom edge is the data's")
-	var offenders: Array[String] = LaneRulesScript.offenders(builder, _lane_depth())
-	check(offenders.is_empty(), "the lane rules are fine with the frame, the curtain and the dispenser:\n        " + "\n        ".join(offenders))
-
-
-func test_the_doorway_depths_in_the_data_put_the_frame_behind_and_the_curtain_just_in_front() -> void:
-	var door: Resource = _kitchen().doorways[0]
-	var half_strip: float = door.strip_thickness_m * 0.5
-	check(door.frame_clearance_m >= 0.0, "the frame is not in front of the lane plane")
-	check(door.frame_clearance_m + door.frame_depth_m <= 0.3 + 0.001, "and within 0.3 m behind it")
-	check(door.strip_z_near_m - half_strip >= 0.0, "the strips hang in front of the lane plane")
-	check(door.strip_z_far_m >= door.strip_z_near_m, "a depth range")
-	check(door.strip_z_far_m + half_strip <= 0.3 + 0.001, "within 0.3 m in front of it")
-	var deep_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		l.section("kitchen_front").doorways[0].frame_depth_m = 5.0)
-	check(_mentions(ProgressGraphScript.scenery_problems(deep_bad, _placed(deep_bad), _reach()), "behind the lane"), "a deep frame is found")
-	var frame_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		l.section("kitchen_front").doorways[0].frame_clearance_m = -0.1)
-	check(_mentions(ProgressGraphScript.scenery_problems(frame_bad, _placed(frame_bad), _reach()), "nearer the camera"), "a frame in front is found")
-	var strips_bad: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		l.section("kitchen_front").doorways[0].strip_z_far_m = 3.0)
-	check(_mentions(ProgressGraphScript.scenery_problems(strips_bad, _placed(strips_bad), _reach()), "curtain strips"), "strips too far forward are found")
-
-
-func test_no_doorway_part_but_the_curtain_is_nearer_the_camera_than_the_lane() -> void:
-	var builder: SectionBuilderScript = await _built()
-	var door: Resource = _kitchen().doorways[0]
-	var frame: Node3D = builder.doorway_nodes.get(door.id)
-	var offenders: Array[String] = LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M)
-	check(offenders.is_empty(), "doorway depths:\n        " + "\n        ".join(offenders))
-	var before: MeshInstance3D = frame.get_node("WallBefore") as MeshInstance3D
-	var after: MeshInstance3D = frame.get_node("WallAfter") as MeshInstance3D
-	var half: float = door.width_cm * _data().m_per_cm() * 0.5
-	check(absf((before.global_transform * before.get_aabb()).end.x - frame.global_position.x) < 0.01, "the dining wall ends behind the middle of the opening")
-	check(absf((after.global_transform * after.get_aabb()).position.x - frame.global_position.x) < 0.01, "where the kitchen wall starts")
-	check((before.global_transform * before.get_aabb()).position.x < frame.global_position.x - half - 5.0, "the dining wall is left of the doorway")
-	check((after.global_transform * after.get_aabb()).end.x > frame.global_position.x + half + 5.0, "the kitchen wall right of it")
-	check(door.wall_color_before != door.wall_color_after, "in another gray")
-	# The check is not asleep: pull a jamb forward, and push a strip too far.
-	(frame.get_node("JambLeft") as Node3D).position.z = 1.0
-	check(_mentions(LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M), "JambLeft"), "a jamb in front is found")
-	var curtain: Node3D = builder.curtain_nodes.get(door.id)
-	(curtain.get_node("Strip0") as Node3D).position.z = 2.0
-	check(_mentions(LaneRulesScript.doorway_offenders(frame, door.CURTAIN_FRONT_MAX_M), "Strip0"), "a strip too far forward is found")
-
-
-func test_the_curtain_sways_when_he_passes_and_settles_again() -> void:
-	var builder: SectionBuilderScript = await _built()
-	var door: Resource = _kitchen().doorways[0]
-	var curtain: DoorwayCurtainScript = builder.curtain_nodes.get(door.id) as DoorwayCurtainScript
-	var walker: CharacterBody3D = CharacterBody3D.new()
-	tree.root.add_child(walker)
-	_nodes.append(walker)
-	curtain.player = walker
-	for i: int in 5:
-		curtain._physics_process(1.0 / 60.0)
-	check(curtain.sway_amount() < 0.001, "still while nobody is near")
-	walker.global_position = curtain.global_position + Vector3(0.0, 0.5, 0.0)
-	walker.velocity = Vector3(5.5, 0.0, 0.0)
-	var peak: float = 0.0
-	for i: int in 30:
-		curtain._physics_process(1.0 / 60.0)
-		peak = maxf(peak, curtain.sway_amount())
-	check(peak > 0.1, "the strips swing as he passes (%.2f rad)" % peak)
-	check(peak <= door.sway_max_rad + 0.0001, "but not past their limit")
-	walker.global_position = curtain.global_position + Vector3(40.0, 0.5, 0.0)
-	walker.velocity = Vector3.ZERO
-	for i: int in 240:
-		curtain._physics_process(1.0 / 60.0)
-	check(curtain.sway_amount() < 0.02, "and they settle (%.3f rad)" % curtain.sway_amount())
-
-
-func test_the_doorway_check_fails_when_something_solid_is_in_the_opening() -> void:
-	var layout: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		# The doorway moved to where the last chair step is, and people need more room to get by.
-		var door: Resource = l.section("kitchen_front").doorways[0]
-		door.from_id = "chair_kf_t2_9"
-		door.along_m = -1.0
-		l.headroom_m = 1.5)
-	var problems: Array[String] = ProgressGraphScript.scenery_problems(layout, _placed(layout), _reach())
-	check(_mentions(problems, "not open"), "a chair step in the opening is found: " + str(problems))
-
-
-func test_the_doorway_is_as_wide_as_the_last_dining_table() -> void:
-	var placed: Array[LayoutGeometryScript.Placed] = _placed()
-	var last_table: LayoutGeometryScript.Placed = null
-	for p: LayoutGeometryScript.Placed in placed:
-		if p.def.kind == "table":
-			last_table = p
-	var door: Resource = _kitchen().doorways[0]
-	check_eq(door.width_cm, last_table.def.length_cm, "the data's width is the last table's length ('%s')" % last_table.def.id)
-	var builder: SectionBuilderScript = await _built()
-	var frame: Node3D = builder.doorway_nodes.get(door.id)
-	var opening: float = _box(frame.get_node("JambRight")).position.x - _box(frame.get_node("JambLeft")).end.x
-	check(absf(opening - last_table.length()) < 0.01, "the built opening: %.2f m, the table %.2f m" % [opening, last_table.length()])
-
-
-func test_the_strips_are_fixed_to_the_lintel_with_no_depth_gap() -> void:
-	var door: Resource = _kitchen().doorways[0]
-	var builder: SectionBuilderScript = await _built()
-	var frame: Node3D = builder.doorway_nodes.get(door.id)
-	var lintel: AABB = _box(frame.get_node("Lintel"))
-	for part: String in ["JambLeft", "JambRight", "Lintel", "WallAbove"]:
-		var box: AABB = _box(frame.get_node(part))
-		check(box.end.z <= 0.001 and box.position.z >= -0.3 - 0.001, "%s: z %.3f..%.3f within 0.3 m behind the lane plane" % [part, box.position.z, box.end.z])
-	check(absf(_box(frame.get_node("WallAbove")).position.y - lintel.end.y) < 0.001, "the header wall stands on the lintel")
-	var curtain: Node3D = builder.curtain_nodes.get(door.id)
-	for strip: Node in curtain.get_children():
-		var mesh: AABB = _box(strip.get_node("Mesh"))
-		var flap: AABB = _box(strip.get_node("Flap"))
-		check(mesh.position.z >= -0.001 and mesh.end.z <= 0.3 + 0.001, "%s: within 0.3 m in front (z %.3f..%.3f)" % [strip.name, mesh.position.z, mesh.end.z])
-		check(absf(mesh.end.y - lintel.position.y) < 0.001, "%s: hangs from the lintel's underside" % strip.name)
-		check(absf(flap.position.z - lintel.end.z) < 0.001, "%s: its flap starts at the lintel's face" % strip.name)
-		check(flap.end.z >= mesh.position.z - 0.001, "%s: and reaches the strip" % strip.name)
-
-
-func test_the_lintel_and_header_are_inside_the_view_from_the_floor() -> void:
-	var door: Resource = _kitchen().doorways[0]
-	var m: float = _data().m_per_cm()
-	# The unchanged side camera: over his middle (0.32 m above the floor) by the offset, fov 50, looking level.
-	var offset: Vector3 = _data().stab_camera_offset
-	var view_top: float = 0.32 + offset.y + offset.z * tan(deg_to_rad(25.0))
-	var lintel_top: float = (door.height_cm + door.frame_thickness_cm) * m
-	check(lintel_top < view_top - 0.5, "lintel top %.2f m, view top %.2f m: some header wall shows above it" % [lintel_top, view_top])
-
-
-func _box(node: Node) -> AABB:
-	var mesh: MeshInstance3D = node as MeshInstance3D
-	return mesh.global_transform * mesh.get_aabb()
 
 
 # --- The bottle: def and table rows -----------------------------------------------------------------
@@ -561,35 +401,30 @@ func test_the_bottle_has_two_spots_under_the_last_table() -> void:
 	check_eq(entry.platform_id, "", "and the data entry itself is left alone")
 
 
-func test_the_spout_doorway_and_ramen_marker_stand_at_the_data_distances() -> void:
+func test_the_spout_door_and_ramen_marker_stand_at_the_data_distances() -> void:
 	var layout: MapLayoutScript = _layout()
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
 	var section: MapSectionScript = _kitchen()
 	var last_step: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "chair_kf_t2_9")
 	check(LayoutGeometryScript.find(placed, "chair_kf_t2_10") == null, "chair_kf_t2_9 is the last chair step")
 	var spout: Resource = section.fixtures[0]
-	var door: Resource = section.doorways[0]
+	var door: Resource = section.fixtures[1]
 	check_eq(section.markers.size(), 1, "one marker")
 	var marker: Resource = section.markers[0]
 	check_eq(marker.id, "ramen_start_1", "its id")
 	check_eq(spout.from_id, "chair_kf_t2_9", "the spout is measured from the last stair")
-	check_eq(door.from_id, spout.id, "the doorway from the spout")
+	check_eq(door.from_id, spout.id, "the door from the spout")
 	check_eq(marker.from_id, spout.id, "the marker from the spout")
 	var spout_x: float = LayoutGeometryScript.item_x(placed, spout, layout)
 	var door_x: float = LayoutGeometryScript.item_x(placed, door, layout)
 	var ramen_x: float = LayoutGeometryScript.item_x(placed, marker, layout)
 	check(absf(spout_x - last_step.right - 20.0) < 0.5, "the spout about 20 m past the last stair (%.2f m)" % (spout_x - last_step.right))
-	var width: float = door.width_cm * _data().m_per_cm()
-	check(absf(width - LayoutGeometryScript.find(placed, "kf_t2").length()) < 0.01, "the doorway as wide as the last table (%.2f m)" % width)
-	var near_edge: float = door_x - width * 0.5
-	check(absf(near_edge - spout_x - 8.0) < 0.1, "its near edge 8 m past the spout (%.2f m)" % (near_edge - spout_x))
+	check(absf(door_x - spout_x - 5.34) < 0.01, "the door's middle 5.34 m past the spout (%.2f m)" % (door_x - spout_x))
 	check(absf(ramen_x - spout_x - 4.0) < 0.5, "ramen_start_1 about 4 m past the spout (%.2f m)" % (ramen_x - spout_x))
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
-	var door_right: float = door_x + door.width_cm * _data().m_per_cm() * 0.5
-	check(lane.right - door_right > 5.0 and lane.right - door_right < 15.0, "a short stub beyond the doorway (%.1f m)" % (lane.right - door_right))
 	# Open floor: no platform but the lane itself from the last stair on to the end of the stub.
 	for p: LayoutGeometryScript.Placed in placed:
-		if p != lane:
+		if p != lane and p.section_id != "kitchen":
 			check(p.right <= last_step.right + 0.001, "no platform in the fight space: " + p.def.id)
 	for c: Resource in _bottle_entry().candidates:
 		check(LayoutGeometryScript.item_x(placed, c) < last_step.right, "no bottle spot in it either: " + c.id)

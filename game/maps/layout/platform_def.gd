@@ -63,6 +63,9 @@ extends Resource
 @export var wall_cm: float = 0.0
 ## The lane runs this much further right than the margin says (a stub beyond the last table).
 @export var span_extra_right_cm: float = 0.0
+## A floor of a room of its own (no span_from): it has a `host` floor, starts `after_gap_cm` past that
+## one's right end at the same height, and is `length_cm` long. Reached only through a wall door.
+@export var after_gap_cm: float = 0.0
 
 @export_group("Stairs")
 ## The way back up from the floor: `steps` blocks next to the `host` table, going down away from it

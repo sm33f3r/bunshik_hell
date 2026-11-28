@@ -118,6 +118,9 @@ static func _place_relative(p: Placed, reach: JumpReachScript, anchor: Dictionar
 
 static func _place_floor(p: Placed, out: Array[Placed], reach: JumpReachScript) -> void:
 	var def: PlatformDefScript = p.def
+	if def.span_from == "":
+		_place_room_floor(p, out, reach)
+		return
 	var from_p: Placed = find(out, def.span_from)
 	var to_p: Placed = find(out, def.span_to)
 	var drop_p: Placed = find(out, def.drop_from)
@@ -130,6 +133,36 @@ static func _place_floor(p: Placed, out: Array[Placed], reach: JumpReachScript) 
 	p.thickness = def.thickness_cm * reach.m_per_cm
 	p.chain = false
 	p.prev = null
+
+
+## A floor of its own room, off to the right of its host floor (see PlatformDef.after_gap_cm).
+static func _place_room_floor(p: Placed, out: Array[Placed], reach: JumpReachScript) -> void:
+	var def: PlatformDefScript = p.def
+	var host: Placed = find(out, def.host)
+	if host == null:
+		push_warning("floor '%s': without span_from it needs a host floor placed before it" % def.id)
+		return
+	p.left = host.right + def.after_gap_cm * reach.m_per_cm
+	p.right = p.left + def.length_cm * reach.m_per_cm
+	p.top = host.top
+	p.thickness = def.thickness_cm * reach.m_per_cm
+	p.chain = false
+	p.prev = null
+
+
+## True for a floor lane of a room: no table over it and a wall door on it. It is entered and left by
+## the door, so it needs no way up to a table.
+static func is_door_room(lane: Placed, placed: Array[Placed], layout: MapLayoutScript) -> bool:
+	if layout == null:
+		return false
+	for p: Placed in placed:
+		if p.def.kind == "table" and p.right > lane.left and p.left < lane.right:
+			return false
+	for section: MapSectionScript in layout.sections:
+		for fixture: Resource in section.fixtures:
+			if fixture.kind == "wall_door" and fixture.platform_id == lane.def.id:
+				return true
+	return false
 
 
 ## The staircase of a "stairs" def: blocks next to the host table, from just under its top down to
@@ -182,7 +215,7 @@ static func x_on(p: Placed, along_m: float) -> float:
 	return p.left + along_m if along_m >= 0.0 else p.right + along_m
 
 
-## The x of anything placed with platform_id / along_m / from_id (a fixture, a doorway, a marker, a spawn
+## The x of anything placed with platform_id / along_m / from_id (a fixture, a marker, a spawn
 ## or a spawn candidate). Without from_id: along its platform. With it: along_m metres from the right end
 ## of that platform, or from the middle of that fixture (which needs `layout`). NAN when what it names is
 ## not there.
@@ -398,6 +431,8 @@ static func _validate_one_lane(lane: Placed, placed: Array[Placed], reach: JumpR
 				problems.append("%s: the step runs into '%s'" % [label, other.def.id])
 			elif underside - b.top < headroom:
 				problems.append("%s: only %.2f m under '%s' (needs %.2f m)" % [label, underside - b.top, other.def.id, headroom])
+	if is_door_room(lane, placed, layout):
+		return
 	# The way back up: BFS over hops from the floor to a table.
 	var reached: Array[Placed] = [lane]
 	var queue: Array[Placed] = [lane]

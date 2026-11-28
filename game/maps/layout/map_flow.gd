@@ -24,6 +24,8 @@ const SpawnEntryScript := preload("res://maps/layout/spawn_entry.gd")
 const LayoutGeometryScript := preload("res://maps/layout/layout_geometry.gd")
 const JumpReachScript := preload("res://maps/layout/jump_reach.gd")
 const SectionBuilderScript := preload("res://maps/layout/section_builder.gd")
+const DoorPlacementScript := preload("res://maps/layout/door_placement.gd")
+const WallDoorScript := preload("res://maps/layout/wall_door.gd")
 const HintTrackerScript := preload("res://maps/layout/hint_tracker.gd")
 const TutorialUiScript := preload("res://ui/tutorial_ui.gd")
 const ActionGlyphsScript := preload("res://systems/action_glyphs.gd")
@@ -69,6 +71,8 @@ var _guard: int = 0
 var _fade_t: float = 0.0
 ## The fade in progress is the tutorial's own end (he reached the dining room), not the skip.
 var _fade_exit: bool = false
+## The fade in progress goes through a wall door: the door he arrives at ("" = not a door's fade).
+var _fade_door: String = ""
 ## The last platform he stood on ("" = none yet), for the "steps onto its platform again" respawn. It is not
 ## cleared while he is in the air, so jumping and landing on the same table is not stepping onto it.
 var _last_stand: String = ""
@@ -96,6 +100,9 @@ func setup(p_player: DdeokScript, p_camera: Camera3D, p_game_state: GameStateScr
 	builder.game_state = game_state
 	add_child(builder)
 	builder.build(layout, placed, m, data.dims().counter_depth_cm * m)
+	for door: WallDoorScript in builder.door_nodes.values():
+		door.player = player
+		door.enter_requested.connect(enter_door)
 	ui = TutorialUiScript.new()
 	ui.name = "TutorialUi"
 	add_child(ui)
@@ -323,11 +330,39 @@ func finish_tutorial() -> void:
 	tutorial_finished.emit()
 
 
+# --- Wall doors -------------------------------------------------------------------------------------
+
+## He pressed W at this door: the same fade as the tutorial's end, and he stands at the door it leads to.
+func enter_door(door_id: String) -> void:
+	var door: DoorPlacementScript = layout.find_fixture(door_id) as DoorPlacementScript
+	if phase != Phase.IDLE or door == null or layout.find_fixture(door.target_door_id) == null:
+		return
+	_fade_door = door.target_door_id
+	phase = Phase.FADE_OUT
+	_fade_t = 0.0
+
+
+## Behind the black screen: the other side's section is on (what is already on stays as it is) and he
+## stands in front of the door he arrives at.
+func _perform_door() -> void:
+	var section: MapSectionScript = layout.section_of_fixture(_fade_door)
+	if section != null and not enabled_sections.has(section.id):
+		enable_section(section.id)
+	var node: Node3D = builder.fixture_nodes.get(_fade_door) if builder != null else null
+	if node != null and player.call("state_name") != "dead":
+		_move_player_to(node.global_position + Vector3(0.0, player.body_half_height + 0.02, 0.0))
+	if ui != null:
+		ui.clear_hint()
+
+
 # --- Every physics tick -----------------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
 	if layout == null or player == null:
 		return
+	if builder != null:
+		for door: WallDoorScript in builder.door_nodes.values():
+			door.using_pad = using_pad
 	match phase:
 		Phase.PROMPT:
 			_step_prompt()
@@ -358,12 +393,15 @@ func _step_fade_out(delta: float) -> void:
 	_fade_t += delta
 	ui.set_fade(_fade_t / maxf(layout.fade_out_s, 0.01))
 	if _fade_t >= layout.fade_out_s:
-		if _fade_exit:
+		if _fade_door != "":
+			_perform_door()
+		elif _fade_exit:
 			_perform_exit()
 		else:
 			_perform_skip()
 			_release_pause()
 		_fade_exit = false
+		_fade_door = ""
 		phase = Phase.FADE_IN
 		_fade_t = 0.0
 
@@ -537,6 +575,12 @@ func catch_y_at(x: float) -> float:
 
 ## A new life: the hints may show again, and the section starts over.
 func on_player_respawned() -> void:
+	if _fade_door != "":
+		# He died going through: the door is forgotten, he stays at his respawn point.
+		_fade_door = ""
+		phase = Phase.IDLE
+		if ui != null:
+			ui.set_fade(0.0)
 	tracker.reset()
 	if ui != null:
 		ui.clear_hint()

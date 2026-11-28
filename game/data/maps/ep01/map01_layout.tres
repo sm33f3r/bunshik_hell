@@ -10,7 +10,8 @@
 [ext_resource type="Script" path="res://maps/layout/prompt_trigger.gd" id="s_trig"]
 [ext_resource type="Script" path="res://maps/layout/spawn_candidate.gd" id="s_cand"]
 [ext_resource type="Script" path="res://maps/layout/fixture_placement.gd" id="s_fix"]
-[ext_resource type="Script" path="res://maps/layout/doorway_def.gd" id="s_door"]
+[ext_resource type="Script" path="res://maps/layout/door_placement.gd" id="s_door"]
+[ext_resource type="Script" path="res://maps/layout/back_wall_def.gd" id="s_wall"]
 [ext_resource type="Script" path="res://maps/layout/marker_def.gd" id="s_mark"]
 [ext_resource type="PackedScene" path="res://enemies/mandu.tscn" id="sc_mandu"]
 [ext_resource type="PackedScene" path="res://enemies/danmuji.tscn" id="sc_danmuji"]
@@ -982,10 +983,11 @@ jjigi = Array[ExtResource("s_jj")]([SubResource("jj_mid")])
 
 ; ---------------------------------------------------------------------------------------------------
 ; Task 3c-i-a: the kitchen front. It goes on from the last dining table (the dining room's end wall is
-; gone): two more tables over a floor lane that runs on to the open kitchen doorway, a 정수기 in front of
-; the doorway, a short kitchen stub beyond it and a temporary end wall (the kitchen is built in 3c-ii).
-; Distances (🟡), each measured with from_id: the 정수기's spout 20 m past the last chair step, the doorway's
-; near edge 8 m past the spout (as wide as the last table kf_t2, 80 cm = 13.96 m, so its middle is 14.98 m past), ramen_start_1 4 m past the spout. Between the stairs and the doorway: open floor.
+; gone): two more tables over a floor lane, a 정수기 on the back wall, the kitchen door on the back wall
+; just right of it (Task 3c-i-a-fix4: entered with W), and the dining lane's end wall shortly after.
+; Distances: the 정수기's spout 20 m past the last chair step; the door's left edge 1.5 m past the
+; unit's right edge (unit 4.36 m wide, door 3.32 m: its middle is 5.34 m past the spout); the lane ends
+; 6 m past the door's middle; ramen_start_1 4 m past the spout.
 ; The 간장 bottle has two candidate spots, under the last table; one is picked per new game.
 ; ---------------------------------------------------------------------------------------------------
 
@@ -1023,7 +1025,7 @@ bottom_rise_cm = 8.0
 thickness_cm = 2
 
 ; The floor lane goes on from the dining room's (it starts under the last dining-room table, so the two
-; overlap) under the new tables, past the chair steps, to the kitchen doorway and the stub beyond it.
+; overlap) under the new tables, past the chair steps and the kitchen door, to the end wall.
 [sub_resource type="Resource" id="plat_kitchen_floor"]
 script = ExtResource("s_plat")
 id = "kitchen_floor"
@@ -1037,7 +1039,7 @@ span_from = "r_t15"
 span_to = "kf_t2"
 drop_from = "prologue_exit_table"
 drop_cm = 75.0
-span_extra_right_cm = 438.0
+span_extra_right_cm = 306.0
 
 ; Under the last table (13.96 m long), clear of its legs (behind the lane) and of the chair steps.
 [sub_resource type="Resource" id="spot_under_left"]
@@ -1087,30 +1089,27 @@ height_cm = 30.0
 mount_cm = 18.0
 params = {"pour_zone_width_m": 2.0, "sodium_cost": 1}
 
+; The kitchen door: on the back wall, in place of the wall there. 19 x 37 cm = 3.32 x 6.46 m.
 [sub_resource type="Resource" id="door_kitchen"]
 script = ExtResource("s_door")
 id = "kitchen_door"
+kind = "wall_door"
 platform_id = "kitchen_floor"
 from_id = "water_dispenser_1"
-along_m = 14.98
-width_cm = 80.0
-height_cm = 38.0
-bottom_edge_cm = 0.6
-strips = 40
-strip_fill = 0.6
-strip_color = Color(0.720, 0.860, 0.900, 0.260)
-strip_z_near_m = 0.27
-strip_z_far_m = 0.285
-strip_thickness_m = 0.02
-strip_flap_m = 0.06
-frame_thickness_cm = 3.0
-frame_clearance_m = 0.0
-frame_depth_m = 0.25
-frame_color = Color(0.380, 0.270, 0.180, 1)
-sway_max_rad = 0.18
-wall_gap_cm = 9.0
-wall_height_cm = 70.0
-wall_before_cm = 160.0
+along_m = 5.34
+width_cm = 19.0
+height_cm = 37.0
+color = Color(0.270, 0.160, 0.085, 1)
+target_door_id = "kitchen_arrival_door"
+locked_until_flag = "ramen1_defeated"
+zone_width_m = 2.0
+
+[sub_resource type="Resource" id="wall_kitchen_front"]
+script = ExtResource("s_wall")
+platform_id = "kitchen_floor"
+from_id = "water_dispenser_1"
+along_m = -20.0
+color = Color(0.680, 0.670, 0.640, 1)
 
 ; Where the first 라면 will stand (Task 3c-i-b). Data only.
 [sub_resource type="Resource" id="mark_ramen_1"]
@@ -1126,15 +1125,69 @@ id = "kitchen_front"
 platforms = Array[ExtResource("s_plat")]([SubResource("plat_kf_t1"), SubResource("plat_kf_t2"), SubResource("plat_kitchen_floor"), SubResource("plat_chair_kf_t2")])
 spawns = Array[ExtResource("s_spawn")]([SubResource("sp_bottle")])
 checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_kitchen")])
-fixtures = Array[ExtResource("s_fix")]([SubResource("fx_dispenser")])
-doorways = Array[ExtResource("s_door")]([SubResource("door_kitchen")])
+fixtures = Array[ExtResource("s_fix")]([SubResource("fx_dispenser"), SubResource("door_kitchen")])
+back_walls = Array[ExtResource("s_wall")]([SubResource("wall_kitchen_front")])
 markers = Array[ExtResource("s_mark")]([SubResource("mark_ramen_1")])
-end_wall_text = "[dev] Map 1 continues here (Task 3c-ii: the kitchen)"
 end_wall_after = "kitchen_floor"
+
+; ---------------------------------------------------------------------------------------------------
+; Task 3c-i-a-fix4: the kitchen, a stub (built out in 3c-ii). A room of its own, far enough to the right
+; that neither room shows from the other; reached only through the door. A short floor lane, a dark back
+; wall, the arrival door at its left end and a temporary end wall at the right.
+; ---------------------------------------------------------------------------------------------------
+
+[sub_resource type="Resource" id="plat_kitchen_room_floor"]
+script = ExtResource("s_plat")
+id = "kitchen_room_floor"
+kind = "floor"
+host = "kitchen_floor"
+after_gap_cm = 344.0
+length_cm = 195
+thickness_cm = 30
+chain = false
+main_path = false
+color = Color(0.230, 0.230, 0.240, 1)
+wall_cm = 60.0
+
+[sub_resource type="Resource" id="door_kitchen_arrival"]
+script = ExtResource("s_door")
+id = "kitchen_arrival_door"
+kind = "wall_door"
+platform_id = "kitchen_room_floor"
+along_m = 10.0
+width_cm = 19.0
+height_cm = 37.0
+color = Color(0.270, 0.160, 0.085, 1)
+target_door_id = "kitchen_door"
+zone_width_m = 2.0
+
+[sub_resource type="Resource" id="wall_kitchen_room"]
+script = ExtResource("s_wall")
+platform_id = "kitchen_room_floor"
+extra_left_m = 14.0
+color = Color(0.250, 0.260, 0.280, 1)
+
+[sub_resource type="Resource" id="cp_kitchen_room"]
+script = ExtResource("s_cp")
+id = "kitchen_start"
+platform_id = "kitchen_room_floor"
+along_m = 10.0
+lift_m = 0.5
+
+[sub_resource type="Resource" id="sec_kitchen"]
+script = ExtResource("s_section")
+id = "kitchen"
+platforms = Array[ExtResource("s_plat")]([SubResource("plat_kitchen_room_floor")])
+checkpoints = Array[ExtResource("s_cp")]([SubResource("cp_kitchen_room")])
+fixtures = Array[ExtResource("s_fix")]([SubResource("door_kitchen_arrival")])
+back_walls = Array[ExtResource("s_wall")]([SubResource("wall_kitchen_room")])
+end_wall_text = "[dev] 3c-ii"
+end_wall_after = "kitchen_room_floor"
 
 [resource]
 script = ExtResource("s_layout")
-sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining"), SubResource("sec_dining_room"), SubResource("sec_kitchen_front")])
+sections = Array[ExtResource("s_section")]([SubResource("sec_prologue"), SubResource("sec_tutorial"), SubResource("sec_dining"), SubResource("sec_dining_room"), SubResource("sec_kitchen_front"), SubResource("sec_kitchen")])
+flags_provided_later = PackedStringArray("ramen1_defeated")
 prompt_accept_text = "튜토리얼 하기"
 prompt_cancel_text = "건너뛰기"
 fade_out_s = 0.35

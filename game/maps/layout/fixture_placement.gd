@@ -1,11 +1,11 @@
 extends Resource
 ## One fixed prop of a section's scenery that he may come to use: a gray-box thing standing on a platform
-## (the 정수기 in front of the kitchen doorway). A data placement type: `kind` says what it is, the
+## (the 정수기, or a wall door: see DoorPlacement). A data placement type: `kind` says what it is, the
 ## builder makes a node "Fixture_<id>" in the group "fixtures" for it. It is a prop he uses on purpose
 ## (like a 찜기), so it may reach into the character lane, and it is not solid. `params` is for what a later task adds (the water pour of Task 3c-i-b).
 
 @export var id: String = ""
-@export_enum("water_dispenser") var kind: String = "water_dispenser"
+@export_enum("water_dispenser", "wall_door") var kind: String = "water_dispenser"
 @export var platform_id: String = ""
 ## Metres from the platform's left edge to its middle. Negative: from the right edge.
 @export var along_m: float = 2.0

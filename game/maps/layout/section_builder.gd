@@ -7,10 +7,9 @@ extends Node3D
 ##   Platform_<id>   StaticBody3D, solid (world layer): tables, ledges, napkin boxes, sills, the floor
 ##     lane and the chair steps
 ##   FloorWall_<id>   StaticBody3D, a low wall at the left end of a floor lane (it keeps him on it)
-##   EndWall_<section>   StaticBody3D, a tall wall after the last table of a section, with a sign
-##   Fixture_<id>   Node3D in the group "fixtures": a prop he may use (the 정수기), NOT solid
-##   Doorway_<id>   Node3D: an open doorway (nothing solid): the two rooms' back walls (behind the lane), the thin frame and header (group "doorway_partition", just behind the
-##     plane he walks in), and under it Curtain_<id> (group "fixtures"): the swaying strips on the lintel
+##   EndWall_<section>   StaticBody3D, a tall wall at the end of a section (with a sign when it has a text)
+##   Fixture_<id>   Node3D in the group "fixtures": a prop he may use (the 정수기, a wall door), NOT solid
+##   BackWall_<section>_<n>   Node3D: a room's back wall behind the lane (decor), open where its doors are
 
 const MapLayoutScript := preload("res://maps/layout/map_layout.gd")
 const MapSectionScript := preload("res://maps/layout/map_section.gd")
@@ -20,14 +19,22 @@ const PrologueSetScript := preload("res://prologue/prologue_set.gd")
 const Layers := preload("res://systems/layers.gd")
 const LaneRulesScript := preload("res://maps/layout/lane_rules.gd")
 const FixturePlacementScript := preload("res://maps/layout/fixture_placement.gd")
-const DoorwayDefScript := preload("res://maps/layout/doorway_def.gd")
-const DoorwayCurtainScript := preload("res://maps/layout/doorway_curtain.gd")
+const DoorPlacementScript := preload("res://maps/layout/door_placement.gd")
+const WallDoorScript := preload("res://maps/layout/wall_door.gd")
+const BackWallDefScript := preload("res://maps/layout/back_wall_def.gd")
 const GameStateScript := preload("res://systems/game_state.gd")
 const STEAMER_SCENE: PackedScene = preload("res://items/steamer.tscn")
 
 const WALL_HEIGHT_M: float = 40.0
 const WALL_THICKNESS_M: float = 0.6
 const END_WALL_COLOR: Color = Color(0.95, 0.75, 0.15)
+## An end wall without a text is a plain, thick piece of the room (no bright dev colour).
+const PLAIN_END_WALL_COLOR: Color = Color(0.5, 0.48, 0.45)
+const PLAIN_END_WALL_THICKNESS_M: float = 12.0
+## ... and it goes this far down past the floor, so nothing shows under it.
+const PLAIN_END_WALL_BELOW_M: float = 12.0
+## A door's frame stands this far in front of its wall (real centimetres): level with the 정수기's panel.
+const DOOR_PROUD_CM: float = 1.0
 
 var layout: MapLayoutScript
 var placed: Array[LayoutGeometryScript.Placed] = []
@@ -39,10 +46,10 @@ var platform_nodes: Dictionary = {}
 var end_walls: Dictionary = {}
 ## 찜기 placement id -> its node (Jjigi_<id>).
 var jjigi_nodes: Dictionary = {}
-## Fixture id -> its node; doorway id -> its frame node and its curtain node.
+## Fixture id -> its node; the wall doors among them again by id; section id -> its back walls.
 var fixture_nodes: Dictionary = {}
-var doorway_nodes: Dictionary = {}
-var curtain_nodes: Dictionary = {}
+var door_nodes: Dictionary = {}
+var back_wall_nodes: Dictionary = {}
 ## Where a thing with a spawn choice gets its pick (and the pick is kept). null = always the first spot.
 var game_state: GameStateScript
 
@@ -74,10 +81,10 @@ func build(p_layout: MapLayoutScript, p_placed: Array[LayoutGeometryScript.Place
 			var node: Node3D = _build_fixture(fixture)
 			if node != null:
 				fixture_nodes[fixture.id] = node
-		for doorway: DoorwayDefScript in section.doorways:
-			_build_doorway(doorway)
+		for i: int in section.back_walls.size():
+			_build_back_wall(section, section.back_walls[i], i)
 	for section: MapSectionScript in layout.sections:
-		if section.external or section.end_wall_text == "":
+		if section.external or (section.end_wall_text == "" and section.end_wall_after == ""):
 			continue
 		var last: LayoutGeometryScript.Placed = null
 		if section.end_wall_after != "":
@@ -108,7 +115,7 @@ func _build_jjigi(placement: Resource) -> Node3D:
 func _build_fixture(fixture: FixturePlacementScript) -> Node3D:
 	if LayoutGeometryScript.find(placed, fixture.platform_id) == null:
 		return null
-	var node: Node3D = Node3D.new()
+	var node: Node3D = WallDoorScript.new() if fixture.kind == "wall_door" else Node3D.new()
 	node.name = "Fixture_%s" % fixture.id
 	node.add_to_group("fixtures")
 	node.set_meta("fixture_id", fixture.id)
@@ -119,6 +126,8 @@ func _build_fixture(fixture: FixturePlacementScript) -> Node3D:
 	var height: float = fixture.height_cm * m_per_cm
 	var lane_depth: float = depth_m * 0.6
 	match fixture.kind:
+		"wall_door":
+			_build_wall_door(node as WallDoorScript, fixture as DoorPlacementScript)
 		"water_dispenser":
 			_build_water_dispenser(node, fixture, width, height)
 		_:
@@ -163,54 +172,76 @@ func _build_water_dispenser(node: Node3D, fixture: FixturePlacementScript, width
 		fixture.color.darkened(0.55), Vector3(0.0, 0.025, 0.0))
 
 
-## An open doorway, never a collider. The first room's back wall ends behind the middle of the opening
-## and the other room's begins there. The frame (jambs, lintel and the header
-## wall above it) is a thin slab just behind the plane he walks in; the curtain strips hang from the lintel
-## just in front of it.
-func _build_doorway(doorway: DoorwayDefScript) -> void:
-	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, doorway.platform_id)
+## A door on the back wall (see DoorPlacement / WallDoor): its frame level with the 정수기's panel.
+func _build_wall_door(node: WallDoorScript, door: DoorPlacementScript) -> void:
+	if door == null:
+		return
+	var wall: BackWallDefScript = _back_wall_of(door.platform_id)
+	var gap: float = (wall.gap_cm if wall != null else BackWallDefScript.new().gap_cm) * m_per_cm
+	node.game_state = game_state
+	node.build(door, m_per_cm, -depth_m * 0.5 - gap, DOOR_PROUD_CM * m_per_cm, depth_m)
+	door_nodes[door.id] = node
+
+
+func _back_wall_of(platform_id: String) -> BackWallDefScript:
+	for section: MapSectionScript in layout.sections:
+		for wall: BackWallDefScript in section.back_walls:
+			if wall.platform_id == platform_id:
+				return wall
+	return null
+
+
+## A room's back wall: pieces beside and above each door of its floor (the door replaces the wall
+## there), and a strip of floor from the back edge of the lane to the wall. Decor only, behind the lane.
+func _build_back_wall(section: MapSectionScript, wall: BackWallDefScript, index: int) -> void:
+	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, wall.platform_id)
 	if lane == null:
 		return
-	var at: Vector3 = LayoutGeometryScript.item_position(placed, doorway, layout)
-	var frame: Node3D = Node3D.new()
-	frame.name = "Doorway_%s" % doorway.id
-	add_child(frame)
-	frame.global_position = at
-	var width: float = doorway.width_cm * m_per_cm
-	var height: float = doorway.height_cm * m_per_cm
-	var post: float = doorway.frame_thickness_cm * m_per_cm
-	var wall_height: float = doorway.wall_height_cm * m_per_cm
-	var wall_thickness: float = 1.0 * m_per_cm
-	var wall_front: float = -depth_m * 0.5 - doorway.wall_gap_cm * m_per_cm
-	var wall_z: float = wall_front - wall_thickness * 0.5
-	var before: float = doorway.wall_before_cm * m_per_cm
-	var after: float = maxf(lane.right - at.x, 0.05)
-	PrologueSetScript.add_mesh(frame, "WallBefore", PrologueSetScript.box_mesh(Vector3(before + width * 0.5, wall_height, wall_thickness)),
-		doorway.wall_color_before, Vector3(-(width * 0.5 + before) * 0.5, wall_height * 0.5, wall_z))
-	PrologueSetScript.add_mesh(frame, "WallAfter", PrologueSetScript.box_mesh(Vector3(after, wall_height, wall_thickness)),
-		doorway.wall_color_after, Vector3(after * 0.5, wall_height * 0.5, wall_z))
-	var span: float = doorway.frame_depth_m
-	var z: float = -doorway.frame_clearance_m - span * 0.5
-	var above: float = maxf(wall_height - height - post, 0.05)
-	var parts: Array[MeshInstance3D] = [
-		PrologueSetScript.add_mesh(frame, "JambLeft", PrologueSetScript.box_mesh(Vector3(post, height, span)),
-			doorway.frame_color, Vector3(-(width + post) * 0.5, height * 0.5, z)),
-		PrologueSetScript.add_mesh(frame, "JambRight", PrologueSetScript.box_mesh(Vector3(post, height, span)),
-			doorway.frame_color, Vector3((width + post) * 0.5, height * 0.5, z)),
-		PrologueSetScript.add_mesh(frame, "Lintel", PrologueSetScript.box_mesh(Vector3(width + post * 2.0, post, span)),
-			doorway.frame_color, Vector3(0.0, height + post * 0.5, z)),
-		PrologueSetScript.add_mesh(frame, "WallAbove", PrologueSetScript.box_mesh(Vector3(width + post * 2.0, above, span)),
-			doorway.wall_color_before.darkened(0.15), Vector3(0.0, height + post + above * 0.5, z)),
-	]
-	for part: MeshInstance3D in parts:
-		part.add_to_group("doorway_partition")
-	var curtain: Node3D = DoorwayCurtainScript.new()
-	curtain.name = "Curtain_%s" % doorway.id
-	curtain.add_to_group("fixtures")
-	frame.add_child(curtain)
-	curtain.call("build", doorway, m_per_cm)
-	doorway_nodes[doorway.id] = frame
-	curtain_nodes[doorway.id] = curtain
+	var start: float = LayoutGeometryScript.item_x(placed, wall, layout)
+	if is_nan(start):
+		return
+	var left: float = start - wall.extra_left_m
+	var right: float = lane.right + wall.extra_right_m
+	var height: float = wall.height_cm * m_per_cm
+	var thickness: float = 1.0 * m_per_cm
+	var front: float = -depth_m * 0.5 - wall.gap_cm * m_per_cm
+	var node: Node3D = Node3D.new()
+	node.name = "BackWall_%s_%d" % [section.id, index]
+	add_child(node)
+	node.global_position = Vector3(0.0, lane.top, 0.0)
+	# The holes, left to right: each a little inside the door's outer edges, so the frame covers the cut.
+	var holes: Array[Vector3] = [] # x = left, y = right, z = height
+	for other: MapSectionScript in layout.sections:
+		for fixture: FixturePlacementScript in other.fixtures:
+			var door: DoorPlacementScript = fixture as DoorPlacementScript
+			if door == null or door.platform_id != wall.platform_id:
+				continue
+			var x: float = LayoutGeometryScript.item_x(placed, door, layout)
+			var half: float = (door.width_cm - door.post_cm) * m_per_cm * 0.5
+			holes.append(Vector3(x - half, x + half, (door.height_cm - door.lintel_cm * 0.5) * m_per_cm))
+	holes.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.x < b.x)
+	var from: float = left
+	var piece: int = 0
+	for hole: Vector3 in holes:
+		_wall_piece(node, "Piece%d" % piece, from, hole.x, 0.0, height, front, thickness, wall.color)
+		_wall_piece(node, "Above%d" % piece, hole.x, hole.y, hole.z, height, front, thickness, wall.color)
+		from = hole.y
+		piece += 1
+	_wall_piece(node, "Piece%d" % piece, from, right, 0.0, height, front, thickness, wall.color)
+	var skirt: float = wall.gap_cm * m_per_cm
+	PrologueSetScript.add_mesh(node, "FloorSkirt", PrologueSetScript.box_mesh(Vector3(right - left, 0.2, skirt)),
+		lane.def.color, Vector3((left + right) * 0.5, -0.1, -depth_m * 0.5 - skirt * 0.5))
+	var walls: Array = back_wall_nodes.get(section.id, [])
+	walls.append(node)
+	back_wall_nodes[section.id] = walls
+
+
+func _wall_piece(parent: Node3D, piece_name: String, left: float, right: float, bottom: float, top: float,
+		front: float, thickness: float, color: Color) -> void:
+	if right - left <= 0.01 or top - bottom <= 0.01:
+		return
+	PrologueSetScript.add_mesh(parent, piece_name, PrologueSetScript.box_mesh(Vector3(right - left, top - bottom, thickness)),
+		color, Vector3((left + right) * 0.5, (bottom + top) * 0.5, front - thickness * 0.5))
 
 
 func _build_platform(p: LayoutGeometryScript.Placed) -> StaticBody3D:
@@ -283,14 +314,24 @@ func _build_end_wall(section: MapSectionScript, last: LayoutGeometryScript.Place
 	body.name = "EndWall_%s" % section.id
 	body.collision_layer = Layers.WORLD
 	body.collision_mask = 0
-	body.position = Vector3(last.right + WALL_THICKNESS_M * 0.5, last.top + WALL_HEIGHT_M * 0.5, 0.0)
-	var size: Vector3 = Vector3(WALL_THICKNESS_M, WALL_HEIGHT_M, depth_m + 4.0)
+	var plain: bool = section.end_wall_text == ""
+	var thickness: float = PLAIN_END_WALL_THICKNESS_M if plain else WALL_THICKNESS_M
+	var below: float = PLAIN_END_WALL_BELOW_M if plain else 0.0
+	body.position = Vector3(last.right + thickness * 0.5, last.top + (WALL_HEIGHT_M - below) * 0.5, 0.0)
+	var size: Vector3 = Vector3(thickness, WALL_HEIGHT_M + below, depth_m + 4.0)
 	var shape: CollisionShape3D = CollisionShape3D.new()
 	shape.name = "CollisionShape3D"
 	var box: BoxShape3D = BoxShape3D.new()
 	box.size = size
 	shape.shape = box
 	body.add_child(shape)
+	if plain:
+		# From the back wall to the front edge of the lane: a corner of the room.
+		var back: float = BackWallDefScript.new().gap_cm * m_per_cm
+		PrologueSetScript.add_mesh(body, "Band", PrologueSetScript.box_mesh(Vector3(thickness, size.y, depth_m + back)),
+			PLAIN_END_WALL_COLOR, Vector3(0.0, 0.0, -back * 0.5))
+		add_child(body)
+		return body
 	# A bright, low band so the wall cannot be missed, and the sign.
 	PrologueSetScript.add_mesh(body, "Band", PrologueSetScript.box_mesh(Vector3(WALL_THICKNESS_M, 12.0, depth_m)),
 		END_WALL_COLOR, Vector3(0.0, -WALL_HEIGHT_M * 0.5 + 6.0, 0.0))

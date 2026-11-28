@@ -2,7 +2,7 @@ extends "res://tests/map1_base.gd"
 ## Task 3c-i-a, real Map 1 scene, REAL input (nothing here calls receive_attack or a bottle function): the
 ## 간장 bottle (a roll knocks it over; slams and stomps on the lying bottle squirt five times, +3 나트륨 each,
 ## then nothing; slam and stomp on the standing one do nothing; dying puts it back upright with five), the
-## curtain strips he walks under into the kitchen stub, the walk from the last table to the doorway, and
+## walk from the last table across the open floor past the 정수기, and
 ## reaching, knocking over and squirting the bottle at each candidate spot. The bottle is placed by its spawn choice: a test forces a spot with GameState.debug_spawn_overrides
 ## and builds the section again (flow.reset_sections()).
 
@@ -273,67 +273,6 @@ func test_the_spot_is_the_picked_one_and_stays_after_a_respawn_without_a_forced_
 	check(bottle().global_position.distance_to(spot) < 0.05, "and the bottle is on the same spot")
 
 
-# --- The curtain and the kitchen stub ---------------------------------------------------------------
-
-func test_he_walks_the_floor_under_the_curtain_strips_into_the_kitchen_stub() -> void:
-	await open_dining()
-	await force_spot("under_last_table_left") # the floor is clear
-	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
-	var fixture: Resource = flow.layout.section("kitchen_front").fixtures[0]
-	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
-	var m: float = flow.reach.m_per_cm
-	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
-	var dispenser_x: float = LayoutGeometryScript.item_x(flow.placed, fixture, flow.layout)
-	var curtain: Node3D = flow.builder.curtain_nodes.get(door.id)
-	check(curtain != null, "the curtain is built")
-	# He drops onto the floor under the first new table and walks right.
-	teleport(plat("chair_kf_t2_9").right + 1.0, lane.top + 0.5) # past the last stair: the open fight space
-	await until(func() -> bool: return player.get("grounded"), 90)
-	var hearts: int = gs.hearts
-	check(feet_y() < lane.top + 0.2, "on the floor: " + describe())
-	var swayed: float = 0.0
-	var passed_dispenser: bool = false
-	Input.action_press("move_right")
-	for i: int in 1500:
-		await tree.physics_frame
-		swayed = maxf(swayed, float(curtain.call("sway_amount")))
-		if player.global_position.x > dispenser_x + 3.0:
-			passed_dispenser = true
-		if player.global_position.x > door_x + door.width_cm * m * 0.5 + 3.0:
-			break
-	Input.action_release("move_right")
-	check(passed_dispenser, "he walks past the 정수기: nothing solid is there")
-	check(player.global_position.x > door_x + door.width_cm * m * 0.5 + 2.0, "and through the doorway: it is open (x %.1f, door %.1f): %s" % [player.global_position.x, door_x, describe()])
-	check(swayed > 0.1, "the strips swayed as he passed (%.2f rad)" % swayed)
-	check_eq(gs.hearts, hearts, "no damage on the way")
-	# He is in the stub; the wall stops him at its end.
-	Input.action_press("move_right")
-	await frames(240)
-	Input.action_release("move_right")
-	check(player.global_position.x < lane.right + 0.01, "the temporary end wall stops him: " + describe())
-	check(player.global_position.x > lane.right - 3.0, "at the end of the stub (x %.1f of %.1f)" % [player.global_position.x, lane.right])
-	await frames(200)
-	check(float(curtain.call("sway_amount")) < 0.1, "the strips settle (%.3f rad)" % float(curtain.call("sway_amount")))
-
-
-func test_he_can_also_jump_through_the_curtain_without_it_stopping_him() -> void:
-	await open_dining()
-	await force_spot("under_last_table_left")
-	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
-	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
-	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
-	var half: float = door.width_cm * flow.reach.m_per_cm * 0.5
-	teleport(door_x - half - 1.0, lane.top + 0.5)
-	await until(func() -> bool: return player.get("grounded"), 90)
-	Input.action_press("move_right")
-	Input.action_press("jump")
-	await frames(30)
-	Input.action_release("jump")
-	await until(func() -> bool: return player.global_position.x > door_x + half + 2.0, 400)
-	Input.action_release("move_right")
-	check(player.global_position.x > door_x + half + 1.0, "straight through the strips, jumping: " + describe())
-
-
 # --- Helpers for the long walks ----------------------------------------------------------------------
 
 func on_floor() -> bool:
@@ -402,18 +341,16 @@ func jump_attack(action: String) -> void:
 	await frames(30)
 
 
-# --- From the last table to the doorway --------------------------------------------------------------
+# --- From the last table to the kitchen door ---------------------------------------------------------
 
-## All real input: off the last table to the floor, past the bottle, across the open fight space, through
-## the pour zone under the spout and under the curtains.
-func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and_under_the_curtains() -> void:
+## All real input: off the last table to the floor, past the bottle, across the open fight space and
+## through the pour zone under the spout to the kitchen door.
+func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_to_the_door() -> void:
 	await open_dining()
 	await force_spot("under_last_table_right")
-	var door: Resource = flow.layout.section("kitchen_front").doorways[0]
-	var door_x: float = LayoutGeometryScript.item_x(flow.placed, door, flow.layout)
+	var door: Node3D = flow.builder.door_nodes.get("kitchen_door")
 	var spout_x: float = flow.builder.fixture_nodes.get("water_dispenser_1").get_meta("spout_x")
 	var stairs_end: float = plat("chair_kf_t2_9").right
-	var curtain: Node3D = flow.builder.curtain_nodes.get(door.id)
 	await put_on("kf_t2", 3.0)
 	var hearts: int = gs.hearts
 	# Off the left end of the table, down to the floor under it.
@@ -424,30 +361,21 @@ func test_he_walks_from_the_last_table_across_the_fight_space_past_the_spout_and
 	check(await hop_over_bottle(), "over the bottle under the table: " + describe())
 	var in_zone: bool = false
 	var airborne: int = 0
-	var swayed: float = 0.0
-	var behind_curtain: bool = false
-	var strip: Node3D = curtain.get_node("Strip%d/Mesh" % (door.strips / 2)) as Node3D # a middle one
-	var door_half: float = door.width_cm * flow.reach.m_per_cm * 0.5
 	Input.action_press("move_right")
 	for i: int in 1800:
 		await tree.physics_frame
 		var x: float = player.global_position.x
-		if absf(x - door_x) < 0.5 and strip.global_position.z > player.global_position.z \
-				and float(curtain.call("bottom_edge_y")) < player.global_position.y:
-			behind_curtain = true
-		if x > stairs_end and x < door_x and not player.get("grounded"):
+		if x > stairs_end and x < door.global_position.x and not player.get("grounded"):
 			airborne += 1
 		if absf(x - spout_x) < 1.0 and on_floor():
 			in_zone = true
-		swayed = maxf(swayed, float(curtain.call("sway_amount")))
-		if x > door_x + door_half + 3.0:
+		if x >= door.global_position.x - 0.5:
 			break
 	Input.action_release("move_right")
+	await frames(20)
 	check(in_zone, "he walks through the pour zone, on the floor")
-	check_eq(airborne, 0, "open floor: never off the ground between the stairs and the doorway")
-	check(behind_curtain, "in the doorway the strips hang in front of him, down past his middle")
-	check(player.global_position.x > door_x + door_half + 2.0, "through the whole doorway into the stub: " + describe())
-	check(swayed > 0.1, "the strips swayed (%.2f rad)" % swayed)
+	check_eq(airborne, 0, "open floor: never off the ground between the stairs and the door")
+	check(door.get("near"), "and stands in the door's zone: " + describe())
 	check_eq(gs.hearts, hearts, "no damage")
 
 

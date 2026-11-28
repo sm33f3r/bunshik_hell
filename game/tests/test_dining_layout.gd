@@ -94,7 +94,7 @@ func test_the_dining_room_goes_on_from_the_dining_room_start() -> void:
 	check_eq(first.section_id, "dining_room", "in its own section")
 	check_eq(_layout().section("dining_room_start").end_wall_text, "", "the start no longer ends in a wall")
 	check_eq(_dining().end_wall_text, "", "nor does the dining room: the kitchen front goes on from its last table (Task 3c-i-a)")
-	check(_layout().section("kitchen_front").end_wall_text != "", "the wall is the kitchen front's")
+	check_eq(_layout().section("kitchen_front").end_wall_after, "kitchen_floor", "the wall is the kitchen front's")
 
 
 func test_the_tables_vary_in_gap_height_and_width() -> void:

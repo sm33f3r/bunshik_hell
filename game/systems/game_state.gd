@@ -45,6 +45,16 @@ const START_SODIUM: int = 0
 const RESPAWN_CHECKPOINT: String = "checkpoint"
 const RESPAWN_JJIGI: String = "jjigi"
 
+## Story flags. FLAG_DEFAULTS is the ONE place that says what a flag is before anything has set it.
+## "ramen1_defeated" is true for now, so the kitchen door is open until the first 라면 exists:
+## Task 3c-i-b changes this to false (and adds the flag to FLAGS_SET_BY_GAME).
+const FLAG_DEFAULTS: Dictionary[String, bool] = {"ramen1_defeated": true}
+## The flags the game's code can set (see ProgressGraph.door_problems). None yet.
+const FLAGS_SET_BY_GAME: Array[String] = []
+## DEBUG BUILDS ONLY: godot --path game -- --flag-off=ramen1_defeated reads that flag as not set (so
+## its door is locked), whatever it is. Never saved.
+const FLAG_OFF_PREFIX: String = "--flag-off="
+
 const DEFAULT_SKILLS: Dictionary[String, bool] = {
 	"move": true,
 	"jump": true,
@@ -115,6 +125,11 @@ var spawn_picks: Dictionary[String, String] = {}
 ## DEBUG / TESTS ONLY, never saved: choice id -> a spot id to use instead of the pick (see SpawnPick for
 ## the command-line way).
 var debug_spawn_overrides: Dictionary[String, String] = {}
+## Story flags that were set (id -> value); a flag not here has its FLAG_DEFAULTS value. They survive
+## death and respawn. Saved (additive key; save_version stays 1).
+var flags: Dictionary[String, bool] = {}
+## DEBUG / TESTS ONLY, never saved: flag id -> a value to read instead.
+var debug_flag_overrides: Dictionary[String, bool] = {}
 ## What he carried when he reached the current checkpoint or used the current 찜기 ({"sauce",
 ## "sodium"}); empty = none taken. Respawning puts these back. Saved only for a 찜기 (saves are
 ## made there); a data checkpoint's is not saved.
@@ -153,6 +168,8 @@ func reset() -> void:
 	game_seed = 0
 	spawn_picks = {}
 	debug_spawn_overrides = {}
+	flags = {}
+	debug_flag_overrides = {}
 	_emit_all()
 
 
@@ -173,6 +190,19 @@ func spawn_pick(choice_id: String, spot_ids: Array[String]) -> String:
 	var picked: String = spot_ids[SpawnPickScript.pick_index(game_seed, choice_id, spot_ids.size())]
 	spawn_picks[choice_id] = picked
 	return picked
+
+
+func has_flag(id: String) -> bool:
+	if debug_flag_overrides.has(id):
+		return debug_flag_overrides[id]
+	if OS.is_debug_build() and OS.get_cmdline_user_args().has(FLAG_OFF_PREFIX + id):
+		return false
+	return flags.get(id, FLAG_DEFAULTS.get(id, false))
+
+
+func set_flag(id: String, value: bool = true) -> void:
+	if id != "":
+		flags[id] = value
 
 
 ## One kill BY THE 떡 of this enemy type. Returns the drops it earns from the every-Nth-kill
@@ -608,6 +638,7 @@ func to_dict() -> Dictionary:
 		"prologue_complete": prologue_complete,
 		"game_seed": game_seed,
 		"spawn_picks": spawn_picks.duplicate(),
+		"flags": flags.duplicate(),
 	}
 
 
@@ -692,6 +723,12 @@ func from_dict(data: Dictionary) -> void:
 		for choice_id: Variant in saved_picks:
 			if choice_id is String and choice_id != "" and saved_picks[choice_id] is String and saved_picks[choice_id] != "":
 				spawn_picks[choice_id] = saved_picks[choice_id]
+	flags = {}
+	var saved_flags: Variant = data.get("flags")
+	if saved_flags is Dictionary:
+		for flag_id: Variant in saved_flags:
+			if flag_id is String and flag_id != "" and saved_flags[flag_id] is bool:
+				flags[flag_id] = saved_flags[flag_id]
 	# The sauce and 나트륨 he had when he used the 찜기 he respawns at. (A data checkpoint's is not saved.)
 	checkpoint_snapshot = {}
 	var saved_snapshot: Variant = data.get("respawn_snapshot")

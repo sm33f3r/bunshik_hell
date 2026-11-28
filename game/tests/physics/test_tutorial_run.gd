@@ -142,7 +142,7 @@ func test_the_cross_starts_the_tutorial() -> void:
 	check_eq(flow.phase, MapFlowScript.Phase.IDLE, "the prompt is gone")
 	check(not tree.paused, "the game runs")
 	check(not flow.ui.prompt_visible(), "and it is hidden")
-	check_eq(flow.enabled_sections, ["tutorial", "dining_room_start", "dining_room", "kitchen_front"] as Array[String], "the tutorial and what follows are live")
+	check_eq(flow.enabled_sections, ["tutorial", "dining_room_start", "dining_room", "kitchen_front", "kitchen"] as Array[String], "the tutorial and what follows are live")
 	check_eq(flow.builder.enemies_of("tutorial").size(), 6, "the tutorial's enemies are out")
 	check_eq(flow.builder.enemies_of("dining_room_start").size(), 1, "and the second 단무지")
 	check(flow.ui.hint_visible() and "이동" in flow.ui.hint_text(), "the first hint (move and jump): " + flow.ui.hint_text())
@@ -669,13 +669,13 @@ func test_falling_off_a_table_puts_him_back_at_the_checkpoint_without_damage() -
 	check(enemies("c1")[0] != wheel, "and the section started over")
 
 
-func test_the_dining_room_start_goes_on_and_the_kitchen_front_ends_in_a_marked_wall() -> void:
+func test_the_dining_room_start_goes_on_and_the_kitchen_front_ends_in_a_wall() -> void:
 	await open_tutorial()
 	check(flow.builder.end_walls.get("dining_room_start") == null, "no wall at the dining room start any more")
 	check(flow.builder.end_walls.get("dining_room") == null, "nor at the dining room's end: the kitchen front goes on (Task 3c-i-a)")
 	var wall: Node3D = flow.builder.end_walls.get("kitchen_front")
 	check(wall != null, "the kitchen front ends in a wall")
-	check("Map 1 continues here" in (wall.get_node("Sign") as Label3D).text, "with a sign saying so")
+	check(wall.get_node_or_null("Sign") == null, "a plain one: the way on is the kitchen door")
 	var lane: LayoutGeometryScript.Placed = plat("kitchen_floor")
 	await put_on("kitchen_floor", lane.length() - 3.0)
 	Input.action_press("move_right")

@@ -17,6 +17,9 @@ const MapSectionScript := preload("res://maps/layout/map_section.gd")
 @export var climb_spacing_max_m: float = 60.0
 ## Validation: no spot of a spawn choice may be nearer than this (along x) to a 정수기's spout.
 @export var spout_clearance_m: float = 10.0
+## Story flags a door may wait for although no code sets them yet: a later task will (the progress
+## graph reports any other flag nothing can set). Remove an entry once the code that sets it exists.
+@export var flags_provided_later: PackedStringArray = PackedStringArray()
 
 
 ## The fixture placed with this id; null when there is none.
@@ -25,6 +28,15 @@ func find_fixture(fixture_id: String) -> Resource:
 		for f: Resource in s.fixtures:
 			if f.id == fixture_id:
 				return f
+	return null
+
+
+## The section a fixture belongs to; null when there is none.
+func section_of_fixture(fixture_id: String) -> MapSectionScript:
+	for s: MapSectionScript in sections:
+		for f: Resource in s.fixtures:
+			if f.id == fixture_id:
+				return s
 	return null
 
 

@@ -48,19 +48,19 @@ func test_the_layout_loads_with_its_three_sections() -> void:
 	var ids: Array[String] = []
 	for section: MapSectionScript in layout.sections:
 		ids.append(section.id)
-	check_eq(ids, ["prologue", "tutorial", "dining_room_start", "dining_room", "kitchen_front"] as Array[String], "sections in order")
+	check_eq(ids, ["prologue", "tutorial", "dining_room_start", "dining_room", "kitchen_front", "kitchen"] as Array[String], "sections in order")
 	check(layout.section("prologue").external, "the prologue is built by the prologue code, not from here")
 	check(layout.section("prologue").platforms.is_empty(), "so it lists nothing")
 	check(not layout.section("tutorial").platforms.is_empty(), "the tutorial has platforms")
 	check(not layout.section("dining_room_start").platforms.is_empty(), "so does the dining room start")
 	check_eq(layout.section("dining_room_start").end_wall_text, "", "the dining room start goes on into the dining room (Task 3b-ii)")
 	check_eq(layout.section("dining_room").end_wall_text, "", "the dining room goes on into the kitchen front (Task 3c-i-a)")
-	check(layout.section("kitchen_front").end_wall_text != "", "the kitchen front ends in a marked wall")
+	check(layout.section("kitchen").end_wall_text != "", "the kitchen ends in a marked wall")
 
 
 func test_every_step_of_the_main_path_can_be_done_at_85_percent() -> void:
 	var reach: JumpReachScript = _reach()
-	var problems: Array[String] = LayoutGeometryScript.validate(_placed(null, reach), reach)
+	var problems: Array[String] = LayoutGeometryScript.validate(_placed(null, reach), reach, _layout())
 	check(problems.is_empty(), "layout problems:\n        " + "\n        ".join(problems))
 
 

@@ -42,32 +42,11 @@ static func offenders(root: Node, lane_depth_m: float, front_top_limit_y: float 
 	return out
 
 
-## The rule for a built doorway: no part of it is nearer the camera than the plane he walks in (z = 0),
-## except the curtain strips (under the node in group "fixtures"), which stay between that plane and
-## `curtain_front_max_m` in front of it. One readable line per offender; empty = fine.
-static func doorway_offenders(doorway: Node, curtain_front_max_m: float) -> Array[String]:
-	var out: Array[String] = []
-	for node: Node in doorway.find_children("*", "MeshInstance3D", true, false):
-		var mesh: MeshInstance3D = node as MeshInstance3D
-		var box: AABB = mesh.global_transform * mesh.get_aabb()
-		var strip: bool = false
-		var parent: Node = mesh.get_parent()
-		while parent != null and parent != doorway:
-			strip = strip or parent.is_in_group("fixtures")
-			parent = parent.get_parent()
-		var limit: float = curtain_front_max_m if strip else 0.0
-		if box.end.z > limit + EPS or (strip and box.position.z < -EPS):
-			out.append("%s: z %.2f..%.2f m (%s may reach %.2f m)" % [
-				doorway.get_path_to(mesh), box.position.z, box.end.z, "a curtain strip" if strip else "this part", limit])
-	return out
-
-
 static func _meshes(node: Node) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []
-	# A 찜기 (or a fixture: the 정수기, the curtain strips) is a prop he uses on purpose, like a pickup: it stands in the lane.
-	# A doorway's partition reaches into the lane strip behind him: doorway_offenders() checks it instead.
-	if node.is_in_group("enemies") or node.is_in_group("hazards") or node.is_in_group("dropped_loot") 			or node.is_in_group("jjigi") or node.is_in_group("fixtures") \
-			or node.is_in_group("doorway_partition") or node is CharacterBody3D:
+	# A 찜기 (or a fixture: the 정수기, a wall door) is a prop he uses on purpose, like a pickup: it stands in the lane.
+	if node.is_in_group("enemies") or node.is_in_group("hazards") or node.is_in_group("dropped_loot") \
+			or node.is_in_group("jjigi") or node.is_in_group("fixtures") or node is CharacterBody3D:
 		return out
 	var mesh: MeshInstance3D = node as MeshInstance3D
 	if mesh != null and mesh.visible and mesh.mesh != null:
