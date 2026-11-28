@@ -4,10 +4,6 @@ extends "res://maps/layout/fixture_placement.gd"
 ## x `height_cm` is the whole door, frame included; `color` is the frame's. Pressing W in its zone on
 ## the floor lane takes him, behind a fade, to the door `target_door_id`.
 
-## A door is about 1:2, and no taller than what the camera shows well from the floor. 🟡
-const MIN_ASPECT: float = 1.7
-const MAX_ASPECT: float = 2.2
-const MAX_HEIGHT_M: float = 6.6
 ## The zone in front of it is a small one. 🟡
 const MAX_ZONE_M: float = 3.0
 
@@ -17,6 +13,13 @@ const MAX_ZONE_M: float = 3.0
 @export var locked_until_flag: String = ""
 ## How wide (along the lane) the zone in front of it is.
 @export var zone_width_m: float = 2.0
+
+@export_group("Size")
+## It is a door for humans: `size_multiple` times the width and the height of the fixture `size_ref_id`
+## (the 정수기 unit), give or take `size_tolerance` times. "" = no size rule. 🟡
+@export var size_ref_id: String = ""
+@export var size_multiple: float = 5.0
+@export var size_tolerance: float = 0.25
 
 @export_group("Look")
 ## The width of the two posts; the lintel is `lintel_cm` high, the threshold `threshold_cm`.

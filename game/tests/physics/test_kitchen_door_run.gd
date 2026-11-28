@@ -80,11 +80,11 @@ func test_the_kitchen_is_walled_at_both_ends() -> void:
 	await press_w()
 	var lane: LayoutGeometryScript.Placed = plat("kitchen_room_floor")
 	Input.action_press("move_right")
-	await frames(400)
+	await frames(900)
 	Input.action_release("move_right")
 	check(player.global_position.x < lane.right and player.global_position.x > lane.right - 2.0, "the end wall: " + describe())
 	Input.action_press("move_left")
-	await frames(500)
+	await frames(1200)
 	Input.action_release("move_left")
 	check(player.global_position.x > lane.left and player.global_position.x < lane.left + 2.0, "the left wall: " + describe())
 

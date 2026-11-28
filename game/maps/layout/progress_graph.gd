@@ -253,7 +253,7 @@ static func reachable_platforms(layout: MapLayoutScript, placed: Array[LayoutGeo
 
 
 ## One readable line per problem with the wall doors (empty = none): each leads to a door, has the
-## proportions of a door, waits only for a flag something can set (the game's code, or listed in the
+## size its data asks for (times the 정수기 unit), waits only for a flag something can set (the game's code, or listed in the
 ## layout's flags_provided_later), and with the flags not in `flags_off` every door can be got to.
 static func door_problems(layout: MapLayoutScript, placed: Array[LayoutGeometryScript.Placed], reach: JumpReachScript,
 		set_by_game: Array[String] = GameStateScript.FLAGS_SET_BY_GAME, flags_off: Array[String] = []) -> Array[String]:
@@ -268,13 +268,15 @@ static func door_problems(layout: MapLayoutScript, placed: Array[LayoutGeometryS
 		var flag: String = door.locked_until_flag
 		if flag != "" and not set_by_game.has(flag) and not layout.flags_provided_later.has(flag):
 			out.append("%s: locked until the flag '%s', but no code path can ever set it (add the code to GameState.FLAGS_SET_BY_GAME, or list it in the layout's flags_provided_later)" % [label, flag])
-		var width: float = door.width_cm * reach.m_per_cm
-		var height: float = door.height_cm * reach.m_per_cm
-		var aspect: float = height / maxf(width, 0.01)
-		if aspect < door.MIN_ASPECT or aspect > door.MAX_ASPECT:
-			out.append("%s: %.2f x %.2f m is not shaped like a door (height / width %.2f)" % [label, width, height, aspect])
-		if height > door.MAX_HEIGHT_M:
-			out.append("%s: %.2f m is taller than the camera shows well (%.1f m)" % [label, height, door.MAX_HEIGHT_M])
+		if door.size_ref_id != "":
+			var ref: Resource = layout.find_fixture(door.size_ref_id)
+			if ref == null:
+				out.append("%s: no fixture '%s' to size it by" % [label, door.size_ref_id])
+			else:
+				var wide: float = door.width_cm / maxf(ref.width_cm, 0.01)
+				var high: float = door.height_cm / maxf(ref.height_cm, 0.01)
+				if absf(wide - door.size_multiple) > door.size_tolerance or absf(high - door.size_multiple) > door.size_tolerance:
+					out.append("%s: %.2f x wide and %.2f x high, not %.1f x the size of '%s'" % [label, wide, high, door.size_multiple, door.size_ref_id])
 		if door.zone_width_m <= 0.0 or door.zone_width_m > door.MAX_ZONE_M:
 			out.append("%s: the zone in front of it must be up to %.1f m wide" % [label, door.MAX_ZONE_M])
 		if not reachable.has(door.platform_id):

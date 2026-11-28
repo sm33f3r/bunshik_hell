@@ -419,7 +419,9 @@ func test_the_spout_door_and_ramen_marker_stand_at_the_data_distances() -> void:
 	var door_x: float = LayoutGeometryScript.item_x(placed, door, layout)
 	var ramen_x: float = LayoutGeometryScript.item_x(placed, marker, layout)
 	check(absf(spout_x - last_step.right - 20.0) < 0.5, "the spout about 20 m past the last stair (%.2f m)" % (spout_x - last_step.right))
-	check(absf(door_x - spout_x - 5.34) < 0.01, "the door's middle 5.34 m past the spout (%.2f m)" % (door_x - spout_x))
+	check(absf(door_x - spout_x - 14.59) < 0.01, "the door's middle 14.59 m past the spout (%.2f m)" % (door_x - spout_x))
+	var zone_from_marker: float = door_x - door.zone_width_m * 0.5 - ramen_x
+	check(absf(zone_from_marker - 9.59) < 0.05, "the door's zone starts 9.59 m past ramen_start_1 (%.2f m)" % zone_from_marker)
 	check(absf(ramen_x - spout_x - 4.0) < 0.5, "ramen_start_1 about 4 m past the spout (%.2f m)" % (ramen_x - spout_x))
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
 	# Open floor: no platform but the lane itself from the last stair on to the end of the stub.

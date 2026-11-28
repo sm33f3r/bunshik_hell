@@ -986,8 +986,8 @@ jjigi = Array[ExtResource("s_jj")]([SubResource("jj_mid")])
 ; gone): two more tables over a floor lane, a 정수기 on the back wall, the kitchen door on the back wall
 ; just right of it (Task 3c-i-a-fix4: entered with W), and the dining lane's end wall shortly after.
 ; Distances: the 정수기's spout 20 m past the last chair step; the door's left edge 1.5 m past the
-; unit's right edge (unit 4.36 m wide, door 3.32 m: its middle is 5.34 m past the spout); the lane ends
-; 6 m past the door's middle; ramen_start_1 4 m past the spout.
+; unit's right edge (unit 4.36 m wide, door 21.82 m: its middle is 14.59 m past the spout); the lane ends
+; 6 m past the door's RIGHT edge (16.91 m past its middle), so both jambs show; ramen_start_1 4 m past the spout.
 ; The 간장 bottle has two candidate spots, under the last table; one is picked per new game.
 ; ---------------------------------------------------------------------------------------------------
 
@@ -1039,7 +1039,7 @@ span_from = "r_t15"
 span_to = "kf_t2"
 drop_from = "prologue_exit_table"
 drop_cm = 75.0
-span_extra_right_cm = 306.0
+span_extra_right_cm = 421.5
 
 ; Under the last table (13.96 m long), clear of its legs (behind the lane) and of the chair steps.
 [sub_resource type="Resource" id="spot_under_left"]
@@ -1089,16 +1089,23 @@ height_cm = 30.0
 mount_cm = 18.0
 params = {"pour_zone_width_m": 2.0, "sodium_cost": 1}
 
-; The kitchen door: on the back wall, in place of the wall there. 19 x 37 cm = 3.32 x 6.46 m.
+; The kitchen door: on the back wall, in place of the wall there. A door for humans (Task 3c-i-a-fix5):
+; 5 x the 정수기 unit (25 x 30 cm) = 125 x 150 cm = 21.82 x 26.18 m. Its top is above the camera's view.
 [sub_resource type="Resource" id="door_kitchen"]
 script = ExtResource("s_door")
 id = "kitchen_door"
 kind = "wall_door"
 platform_id = "kitchen_floor"
 from_id = "water_dispenser_1"
-along_m = 5.34
-width_cm = 19.0
-height_cm = 37.0
+along_m = 14.59
+width_cm = 125.0
+height_cm = 150.0
+size_ref_id = "water_dispenser_1"
+size_multiple = 5.0
+size_tolerance = 0.25
+post_cm = 7.0
+lintel_cm = 9.0
+strips = 14
 color = Color(0.270, 0.160, 0.085, 1)
 target_door_id = "kitchen_arrival_door"
 locked_until_flag = "ramen1_defeated"
@@ -1109,6 +1116,7 @@ script = ExtResource("s_wall")
 platform_id = "kitchen_floor"
 from_id = "water_dispenser_1"
 along_m = -20.0
+height_cm = 165.0
 color = Color(0.680, 0.670, 0.640, 1)
 
 ; Where the first 라면 will stand (Task 3c-i-b). Data only.
@@ -1142,7 +1150,7 @@ id = "kitchen_room_floor"
 kind = "floor"
 host = "kitchen_floor"
 after_gap_cm = 344.0
-length_cm = 195
+length_cm = 270
 thickness_cm = 30
 chain = false
 main_path = false
@@ -1154,9 +1162,15 @@ script = ExtResource("s_door")
 id = "kitchen_arrival_door"
 kind = "wall_door"
 platform_id = "kitchen_room_floor"
-along_m = 10.0
-width_cm = 19.0
-height_cm = 37.0
+along_m = 14.0
+width_cm = 125.0
+height_cm = 150.0
+size_ref_id = "water_dispenser_1"
+size_multiple = 5.0
+size_tolerance = 0.25
+post_cm = 7.0
+lintel_cm = 9.0
+strips = 14
 color = Color(0.270, 0.160, 0.085, 1)
 target_door_id = "kitchen_door"
 zone_width_m = 2.0
@@ -1165,13 +1179,14 @@ zone_width_m = 2.0
 script = ExtResource("s_wall")
 platform_id = "kitchen_room_floor"
 extra_left_m = 14.0
+height_cm = 165.0
 color = Color(0.250, 0.260, 0.280, 1)
 
 [sub_resource type="Resource" id="cp_kitchen_room"]
 script = ExtResource("s_cp")
 id = "kitchen_start"
 platform_id = "kitchen_room_floor"
-along_m = 10.0
+along_m = 14.0
 lift_m = 0.5
 
 [sub_resource type="Resource" id="sec_kitchen"]

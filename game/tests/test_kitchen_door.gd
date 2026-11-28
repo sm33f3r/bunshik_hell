@@ -111,27 +111,50 @@ func _mentions(lines: Array[String], needle: String) -> bool:
 
 # --- The door as data and as built ------------------------------------------------------------------
 
-func test_the_door_has_the_proportions_of_a_door_and_stands_just_right_of_the_dispenser() -> void:
-	var door: Resource = _door()
-	check_eq(door.kind, "wall_door", "a new fixture kind")
-	var width: float = door.width_cm * _m()
-	var height: float = door.height_cm * _m()
-	check(absf(width - 3.3) < 0.1, "about 3.3 m wide (%.2f)" % width)
-	check(height <= 6.6 and height > 6.0, "about 6.5 m high (%.2f)" % height)
-	check(height / width > 1.8 and height / width < 2.1, "about 1:2 (%.2f)" % (height / width))
-	check_eq(door.zone_width_m, 2.0, "a 2 m zone")
+func test_the_door_is_about_five_times_the_dispenser_unit_and_stands_just_right_of_it() -> void:
 	var builder: SectionBuilderScript = await _built()
-	var node: Node3D = builder.fixture_nodes.get("kitchen_door")
 	var dispenser: Node3D = builder.fixture_nodes.get("water_dispenser_1")
-	var frame_left: float = _box(node.get_node("Body/PostLeft")).position.x
-	var gap: float = frame_left - _box(dispenser.get_node("Unit")).end.x
+	# The unit itself (body and tank), not its back panel.
+	var unit: AABB = _box(dispenser.get_node("Unit")).merge(_box(dispenser.get_node("Tank")))
+	for door_id: String in ["kitchen_door", "kitchen_arrival_door"]:
+		var def: Resource = _door(door_id)
+		var node: Node3D = builder.fixture_nodes.get(door_id)
+		check_eq(def.kind, "wall_door", door_id + ": a wall door")
+		check_eq(def.size_ref_id, "water_dispenser_1", door_id + ": sized by the dispenser")
+		check_eq(def.size_multiple, 5.0, door_id + ": five times")
+		check_eq(def.zone_width_m, 2.0, door_id + ": a 2 m zone")
+		var width: float = _box(node.get_node("Body/PostRight")).end.x - _box(node.get_node("Body/PostLeft")).position.x
+		var height: float = _box(node.get_node("Body/Lintel")).end.y - node.global_position.y
+		check(absf(width / unit.size.x - def.size_multiple) <= def.size_tolerance,
+			"%s: %.2f x the unit's width (%.2f / %.2f m)" % [door_id, width / unit.size.x, width, unit.size.x])
+		check(absf(height / unit.size.y - def.size_multiple) <= def.size_tolerance,
+			"%s: %.2f x the unit's height (%.2f / %.2f m)" % [door_id, height / unit.size.y, height, unit.size.y])
+		var wall: Node3D = builder.back_wall_nodes[_layout().section_of_fixture(door_id).id][0]
+		check(_bounds(wall).end.y >= node.global_position.y + height, door_id + ": the wall goes up past the door")
+		check(node.get_node_or_null("Body/Threshold") != null, door_id + ": a threshold")
+	var door: Node3D = builder.fixture_nodes.get("kitchen_door")
+	var frame_left: float = _box(door.get_node("Body/PostLeft")).position.x
+	var gap: float = frame_left - unit.end.x
 	check(absf(gap - 1.5) < 0.1, "1.5 m from the unit's right edge (%.2f)" % gap)
 	check(frame_left > _box(dispenser.get_node("BackWall")).end.x, "clear of the dispenser's panel")
-	var front: float = _box(node.get_node("Body/PostLeft")).end.z
+	var front: float = _box(door.get_node("Body/PostLeft")).end.z
 	check(absf(front - _box(dispenser.get_node("BackWall")).end.z) < 0.01, "at the same depth as the 정수기's panel (%.2f)" % front)
-	var lintel: AABB = _box(node.get_node("Body/Lintel"))
-	check(absf(lintel.end.y - node.global_position.y - height) < 0.01, "the lintel is its top")
-	check(node.get_node_or_null("Body/Threshold") != null, "a threshold")
+
+
+## From the floor the camera never shows the lintel, not even panned all the way up.
+func test_the_lintel_is_above_the_top_of_the_camera_view() -> void:
+	var map: Node = (load("res://maps/ep01/map01_bunsikjip/map01.tscn") as PackedScene).instantiate()
+	_nodes.append(map)
+	var camera: Camera3D = map.get_node("SideCamera") as Camera3D
+	var offset: Vector3 = camera.get("offset")
+	var builder: SectionBuilderScript = await _built()
+	for door_id: String in ["kitchen_door", "kitchen_arrival_door"]:
+		var node: Node3D = builder.fixture_nodes.get(door_id)
+		var lintel: AABB = _box(node.get_node("Body/Lintel"))
+		# His middle is no more than 1 m over the floor he stands on.
+		var view_top: float = node.global_position.y + 1.0 + offset.y + float(camera.get("look_pan")) \
+			+ (offset.z - lintel.end.z) * tan(deg_to_rad(camera.fov * 0.5))
+		check(lintel.position.y > view_top + 1.0, "%s: lintel from %.1f m, the view ends at %.1f m" % [door_id, lintel.position.y, view_top])
 
 
 func test_nothing_of_the_door_is_solid_or_in_front_of_the_back_edge_of_the_lane() -> void:
@@ -153,7 +176,7 @@ func test_the_door_replaces_the_wall_and_the_strips_hang_in_the_walls_plane() ->
 		var def: Resource = _door(door_id)
 		var half: float = (def.width_cm - def.post_cm * 2.0) * _m() * 0.5
 		var x: float = node.global_position.x
-		var opening: AABB = AABB(Vector3(x - half, node.global_position.y + 0.2, -50.0), Vector3(half * 2.0, 5.5, 100.0))
+		var opening: AABB = AABB(Vector3(x - half, node.global_position.y + 0.2, -50.0), Vector3(half * 2.0, 20.0, 100.0))
 		var wall_front: float = 0.0
 		for piece: Node in wall.get_children():
 			if piece.name == "FloorSkirt":
@@ -171,16 +194,24 @@ func test_the_door_replaces_the_wall_and_the_strips_hang_in_the_walls_plane() ->
 		check(_box(node.get_node("Body/Interior")).end.z < wall_front - 0.5, door_id + ": a dark room behind")
 
 
-func test_the_dining_lane_ends_shortly_after_the_door_in_a_plain_wall() -> void:
+## 6 m past the door's right edge, so the end wall never covers the door's right jamb.
+func test_the_dining_lane_ends_6_m_past_the_door_in_a_plain_wall() -> void:
 	var placed: Array[LayoutGeometryScript.Placed] = _placed()
 	var lane: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
 	var door_x: float = LayoutGeometryScript.item_x(placed, _door(), _layout())
 	var after: float = lane.right - (door_x + _door().width_cm * _m() * 0.5)
-	check(after > 3.0 and after < 6.0, "%.1f m of floor after the door" % after)
+	check(absf(after - 6.0) < 0.1, "%.2f m of floor after the door" % after)
 	var builder: SectionBuilderScript = await _built()
 	var wall: Node3D = builder.end_walls.get("kitchen_front")
 	check(wall != null, "an end wall")
 	check(wall.get_node_or_null("Sign") == null, "with no dev sign")
+	# The arrival door is clear of the kitchen's left end, with room to its right.
+	var room: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_room_floor")
+	var arrival: Resource = _door("kitchen_arrival_door")
+	var arrival_x: float = LayoutGeometryScript.item_x(placed, arrival, _layout())
+	var half: float = arrival.width_cm * _m() * 0.5
+	check(arrival_x - half - room.left > 2.0, "clear of the left end (%.2f m)" % (arrival_x - half - room.left))
+	check(room.right - arrival_x - half > 20.0, "room to its right (%.2f m)" % (room.right - arrival_x - half))
 
 
 # --- The kitchen stub -------------------------------------------------------------------------------
@@ -194,7 +225,7 @@ func test_the_kitchen_section_passes_the_layout_lane_rules_and_progress_graph() 
 	var dining: LayoutGeometryScript.Placed = LayoutGeometryScript.find(placed, "kitchen_floor")
 	check_eq(lane.top, dining.top, "the same floor height")
 	check(lane.left - dining.right > 40.0, "a room of its own: %.1f m away" % (lane.left - dining.right))
-	check(lane.right - lane.left < 40.0, "a short lane")
+	check(lane.right - lane.left < 50.0, "a short lane")
 	check(LayoutGeometryScript.validate(placed, _reach(), layout).is_empty(), "layout: " + str(LayoutGeometryScript.validate(placed, _reach(), layout)))
 	var problems: Array[String] = ProgressGraphScript.problems(layout, placed, _reach(), load(MapFlowScript.WHEEL_DEF_PATH))
 	check(problems.is_empty(), "progress graph: " + str(problems))
@@ -241,13 +272,15 @@ func test_the_door_checks_catch_bad_data() -> void:
 	var no_target: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
 		_door("kitchen_door", l).target_door_id = "nowhere")
 	check(_mentions(ProgressGraphScript.door_problems(no_target, _placed(no_target), _reach()), "is not a door"), "a bad target")
-	var squat: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_door("kitchen_door", l).height_cm = 20.0)
-	check(_mentions(ProgressGraphScript.door_problems(squat, _placed(squat), _reach()), "not shaped like a door"), "a squat door")
-	var tall: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
-		_door("kitchen_door", l).height_cm = 45.0
-		_door("kitchen_door", l).width_cm = 23.0)
-	check(_mentions(ProgressGraphScript.door_problems(tall, _placed(tall), _reach()), "taller than"), "a too tall one")
+	var small: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		_door("kitchen_door", l).height_cm = 37.0)
+	check(_mentions(ProgressGraphScript.door_problems(small, _placed(small), _reach()), "the size of"), "a low door")
+	var narrow: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		_door("kitchen_door", l).width_cm = 19.0)
+	check(_mentions(ProgressGraphScript.door_problems(narrow, _placed(narrow), _reach()), "the size of"), "a narrow door")
+	var no_ref: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
+		_door("kitchen_door", l).size_ref_id = "nothing")
+	check(_mentions(ProgressGraphScript.door_problems(no_ref, _placed(no_ref), _reach()), "to size it by"), "nothing to size it by")
 	var wide_zone: MapLayoutScript = _with(func(l: MapLayoutScript) -> void:
 		_door("kitchen_door", l).zone_width_m = 8.0)
 	check(_mentions(ProgressGraphScript.door_problems(wide_zone, _placed(wide_zone), _reach()), "zone"), "a huge zone")
